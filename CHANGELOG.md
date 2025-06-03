@@ -24,3 +24,13 @@ All notable changes to this project will be documented in this file.
 - Eliminated race conditions between mouse events and token selection
 - Simplified event handling logic by removing timing-based guesses
 - Added drag threshold constant (`DRAG_THRESHOLD_PIXELS`) for easier configuration
+
+### Refactoring
+- **Module ID Migration** - Changed module ID from "vjpmacros" to "tokencontextmenu"
+  - Updated all internal references across 13 files
+  - Changed all CSS class names from `vjpmacros-*` to `tokencontextmenu-*`
+  - Updated hook names from `vjpmacros.*` to `tokencontextmenu.*`
+  - Updated debug commands from `vjpmacros.*` to `tokencontextmenu.*`
+  - Updated all console log prefixes to "Token Context Menu"
+  - Updated user flags and settings to use new module ID
+  - Module is now standalone, no longer part of "Von Junzt's SWADE Macros"
