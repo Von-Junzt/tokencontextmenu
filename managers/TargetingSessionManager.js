@@ -105,36 +105,7 @@ class TargetingSessionManager {
     isCurrentSession(sessionId) {
         return this.activeSession?.id === sessionId;
     }
-    
-    /**
-     * Add a target to the current session
-     * @param {string} targetId 
-     * @returns {boolean} Whether target was added
-     */
-    addTarget(targetId) {
-        if (!this.activeSession) return false;
-        this.activeSession.targets.add(targetId);
-        return true;
-    }
-    
-    /**
-     * Remove a target from the current session
-     * @param {string} targetId 
-     * @returns {boolean} Whether target was removed
-     */
-    removeTarget(targetId) {
-        if (!this.activeSession) return false;
-        return this.activeSession.targets.delete(targetId);
-    }
-    
-    /**
-     * Get all targets in current session
-     * @returns {Set<string>|null}
-     */
-    getTargets() {
-        return this.activeSession?.targets || null;
-    }
-    
+
     /**
      * Get current session info
      * @returns {Object|null}
