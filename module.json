@@ -5,6 +5,15 @@
   "url": "https://github.com/Von-Junzt/tokencontextmenu",
   "dependencies": [
     {
+      "id": "swade",
+      "type": "system",
+      "manifest": "https://gitlab.com/api/v4/projects/16688548/packages/generic/swade/latest/system.json",
+      "compatibility": {
+        "minimum": "4.0.0",
+        "verified": "4.4.3"
+      }
+    },
+    {
       "id": "lib-wrapper",
       "manifest": "https://raw.githubusercontent.com/league-of-foundry-developers/lib-wrapper/master/module.json",
       "minimum": "1.8.0",
@@ -19,7 +28,7 @@
   ],
   "compatibility": {
     "minimum": "12",
-    "verified": "12"
+    "verified": "12.331"
   },
   "description": "A simple token context menu",
   "authors": [
