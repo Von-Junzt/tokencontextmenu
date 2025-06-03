@@ -264,21 +264,12 @@ export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort)
     interactionLayer.on('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
 
-    const timeoutId = setTimeout(() => {
-        if (targetingSessionManager.isCurrentSession(sessionId)) {
-            onAbort("Target selection timed out.");
-            targetingSessionManager.endSession();
-        }
-    }, 10000);
-
     function finishTargeting() {
         if (isFinishing) {
             console.warn('Token Context Menu: Attempted double cleanup, ignoring');
             return;
         }
         isFinishing = true;
-
-        clearTimeout(timeoutId);
 
         interactionLayer.off('pointermove', handlePointerMove);
         interactionLayer.off('pointerdown', handlePointerDown);
