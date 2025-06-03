@@ -2,8 +2,22 @@
  * State machine for weapon menu lifecycle management
  * Ensures valid state transitions and prevents race conditions in menu operations
  * 
- * State flow: CLOSED -> OPENING -> OPEN -> CLOSING -> CLOSED
- * Error recovery: ERROR -> CLOSED
+ * @class WeaponMenuStateMachine
+ * @description Implements a finite state machine to manage the weapon menu's lifecycle.
+ * This prevents invalid operations like opening a menu that's already opening or closing
+ * a menu that's already closed.
+ * 
+ * @example State flow diagram:
+ * ```
+ *   CLOSED ──────> OPENING ──────> OPEN
+ *     ↑               │              │
+ *     │               ↓              ↓
+ *     └─── ERROR <───┴──────── CLOSING
+ * ```
+ * 
+ * @property {string} state - Current state of the menu
+ * @property {Object} transitions - Valid state transitions map
+ * @property {Function[]} stateChangeCallbacks - Registered state change listeners
  */
 export class WeaponMenuStateMachine {
     constructor() {
@@ -19,26 +33,27 @@ export class WeaponMenuStateMachine {
     }
     
     /**
-     * Get current state
-     * @returns {string}
+     * Get current state of the menu
+     * @returns {string} Current state ('CLOSED', 'OPENING', 'OPEN', 'CLOSING', or 'ERROR')
      */
     getState() {
         return this.state;
     }
     
     /**
-     * Check if transition is valid
-     * @param {string} toState 
-     * @returns {boolean}
+     * Check if a transition to the specified state is valid
+     * @param {string} toState - Target state to transition to
+     * @returns {boolean} True if transition is allowed from current state
      */
     canTransition(toState) {
         return this.transitions[this.state]?.includes(toState);
     }
     
     /**
-     * Transition to new state
-     * @param {string} toState 
-     * @throws {Error} If transition is invalid
+     * Transition to a new state
+     * @param {string} toState - Target state to transition to
+     * @returns {boolean} True if transition was successful, false if invalid
+     * @fires WeaponMenuStateMachine#stateChange
      */
     transition(toState) {
         if (!this.canTransition(toState)) {
@@ -58,39 +73,45 @@ export class WeaponMenuStateMachine {
     }
     
     /**
-     * Register state change callback
-     * @param {Function} callback - Function called with (fromState, toState)
+     * Register a callback to be called when state changes
+     * @param {Function} callback - Function called with (fromState, toState) when state changes
+     * @example
+     * stateMachine.onStateChange((from, to) => {
+     *     console.log(`Menu transitioned from ${from} to ${to}`);
+     * });
      */
     onStateChange(callback) {
         this.stateChangeCallbacks.push(callback);
     }
     
     /**
-     * Check if menu is in a stable state
-     * @returns {boolean}
+     * Check if menu is in a stable state (not transitioning)
+     * @returns {boolean} True if in CLOSED or OPEN state
      */
     isStable() {
         return this.state === 'CLOSED' || this.state === 'OPEN';
     }
     
     /**
-     * Check if menu is transitioning
-     * @returns {boolean}
+     * Check if menu is currently transitioning between states
+     * @returns {boolean} True if in OPENING or CLOSING state
      */
     isTransitioning() {
         return this.state === 'OPENING' || this.state === 'CLOSING';
     }
     
     /**
-     * Check if menu is open or opening
-     * @returns {boolean}
+     * Check if menu is active (visible or becoming visible)
+     * @returns {boolean} True if in OPEN or OPENING state
      */
     isActive() {
         return this.state === 'OPEN' || this.state === 'OPENING';
     }
     
     /**
-     * Reset to closed state (emergency recovery)
+     * Force reset to closed state (emergency recovery)
+     * @description Use this only when normal state transitions fail, such as after
+     * an error or when the menu gets stuck in an invalid state
      */
     reset() {
         console.warn('tokencontextmenu | Weapon menu state machine reset');
@@ -99,9 +120,23 @@ export class WeaponMenuStateMachine {
 }
 
 /**
- * Operation queue to prevent race conditions
- * Ensures menu operations are processed sequentially to avoid conflicts
- * Used for all async menu operations (render, close, etc.)
+ * Operation queue to prevent race conditions in asynchronous menu operations
+ * 
+ * @class OperationQueue
+ * @description Ensures menu operations (render, close, etc.) are processed sequentially
+ * to prevent conflicts such as trying to open a menu while it's closing or vice versa.
+ * This is critical because PIXI operations and state transitions are asynchronous.
+ * 
+ * @example
+ * const queue = new OperationQueue();
+ * 
+ * // Multiple rapid clicks won't cause issues
+ * await queue.enqueue(async () => await menu.render(), 'render');
+ * await queue.enqueue(async () => await menu.close(), 'close');
+ * 
+ * @property {Array} queue - Pending operations waiting to be processed
+ * @property {boolean} processing - Whether an operation is currently being processed
+ * @property {Object|null} currentOperation - Currently executing operation
  */
 export class OperationQueue {
     constructor() {
@@ -130,9 +165,11 @@ export class OperationQueue {
     }
     
     /**
-     * Process queued operations
-     * Executes operations sequentially to prevent conflicts
+     * Process queued operations sequentially
      * @private
+     * @description Executes operations one at a time, using PIXI ticker to avoid stack overflow
+     * on recursive calls. Each operation is wrapped in try-catch to ensure the queue
+     * continues processing even if an operation fails.
      */
     async process() {
         if (this.processing || this.queue.length === 0) return;
@@ -159,6 +196,8 @@ export class OperationQueue {
     
     /**
      * Clear all pending operations
+     * @description Cancels all queued operations by rejecting their promises.
+     * Use this when you need to abort all pending operations, such as during cleanup.
      */
     clear() {
         // Reject all pending operations
@@ -169,8 +208,11 @@ export class OperationQueue {
     }
     
     /**
-     * Get queue status
-     * @returns {Object}
+     * Get current queue status for debugging
+     * @returns {Object} Status object containing:
+     * @returns {boolean} .processing - Whether currently processing an operation
+     * @returns {number} .queueLength - Number of pending operations
+     * @returns {string|null} .currentOperation - Name of current operation or null
      */
     getStatus() {
         return {

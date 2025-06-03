@@ -104,7 +104,6 @@ export async function showWeaponMenuUnderToken(token) {
 
     if (!equippedWeapons.length) {
         console.warn("Token Context Menu: No equipped weapons found for", token.name);
-        ui.notifications.info("No equipped weapons or favorite powers found.");
         return;
     }
 
