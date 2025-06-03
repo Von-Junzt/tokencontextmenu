@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2025-01-06
 
+### Added
+- **SWADE System Dependency** - Added explicit SWADE system requirement to module.json
+  - Minimum version: 4.0.0
+  - Verified version: 4.4.3
+- **Centralized Constants** - Added comprehensive constants system
+  - Color constants for all UI elements (COLORS)
+  - UI positioning and layout constants (UI)
+  - Weapon sorting priority constants (WEAPON_PRIORITY)
+
+### Changed
+- **Foundry Compatibility** - Updated to v12.331 (stable)
+
 ### Fixed
 - **Weapon Menu Selection Behavior** - Complete overhaul of mouse button detection
   - Replaced unreliable timing-based right-click detection with libWrapper hooks
@@ -40,3 +52,15 @@ All notable changes to this project will be documented in this file.
   - Users can now take as long as needed to select targets
   - Targeting mode stays active until explicitly cancelled (Escape, right-click) or a target is selected
   - More consistent with Foundry VTT UX patterns
+- **Unused Constants** - Cleaned up constants.js
+  - Removed entire STATES object (unused)
+  - Removed unused timing constants
+  - Removed unused Z_INDEX entries
+  - All remaining constants are actively used
+
+### Code Quality
+- **Magic Numbers Elimination** - Replaced all hardcoded values with named constants
+  - All colors now use COLORS constants
+  - All UI dimensions use UI constants
+  - Fixed remaining hardcoded z-index value
+- **Import Cleanup** - Added missing constant imports where needed

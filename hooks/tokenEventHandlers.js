@@ -10,6 +10,7 @@ import {WeaponMenuApplication} from "../applications/weaponMenuApplication.js";
 import {weaponSystemCoordinator} from "../managers/WeaponSystemCoordinator.js";
 import {weaponMenuTokenClickManager} from "../managers/WeaponMenuTokenClickManager.js";
 import {debug, debugWarn} from "../utils/debug.js";
+import {TIMING} from "../utils/constants.js";
 
 /**
  * Track token movement and reshow weapon menu when movement stops
@@ -41,9 +42,9 @@ function trackTokenMovementForMenuReshow(token) {
         );
         ticker.lastPosition = foundry.utils.duplicate(currentCenter);
 
-        if (movementDistance < 0.5) {
+        if (movementDistance < TIMING.MOVEMENT_THRESHOLD) {
             ticker.stationaryFrames++;
-            if (ticker.stationaryFrames > 30) {
+            if (ticker.stationaryFrames > TIMING.MOVEMENT_CHECK_FRAMES) {
                 stopTokenMovementTracker(token);
 
                 if (token.controlled &&

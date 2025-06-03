@@ -5,20 +5,7 @@
 
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { targetingSessionManager } from "../managers/TargetingSessionManager.js";
-
-// Define priority maps
-const EQUIPMENT_PRIORITY = {
-    5: 0,    // Two-handed weapons (highest priority)
-    4: 1,    // One-handed weapons (second priority)
-    2: 2,    // Off-Hand weapons (third priority)
-    1: 3,    // Carried weapons (fourth priority)
-    0: 4     // Stored (lowest priority)
-};
-
-const SPECIAL_WEAPON_PRIORITY = {
-    "claws": 98,
-    "unarmed attack": 99
-};
+import { WEAPON_PRIORITY } from "./constants.js";
 
 // Global interaction layer management
 let globalInteractionLayer = null;
@@ -151,22 +138,33 @@ export function resetGlobalInteractionLayer() {
  */
 export function getWeaponSortPriority(item) {
     if (item.type === 'power') {
-        return 95;
+        return WEAPON_PRIORITY.POWER;
     }
 
     if (item.type === 'weapon') {
         const weaponName = item.name.toLowerCase();
 
-        for (const [key, priority] of Object.entries(SPECIAL_WEAPON_PRIORITY)) {
-            if (weaponName.includes(key)) {
-                return priority;
-            }
+        // Check for special weapon types
+        if (weaponName.includes('claws')) {
+            return WEAPON_PRIORITY.SPECIAL.CLAWS;
+        }
+        if (weaponName.includes('unarmed attack')) {
+            return WEAPON_PRIORITY.SPECIAL.UNARMED;
         }
 
-        return EQUIPMENT_PRIORITY[item.system.equipStatus] ?? 50;
+        // Map equipment status to priority
+        const equipStatusMap = {
+            5: WEAPON_PRIORITY.EQUIPMENT.TWO_HANDED,
+            4: WEAPON_PRIORITY.EQUIPMENT.ONE_HANDED,
+            2: WEAPON_PRIORITY.EQUIPMENT.OFF_HAND,
+            1: WEAPON_PRIORITY.EQUIPMENT.CARRIED,
+            0: WEAPON_PRIORITY.EQUIPMENT.STORED
+        };
+
+        return equipStatusMap[item.system.equipStatus] ?? WEAPON_PRIORITY.DEFAULT;
     }
 
-    return 100;
+    return WEAPON_PRIORITY.OTHER;
 }
 
 /**

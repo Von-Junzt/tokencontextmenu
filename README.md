@@ -2,8 +2,8 @@
 
 A Foundry VTT module that adds a weapon menu for quick access to weapons and powers in the Savage Worlds Adventure Edition (SWADE) system.
 
-![Foundry Version](https://img.shields.io/badge/Foundry-v12-green)
-![SWADE Compatible](https://img.shields.io/badge/SWADE-Compatible-blue)
+![Foundry Version](https://img.shields.io/badge/Foundry-v12.331-green)
+![SWADE Compatible](https://img.shields.io/badge/SWADE-v4.4.3-blue)
 
 ## Features
 
@@ -11,6 +11,7 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
 - **Token Menu**: Click on any token you control to display a menu of equipped weapons and favorite powers
 - **Smart Filtering**: Only shows equipped weapons (including unarmed attacks) and favorited powers
 - **Visual Separation**: Powers are visually separated from weapons with a divider line
+- **Module ID**: `tokencontextmenu` (formerly part of vjpmacros)
 
 ### 🖱️ Controls
 - **Left Click**: Select a weapon to use
@@ -61,10 +62,10 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
 
 ### Dependencies
 
-- **Foundry VTT**: Version 12 or higher
-- **SWADE System**: Required
-- **lib-wrapper**: Required
-- **Better Rolls for SWADE 2**: Required for dice rolling functionality
+- **Foundry VTT**: Version 12 or higher (tested with v12.331)
+- **SWADE System**: v4.0.0 or higher (tested with v4.4.3)
+- **lib-wrapper**: v1.8.0 or higher
+- **Better Rolls for SWADE 2**: v2.0.0 or higher (required for dice rolling)
 
 ## Usage
 

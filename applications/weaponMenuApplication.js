@@ -2,7 +2,7 @@ import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow } from "../settings/se
 import { handleWeaponSelection, handleWeaponEdit } from "../utils/weaponHandlers.js";
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
-import { TIMING, SIZES } from "../utils/constants.js";
+import { TIMING, SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
 
 /**
@@ -130,7 +130,7 @@ export class WeaponMenuApplication extends Application {
         this.container.name = "tokencontextmenu-weapon-menu";
 
         this.container.x = this.token.x + (this.token.w / 2);
-        this.container.y = this.token.y + this.token.h + 10;
+        this.container.y = this.token.y + this.token.h + UI.MENU_Y_OFFSET;
 
         const gridSize = canvas.grid.size;
         const iconScale = getWeaponMenuIconScale();
@@ -165,9 +165,9 @@ export class WeaponMenuApplication extends Application {
         const widths = sections.map(sec => Math.min(sec.length, itemsPerRow) * baseIconSize);
         const menuWidth = Math.max(...widths, baseIconSize);
 
-        background.beginFill(0x000000, 0.6);
-        background.lineStyle(1, 0x2d2d2e);
-        background.drawRoundedRect(-menuWidth/2, 0, menuWidth, menuHeight, 5);
+        background.beginFill(COLORS.MENU_BACKGROUND, COLORS.MENU_BACKGROUND_ALPHA);
+        background.lineStyle(1, COLORS.MENU_BORDER);
+        background.drawRoundedRect(-menuWidth/2, 0, menuWidth, menuHeight, UI.MENU_CORNER_RADIUS);
         background.endFill();
         this.container.addChild(background);
 
@@ -235,12 +235,12 @@ export class WeaponMenuApplication extends Application {
         weaponContainer.weapon = weapon;
 
         const iconBg = new PIXI.Graphics();
-        const bgColor = weapon.type === "power" ? 0x2d2d4d : 0x333333;
-        const borderColor = weapon.type === "power" ? 0x4a4a7a : 0x2d2d2e;
+        const bgColor = weapon.type === "power" ? COLORS.POWER_BACKGROUND : COLORS.WEAPON_BACKGROUND;
+        const borderColor = weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER;
 
         iconBg.beginFill(bgColor);
         iconBg.lineStyle(1, borderColor);
-        iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, 3);
+        iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, UI.ICON_CORNER_RADIUS);
         iconBg.endFill();
         weaponContainer.addChild(iconBg);
 
@@ -252,8 +252,8 @@ export class WeaponMenuApplication extends Application {
             sprite.anchor.set(0.5);
 
             const spriteMask = new PIXI.Graphics();
-            spriteMask.beginFill(0xffffff);
-            spriteMask.drawRoundedRect(-spriteSize/2, -spriteSize/2, spriteSize, spriteSize, 3);
+            spriteMask.beginFill(COLORS.SPRITE_MASK);
+            spriteMask.drawRoundedRect(-spriteSize/2, -spriteSize/2, spriteSize, spriteSize, UI.ICON_CORNER_RADIUS);
             spriteMask.endFill();
 
             sprite.mask = spriteMask;
@@ -264,7 +264,7 @@ export class WeaponMenuApplication extends Application {
             console.warn(`Failed to load weapon texture for ${weapon.name}:`, error);
             const fallbackText = new PIXI.Text(weapon.name.charAt(0), {
                 fontSize: fontSize,
-                fill: 0xffffff,
+                fill: COLORS.TEXT_FILL,
                 align: 'center'
             });
             fallbackText.anchor.set(0.5);
@@ -290,9 +290,9 @@ export class WeaponMenuApplication extends Application {
         separatorContainer.y = yPosition;
 
         const separatorLine = new PIXI.Graphics();
-        separatorLine.lineStyle(1, 0x444444, 0.6);
-        separatorLine.moveTo(-menuWidth/2 + 10, separatorHeight / 2);
-        separatorLine.lineTo(menuWidth/2 - 10, separatorHeight / 2);
+        separatorLine.lineStyle(1, COLORS.SEPARATOR_LINE, COLORS.SEPARATOR_LINE_ALPHA);
+        separatorLine.moveTo(-menuWidth/2 + UI.SEPARATOR_MARGIN, separatorHeight / 2);
+        separatorLine.lineTo(menuWidth/2 - UI.SEPARATOR_MARGIN, separatorHeight / 2);
         separatorContainer.addChild(separatorLine);
 
         return separatorContainer;
@@ -312,12 +312,12 @@ export class WeaponMenuApplication extends Application {
             iconBg.clear();
 
             const weapon = weaponContainer.weapon;
-            const hoverColor = weapon.type === "power" ? 0x4a4a7a : 0x444444;
-            const hoverBorder = weapon.type === "power" ? 0x6a6aaa : 0xcccccc;
+            const hoverColor = weapon.type === "power" ? COLORS.POWER_HOVER_BACKGROUND : COLORS.WEAPON_HOVER_BACKGROUND;
+            const hoverBorder = weapon.type === "power" ? COLORS.POWER_HOVER_BORDER : COLORS.WEAPON_HOVER_BORDER;
 
             iconBg.beginFill(hoverColor);
             iconBg.lineStyle(1, hoverBorder);
-            iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, 3);
+            iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, UI.ICON_CORNER_RADIUS);
             iconBg.endFill();
 
             // Build tooltip content
@@ -379,7 +379,7 @@ export class WeaponMenuApplication extends Application {
                 }
             } else {
                 // Simple tooltip - just wrap in div for consistent styling
-                tooltipContent = `<div class="vjpmacros-weapon-tooltip">${tooltipContent}</div>`;
+                tooltipContent = `<div class="tokencontextmenu-weapon-tooltip">${tooltipContent}</div>`;
             }
 
             this._showTooltip(tooltipContent, event);
@@ -390,12 +390,12 @@ export class WeaponMenuApplication extends Application {
             iconBg.clear();
 
             const weapon = weaponContainer.weapon;
-            const bgColor = weapon.type === "power" ? 0x2d2d4d : 0x333333;
-            const borderColor = weapon.type === "power" ? 0x4a4a7a : 0x2d2d2e;
+            const bgColor = weapon.type === "power" ? COLORS.POWER_BACKGROUND : COLORS.WEAPON_BACKGROUND;
+            const borderColor = weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER;
 
             iconBg.beginFill(bgColor);
             iconBg.lineStyle(1, borderColor);
-            iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, 3);
+            iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, UI.ICON_CORNER_RADIUS);
             iconBg.endFill();
 
             this._hideTooltip();
@@ -507,7 +507,7 @@ export class WeaponMenuApplication extends Application {
         tooltip.innerHTML = content;
         tooltip.id = 'weapon-menu-tooltip';
         tooltip.style.display = 'block';
-        tooltip.style.zIndex = '100000';
+        tooltip.style.zIndex = Z_INDEX.TOOLTIP;
         document.body.appendChild(tooltip);
 
         const updateTooltipPosition = (e) => {
