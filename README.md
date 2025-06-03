@@ -30,6 +30,7 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
 - **Smart Targeting**: 
   - Template weapons (AOE) create attack cards immediately
   - Single-target weapons enter targeting mode if no target selected
+  - No timeout - take as long as you need to select targets
   - Auto-remove existing targets option
 - **Movement Handling**: Menu hides during token movement and can reopen afterward
 - **Token Selection**: Optional auto-show menu when selecting tokens

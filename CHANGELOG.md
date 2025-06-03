@@ -34,3 +34,9 @@ All notable changes to this project will be documented in this file.
   - Updated all console log prefixes to "Token Context Menu"
   - Updated user flags and settings to use new module ID
   - Module is now standalone, no longer part of "Von Junzt's SWADE Macros"
+
+### Removed
+- **Target Selection Timeout** - Removed the 10-second timeout when selecting targets
+  - Users can now take as long as needed to select targets
+  - Targeting mode stays active until explicitly cancelled (Escape, right-click) or a target is selected
+  - More consistent with Foundry VTT UX patterns
