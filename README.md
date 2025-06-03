@@ -108,21 +108,6 @@ Access module settings through Foundry's module configuration:
 - The module may conflict with other UI modification modules
 - Disable "Show on Selection" if using other token selection handlers
 
-## Development
-
-### Debug Commands
-The module provides debug commands in the browser console:
-```javascript
-tokencontextmenu.getWeaponMenuStatus() // Get current menu state
-tokencontextmenu.getSystemState() // Get full system state
-```
-
-### Architecture
-- **PIXI.js** rendering for performance
-- **State machine** pattern for menu lifecycle
-- **Centralized coordinators** for state management
-- **Event-driven** architecture with Foundry hooks
-
 ## Credits
 
 - **Author**: Von Junzt
@@ -131,12 +116,3 @@ tokencontextmenu.getSystemState() // Get full system state
 ## License
 
 This module is released under the [MIT License](LICENSE).
-
-## Changelog
-
-### v1.0.0
-- Initial release
-- Core weapon menu functionality
-- SWADE system integration
-- Better Rolls support
-- Configurable UI options
