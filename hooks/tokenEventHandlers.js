@@ -140,7 +140,7 @@ function closeWeaponMenu() {
     }
 
     const existingMenu = canvas.tokens?.children?.find(child =>
-        child.name === "vjpmacros-weapon-menu"
+        child.name === "tokencontextmenu-weapon-menu"
     );
 
     if (existingMenu) {
@@ -152,7 +152,7 @@ function closeWeaponMenu() {
             });
         }
 
-        Hooks.call('vjpmacros.weaponMenuClosed');
+        Hooks.call('tokencontextmenu.weaponMenuClosed');
     }
 
     if (weaponSystemCoordinator.isMenuOpen() && !existingApp && !existingMenu) {

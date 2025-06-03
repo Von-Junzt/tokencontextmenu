@@ -19,7 +19,7 @@ class TargetingSessionManager {
         });
         
         // Clean up if weapon menu closes during targeting
-        Hooks.on('vjpmacros.weaponMenuClosed', () => {
+        Hooks.on('tokencontextmenu.weaponMenuClosed', () => {
             this.endSession();
         });
     }
@@ -43,7 +43,7 @@ class TargetingSessionManager {
             targets: new Set()
         };
         
-        console.debug(`vjpmacros | Started targeting session: ${sessionId}`);
+        console.debug(`tokencontextmenu | Started targeting session: ${sessionId}`);
         return true;
     }
     
@@ -55,14 +55,14 @@ class TargetingSessionManager {
         if (!this.activeSession) return;
         
         const session = this.activeSession;
-        console.debug(`vjpmacros | Ending targeting session: ${session.id}`);
+        console.debug(`tokencontextmenu | Ending targeting session: ${session.id}`);
         
         // Run cleanup callback if requested
         if (executeCleanup && session.cleanup) {
             try {
                 session.cleanup();
             } catch (error) {
-                console.error('vjpmacros | Error during targeting cleanup:', error);
+                console.error('tokencontextmenu | Error during targeting cleanup:', error);
             }
         }
         

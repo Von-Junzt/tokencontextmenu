@@ -1,5 +1,5 @@
 {
-    "vjpmacros": {
+    "tokencontextmenu": {
         "Settings": {
             "AutoRemoveTargets": "Auto-remove Targets",
             "AutoRemoveTargetsHint": "When enabled, automatically clears current targets when using the weapon HUD, requiring selection of a new target.",

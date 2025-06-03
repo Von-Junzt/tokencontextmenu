@@ -1,6 +1,6 @@
 {
   "id": "tokencontextmenu",
-  "title": "Von Junzt's Token Menu",
+  "title": "Von Junzt's Simple Token Context Menu",
   "version": "1.0.0",
   "url": "https://github.com/Von-Junzt/tokencontextmenu",
   "dependencies": [
@@ -21,7 +21,7 @@
     "minimum": "12",
     "verified": "12"
   },
-  "description": "A token context menu for SWADE",
+  "description": "A simple token context menu",
   "authors": [
     {
       "name": "Von Junzt",

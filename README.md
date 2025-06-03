@@ -113,8 +113,8 @@ Access module settings through Foundry's module configuration:
 ### Debug Commands
 The module provides debug commands in the browser console:
 ```javascript
-vjpmacros.getWeaponMenuStatus() // Get current menu state
-vjpmacros.getSystemState() // Get full system state
+tokencontextmenu.getWeaponMenuStatus() // Get current menu state
+tokencontextmenu.getSystemState() // Get full system state
 ```
 
 ### Architecture

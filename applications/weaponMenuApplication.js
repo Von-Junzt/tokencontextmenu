@@ -26,14 +26,14 @@ export class WeaponMenuApplication extends Application {
         
         // Listen to state changes for debugging
         this.stateMachine.onStateChange((from, to) => {
-            console.debug(`vjpmacros | Weapon menu state: ${from} -> ${to}`);
+            console.debug(`tokencontextmenu | Weapon menu state: ${from} -> ${to}`);
         });
     }
 
     static get defaultOptions() {
         return foundry.utils.mergeObject(super.defaultOptions, {
             id: "weapon-menu",
-            classes: ["vjpmacros-weapon-menu"],
+            classes: ["tokencontextmenu-weapon-menu"],
             template: null,
             popOut: false,
             minimizable: false,
@@ -59,7 +59,7 @@ export class WeaponMenuApplication extends Application {
         return this.operationQueue.enqueue(async () => {
             // Check if we can transition to OPENING
             if (!this.stateMachine.canTransition('OPENING')) {
-                console.warn(`vjpmacros | Cannot open weapon menu in state: ${this.stateMachine.getState()}`);
+                console.warn(`tokencontextmenu | Cannot open weapon menu in state: ${this.stateMachine.getState()}`);
                 return this;
             }
             
@@ -104,13 +104,13 @@ export class WeaponMenuApplication extends Application {
 
                 // Call hook after state transition
                 tickerDelay.delay(() => {
-                    Hooks.call('vjpmacros.weaponMenuRendered');
+                    Hooks.call('tokencontextmenu.weaponMenuRendered');
                 }, TIMING.MENU_RENDER_HOOK_DELAY, 'weaponMenuRendered');
 
                 return this;
                 
             } catch (error) {
-                console.error('vjpmacros | Failed to render weapon menu', error);
+                console.error('tokencontextmenu | Failed to render weapon menu', error);
                 this.stateMachine.transition('ERROR');
                 // Clean up on error
                 this._emergencyCleanup();
@@ -127,7 +127,7 @@ export class WeaponMenuApplication extends Application {
      */
     async _createPIXIContainer() {
         this.container = new PIXI.Container();
-        this.container.name = "vjpmacros-weapon-menu";
+        this.container.name = "tokencontextmenu-weapon-menu";
 
         this.container.x = this.token.x + (this.token.w / 2);
         this.container.y = this.token.y + this.token.h + 10;
@@ -330,7 +330,7 @@ export class WeaponMenuApplication extends Application {
             }
             
             // Check if detailed tooltips are enabled - read fresh from settings
-            const showDetailed = game.settings.get("vjpmacros", "detailedWeaponTooltips");
+            const showDetailed = game.settings.get("tokencontextmenu", "detailedWeaponTooltips");
             
             // Add detailed stats for both weapons and powers if setting is enabled
             if (showDetailed && weapon.system && (weapon.type === "weapon" || weapon.type === "power")) {
@@ -367,7 +367,7 @@ export class WeaponMenuApplication extends Application {
                 // Only add stats section if we have stats to show
                 if (statLines.length > 0) {
                     // Use HTML with proper line separators
-                    tooltipContent = `<div class="vjpmacros-weapon-tooltip">
+                    tooltipContent = `<div class="tokencontextmenu-weapon-tooltip">
                         <div class="tooltip-header">${tooltipContent}</div>
                         <hr class="tooltip-separator">
                         ${statLines.map(line => `<div class="tooltip-stat">${line}</div>`).join('')}
@@ -375,7 +375,7 @@ export class WeaponMenuApplication extends Application {
                     </div>`;
                 } else {
                     // For non-weapon items, keep it simple
-                    tooltipContent = `<div class="vjpmacros-weapon-tooltip">${tooltipContent}</div>`;
+                    tooltipContent = `<div class="tokencontextmenu-weapon-tooltip">${tooltipContent}</div>`;
                 }
             } else {
                 // Simple tooltip - just wrap in div for consistent styling
@@ -459,7 +459,7 @@ export class WeaponMenuApplication extends Application {
                     this.close();
                 }
             } catch (error) {
-                console.warn('vjpmacros | Error in click outside handler', error);
+                console.warn('tokencontextmenu | Error in click outside handler', error);
             }
         };
 
@@ -503,7 +503,7 @@ export class WeaponMenuApplication extends Application {
         this._hideTooltip();
 
         const tooltip = document.createElement('div');
-        tooltip.className = 'vjpmacros-immediate-tooltip';
+        tooltip.className = 'tokencontextmenu-immediate-tooltip';
         tooltip.innerHTML = content;
         tooltip.id = 'weapon-menu-tooltip';
         tooltip.style.display = 'block';
@@ -554,7 +554,7 @@ export class WeaponMenuApplication extends Application {
         return this.operationQueue.enqueue(async () => {
             // Check if we can transition to CLOSING
             if (!this.stateMachine.canTransition('CLOSING')) {
-                console.debug(`vjpmacros | Cannot close weapon menu in state: ${this.stateMachine.getState()}`);
+                console.debug(`tokencontextmenu | Cannot close weapon menu in state: ${this.stateMachine.getState()}`);
                 // If we're already closed or closing, just return
                 if (this.stateMachine.getState() === 'CLOSED' || this.stateMachine.getState() === 'CLOSING') {
                     return;
@@ -613,13 +613,13 @@ export class WeaponMenuApplication extends Application {
                 this.stateMachine.transition('CLOSED');
 
                 // Call hook after successful close
-                Hooks.call('vjpmacros.weaponMenuClosed');
+                Hooks.call('tokencontextmenu.weaponMenuClosed');
 
                 // Call parent close
                 await super.close(options);
                 
             } catch (error) {
-                console.error('vjpmacros | Error during weapon menu close', error);
+                console.error('tokencontextmenu | Error during weapon menu close', error);
                 this.stateMachine.transition('ERROR');
                 this._emergencyCleanup();
             }
@@ -632,7 +632,7 @@ export class WeaponMenuApplication extends Application {
      * @private
      */
     _emergencyCleanup() {
-        console.warn('vjpmacros | Performing emergency weapon menu cleanup');
+        console.warn('tokencontextmenu | Performing emergency weapon menu cleanup');
         
         // Force remove all event listeners
         try {

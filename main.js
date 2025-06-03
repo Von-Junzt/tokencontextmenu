@@ -23,7 +23,7 @@ import {weaponSystemCoordinator} from "./managers/WeaponSystemCoordinator.js";
  * Initialize module on Foundry init
  */
 Hooks.once('init', function() {
-    console.warn('VJP Macros: Initializing');
+    console.warn('Token Context Menu: Initializing');
 
     // Register module settings
     registerSettings();
@@ -38,11 +38,11 @@ Hooks.once('ready', async () => {
     registerTokenHudMovementHandler();
     registerTokenHudTokenHudHandler();
     registerTokenHudDeletionHandler();
-    console.warn('VJP: Token handlers registered');
+    console.warn('Token Context Menu: Token handlers registered');
     
     // Add debugging command for weapon menu
-    window.vjpmacros = window.vjpmacros || {};
-    window.vjpmacros.getWeaponMenuStatus = () => {
+    window.tokencontextmenu = window.tokencontextmenu || {};
+    window.tokencontextmenu.getWeaponMenuStatus = () => {
         const menuApp = weaponSystemCoordinator.getMenuApp();
         if (menuApp && menuApp.getStatus) {
             return menuApp.getStatus();
@@ -50,11 +50,11 @@ Hooks.once('ready', async () => {
             return { state: 'No weapon menu active' };
         }
     };
-    window.vjpmacros.getSystemState = () => weaponSystemCoordinator.getStateSnapshot();
-    console.log("VJP Macros | Debug commands available: vjpmacros.getWeaponMenuStatus(), vjpmacros.getSystemState()");
+    window.tokencontextmenu.getSystemState = () => weaponSystemCoordinator.getStateSnapshot();
+    console.log("Token Context Menu | Debug commands available: tokencontextmenu.getWeaponMenuStatus(), tokencontextmenu.getSystemState()");
 
     // final setup message
-    console.warn("VJP Macros: Module initialized! Happy Gaming!");
+    console.warn("Token Context Menu: Module initialized! Happy Gaming!");
 });
 
 /**

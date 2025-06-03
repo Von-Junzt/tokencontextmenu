@@ -1,5 +1,5 @@
 /* Menu separator for powers section */
-.vjpmacros-menu-separator {
+.tokencontextmenu-menu-separator {
     text-align: center;
     color: #a0a0a0;
     font-size: 12px;
@@ -14,19 +14,19 @@
 }
 
 /* Alternative: Simple line separator */
-.vjpmacros-menu-separator-line {
+.tokencontextmenu-menu-separator-line {
     height: 1px;
     background: #444;
     margin: 2px 2px;
     opacity: 0.6;
 }
 /* Add spacing for power items */
-.vjpmacros-weapon-menu .weapon-button[data-item-type="power"] {
+.tokencontextmenu-weapon-menu .weapon-button[data-item-type="power"] {
     margin-top: 2px;
 }
 
 /* Tooltip style for cursor-follow tooltips (target selection) */
-.vjpmacros-tooltip {
+.tokencontextmenu-tooltip {
     position: fixed;
     font-family: "Signika", sans-serif;
     pointer-events: none;
@@ -44,7 +44,7 @@
 }
 
 /* Immediate tooltip style for weapon hovering */
-.vjpmacros-immediate-tooltip {
+.tokencontextmenu-immediate-tooltip {
     position: fixed;
     font-family: "Signika", sans-serif;
     pointer-events: none;
@@ -64,23 +64,23 @@
 }
 
 /* Weapon tooltip structure */
-.vjpmacros-weapon-tooltip {
+.tokencontextmenu-weapon-tooltip {
     white-space: nowrap;
 }
 
-.vjpmacros-weapon-tooltip .tooltip-header {
+.tokencontextmenu-weapon-tooltip .tooltip-header {
     font-weight: 600;
     margin-bottom: 4px;
 }
 
-.vjpmacros-weapon-tooltip .tooltip-separator {
+.tokencontextmenu-weapon-tooltip .tooltip-separator {
     margin: 4px 0;
     border: none;
     border-top: 1px solid #666;
     width: 100%;
 }
 
-.vjpmacros-weapon-tooltip .tooltip-stat {
+.tokencontextmenu-weapon-tooltip .tooltip-stat {
     margin: 2px 0;
     font-size: 12px;
 }

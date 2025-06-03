@@ -32,7 +32,7 @@ class WeaponSystemCoordinator {
      * @private
      */
     _setupHooks() {
-        Hooks.on('vjpmacros.weaponMenuClosed', () => {
+        Hooks.on('tokencontextmenu.weaponMenuClosed', () => {
             // Stop all movement trackers FIRST
             for (const [tokenId, ticker] of this.state.movementTrackers) {
                 ticker.stop();
@@ -257,7 +257,7 @@ class WeaponSystemCoordinator {
      * Log current state to console for debugging
      */
     logState() {
-        console.debug('VJP: System State:', this.getStateSnapshot());
+        console.debug('Token Context Menu: System State:', this.getStateSnapshot());
     }
 
     /**
@@ -293,4 +293,4 @@ class WeaponSystemCoordinator {
 export const weaponSystemCoordinator = new WeaponSystemCoordinator();
 
 // Export for debugging
-window.vjpWeaponSystemCoordinator = weaponSystemCoordinator;
+window.tokenContextMenuCoordinator = weaponSystemCoordinator;

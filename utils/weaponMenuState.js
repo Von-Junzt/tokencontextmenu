@@ -42,7 +42,7 @@ export class WeaponMenuStateMachine {
      */
     transition(toState) {
         if (!this.canTransition(toState)) {
-            console.warn(`vjpmacros | Invalid weapon menu transition from ${this.state} to ${toState}`);
+            console.warn(`tokencontextmenu | Invalid weapon menu transition from ${this.state} to ${toState}`);
             return false;
         }
         
@@ -93,7 +93,7 @@ export class WeaponMenuStateMachine {
      * Reset to closed state (emergency recovery)
      */
     reset() {
-        console.warn('vjpmacros | Weapon menu state machine reset');
+        console.warn('tokencontextmenu | Weapon menu state machine reset');
         this.state = 'CLOSED';
     }
 }
@@ -145,7 +145,7 @@ export class OperationQueue {
             const result = await operation();
             resolve(result);
         } catch (error) {
-            console.error(`vjpmacros | Weapon menu operation failed: ${debugName}`, error);
+            console.error(`tokencontextmenu | Weapon menu operation failed: ${debugName}`, error);
             reject(error);
         } finally {
             this.currentOperation = null;
@@ -211,7 +211,7 @@ export class ContainerVerification {
                 return true;
             }
         } catch (error) {
-            console.warn('vjpmacros | Failed to remove weapon menu container', error);
+            console.warn('tokencontextmenu | Failed to remove weapon menu container', error);
         }
         return false;
     }
@@ -243,7 +243,7 @@ export class ContainerVerification {
                 container.destroy({ children: true });
             }
         } catch (error) {
-            console.warn('vjpmacros | Failed to destroy weapon menu container', error);
+            console.warn('tokencontextmenu | Failed to destroy weapon menu container', error);
         }
     }
 }

@@ -63,7 +63,7 @@ export async function handleWeaponSelection(token, weaponId, hideMenuCallback) {
         };
 
         // Store the pending data
-        await game.user.setFlag('vjpmacros', 'pendingWeaponRoll', pendingData);
+        await game.user.setFlag('tokencontextmenu', 'pendingWeaponRoll', pendingData);
 
         // Variable to track if we've already handled the targeting
         let targetHandled = false;
@@ -85,7 +85,7 @@ export async function handleWeaponSelection(token, weaponId, hideMenuCallback) {
                 targetHandled = true;
 
                 showTargetTooltip(false);
-                await game.user.unsetFlag('vjpmacros', 'pendingWeaponRoll');
+                await game.user.unsetFlag('tokencontextmenu', 'pendingWeaponRoll');
                 if (reason && !reason.includes('manually aborted')) {
                     ui.notifications.warn(reason);
                 }
@@ -94,11 +94,11 @@ export async function handleWeaponSelection(token, weaponId, hideMenuCallback) {
 
         // Function to process the target selection
         async function processTargetSelection() {
-            const storedData = await game.user.getFlag('vjpmacros', 'pendingWeaponRoll');
+            const storedData = await game.user.getFlag('tokencontextmenu', 'pendingWeaponRoll');
 
             // Verify it's the same pending action (using timestamp)
             if (storedData && storedData.timestamp === pendingData.timestamp) {
-                await game.user.unsetFlag('vjpmacros', 'pendingWeaponRoll');
+                await game.user.unsetFlag('tokencontextmenu', 'pendingWeaponRoll');
 
                 const actor = token.actor;
                 if (actor && game.user.targets.size > 0) {
@@ -109,7 +109,7 @@ export async function handleWeaponSelection(token, weaponId, hideMenuCallback) {
                     ui.notifications.error("Could not find the actor. Please try again.");
                 }
             } else {
-                console.warn('VJP: Stored data mismatch or missing');
+                console.warn('Token Context Menu: Stored data mismatch or missing');
                 ui.notifications.warn("Action data mismatch. Please try again.");
             }
         }

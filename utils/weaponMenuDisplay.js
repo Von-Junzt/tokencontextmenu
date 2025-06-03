@@ -87,7 +87,7 @@ export async function showWeaponMenuUnderToken(token) {
     
     // Also check for orphaned menus on the canvas
     const orphanedMenus = canvas.tokens?.children?.filter(child => 
-        child.name === "vjpmacros-weapon-menu"
+        child.name === "tokencontextmenu-weapon-menu"
     ) || [];
     
     for (const menu of orphanedMenus) {
@@ -103,7 +103,7 @@ export async function showWeaponMenuUnderToken(token) {
     const equippedWeapons = getEquippedWeapons(token);
 
     if (!equippedWeapons.length) {
-        console.warn("VJP: No equipped weapons found for", token.name);
+        console.warn("Token Context Menu: No equipped weapons found for", token.name);
         ui.notifications.info("No equipped weapons or favorite powers found.");
         return;
     }

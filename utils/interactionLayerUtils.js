@@ -34,7 +34,7 @@ export function showTargetTooltip(show = true) {
         if (!document.getElementById('cursor-tooltip')) {
             const tooltip = document.createElement('div');
             tooltip.id = 'cursor-tooltip';
-            tooltip.className = 'vjpmacros-tooltip';
+            tooltip.className = 'tokencontextmenu-tooltip';
             tooltip.textContent = 'Select Target';
             document.body.appendChild(tooltip);
 
@@ -77,7 +77,7 @@ export function initializeGlobalInteractionLayer() {
     }
 
     globalInteractionLayer = new PIXI.Container();
-    globalInteractionLayer.name = "vjp-targeting-layer";
+    globalInteractionLayer.name = "tokencontextmenu-targeting-layer";
 
     updateInteractionLayerHitArea();
 
@@ -178,7 +178,7 @@ export function getWeaponSortPriority(item) {
  */
 export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort) {
     if (targetingSessionManager.isActive()) {
-        console.warn('VJP: Targeting already active, aborting previous session');
+        console.warn('Token Context Menu: Targeting already active, aborting previous session');
         targetingSessionManager.endSession();
     }
 
@@ -273,7 +273,7 @@ export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort)
 
     function finishTargeting() {
         if (isFinishing) {
-            console.warn('VJP: Attempted double cleanup, ignoring');
+            console.warn('Token Context Menu: Attempted double cleanup, ignoring');
             return;
         }
         isFinishing = true;

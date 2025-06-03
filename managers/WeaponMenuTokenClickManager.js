@@ -489,7 +489,7 @@ export class WeaponMenuTokenClickManager {
                 break;
 
             default:
-                console.warn('VJP: Click Manager - Unknown action:', action);
+                console.warn('Token Context Menu: Click Manager - Unknown action:', action);
         }
 
         // Always reset drag state after processing
@@ -522,7 +522,7 @@ export class WeaponMenuTokenClickManager {
 
         // Fallback: Check for orphaned menu on canvas
         const existingMenu = canvas.tokens?.children?.find(child =>
-            child.name === "vjpmacros-weapon-menu"
+            child.name === "tokencontextmenu-weapon-menu"
         );
 
         if (existingMenu) {
@@ -532,7 +532,7 @@ export class WeaponMenuTokenClickManager {
                     wc.removeAllListeners();
                 });
             }
-            Hooks.call('vjpmacros.weaponMenuClosed');
+            Hooks.call('tokencontextmenu.weaponMenuClosed');
         }
     }
 
@@ -654,4 +654,4 @@ export class WeaponMenuTokenClickManager {
 export const weaponMenuTokenClickManager = new WeaponMenuTokenClickManager();
 
 // Export for debugging
-window.vjpTokenClickManager = weaponMenuTokenClickManager;
+window.tokenContextMenuClickManager = weaponMenuTokenClickManager;
