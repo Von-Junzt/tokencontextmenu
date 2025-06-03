@@ -1,0 +1,20 @@
+{
+    "vjpmacros": {
+        "Settings": {
+            "AutoRemoveTargets": "Auto-remove Targets",
+            "AutoRemoveTargetsHint": "When enabled, automatically clears current targets when using the weapon HUD, requiring selection of a new target.",
+            "ShowWeaponMenuOnSelection": "Show Weapon Menu on Token Selection",
+            "ShowWeaponMenuOnSelectionHint": "Automatically show the weapon menu when selecting a token you own.",
+            "ReopenMenuAfterDrag": "Reopen Weapon Menu After Dragging",
+            "ReopenMenuAfterDragHint": "When enabled, the weapon menu will automatically reopen after you finish dragging a token.",
+            "WeaponItemsPerRow": "Weapon Menu Items Per Row",
+            "WeaponItemsPerRowHint": "The number of items to display per row in the weapon menu.",
+            "WeaponIconScale": "Weapon Menu Icon Scale",
+            "WeaponIconScaleHint": "Scale factor for weapon menu icons relative to grid size (0.3 = 30% of grid square, 1.0 = 100% of grid square).",
+            "DetailedWeaponTooltips": "Detailed Weapon Tooltips",
+            "DetailedWeaponTooltipsHint": "Show detailed weapon information (damage, range, AP, trait modifier) in tooltips. When disabled, only shows weapon name and ammo count.",
+            "DebugMode": "Debug Mode",
+            "DebugModeHint": "Enable debug logging for troubleshooting weapon menu issues"
+        }
+    }
+}

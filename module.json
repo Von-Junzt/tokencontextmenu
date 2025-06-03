@@ -1,0 +1,48 @@
+{
+  "id": "tokencontextmenu",
+  "title": "Von Junzt's Token Menu",
+  "version": "1.0.0",
+  "url": "https://github.com/Von-Junzt/tokencontextmenu",
+  "dependencies": [
+    {
+      "id": "lib-wrapper",
+      "manifest": "https://raw.githubusercontent.com/league-of-foundry-developers/lib-wrapper/master/module.json",
+      "minimum": "1.8.0",
+      "verified": "1.8.0"
+    },
+    {
+      "id": "betterrolls-swade2",
+      "manifest": "https://raw.githubusercontent.com/javierriveracastro/betteroll-swade/version_2/module.json",
+      "minimum": "2.0.0",
+      "verified": "2.0.0"
+    }
+  ],
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12"
+  },
+  "description": "A token context menu for SWADE",
+  "authors": [
+    {
+      "name": "Von Junzt",
+      "discord": "von_junzt",
+      "flags": {}
+    }
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "packs": [],
+  "packFolders": [],
+  "socket": true,
+  "styles": [
+    "style.css"
+  ],
+  "esmodules": [
+    "main.js"
+  ]
+}

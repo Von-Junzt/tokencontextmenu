@@ -1,0 +1,86 @@
+/* Menu separator for powers section */
+.vjpmacros-menu-separator {
+    text-align: center;
+    color: #a0a0a0;
+    font-size: 12px;
+    font-weight: bold;
+    margin: 2px 0;
+    padding: 2px 0;
+    border-top: 1px solid #444;
+    border-bottom: 1px solid #444;
+    background: rgba(255, 255, 255, 0.05);
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Alternative: Simple line separator */
+.vjpmacros-menu-separator-line {
+    height: 1px;
+    background: #444;
+    margin: 2px 2px;
+    opacity: 0.6;
+}
+/* Add spacing for power items */
+.vjpmacros-weapon-menu .weapon-button[data-item-type="power"] {
+    margin-top: 2px;
+}
+
+/* Tooltip style for cursor-follow tooltips (target selection) */
+.vjpmacros-tooltip {
+    position: fixed;
+    font-family: "Signika", sans-serif;
+    pointer-events: none;
+    z-index: 100000;
+    background: rgba(0, 0, 0, 0);
+    color: #f0f0f0;
+    border: 0px solid #2d2d2e;
+    border-radius: 0px;
+    box-shadow: 0 0px 0px rgba(0, 0, 0, 0.5);
+    padding: 5px 8px;
+    font-size: 14px;
+    font-weight: 500;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.7);
+    white-space: nowrap;
+}
+
+/* Immediate tooltip style for weapon hovering */
+.vjpmacros-immediate-tooltip {
+    position: fixed;
+    font-family: "Signika", sans-serif;
+    pointer-events: none;
+    z-index: 100000;
+    background: rgba(0, 0, 0, 0.8);
+    color: #f0f0f0;
+    border: 1px solid #2d2d2e;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.7);
+    opacity: 1;
+    transition: opacity 0.1s;
+    display: none;
+}
+
+/* Weapon tooltip structure */
+.vjpmacros-weapon-tooltip {
+    white-space: nowrap;
+}
+
+.vjpmacros-weapon-tooltip .tooltip-header {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.vjpmacros-weapon-tooltip .tooltip-separator {
+    margin: 4px 0;
+    border: none;
+    border-top: 1px solid #666;
+    width: 100%;
+}
+
+.vjpmacros-weapon-tooltip .tooltip-stat {
+    margin: 2px 0;
+    font-size: 12px;
+}
