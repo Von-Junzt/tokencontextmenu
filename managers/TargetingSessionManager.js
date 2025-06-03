@@ -1,6 +1,22 @@
 /**
  * Manages targeting sessions for the weapon menu system
- * Handles target selection workflows and cleanup
+ * 
+ * @class TargetingSessionManager
+ * @description Coordinates target selection workflows, ensuring only one targeting session
+ * is active at a time. Handles cleanup when sessions end or scenes change.
+ * 
+ * @example
+ * // Start a targeting session
+ * targetingSessionManager.startSession('weapon-123', () => {
+ *     console.log('Targeting ended, cleanup UI');
+ * });
+ * 
+ * // Check if targeting is active
+ * if (targetingSessionManager.isActive()) {
+ *     // Show targeting UI
+ * }
+ * 
+ * @property {Object|null} activeSession - Current active targeting session
  */
 class TargetingSessionManager {
     constructor() {
@@ -29,6 +45,9 @@ class TargetingSessionManager {
      * @param {string} sessionId - Unique identifier for this session
      * @param {Function} cleanupCallback - Function to call when session ends
      * @returns {boolean} Whether session was started successfully
+     * @description Ends any existing session before starting a new one. The cleanup
+     * callback is stored and will be called when the session ends (either normally
+     * or due to scene changes/menu closing).
      */
     startSession(sessionId, cleanupCallback) {
         // End any existing session first

@@ -80,24 +80,8 @@ export async function showWeaponMenuUnderToken(token) {
     emergencyCleanupTargeting();
 
     // Close any existing weapon menu - both tracked and orphaned
-    const existingApp = weaponSystemCoordinator.getMenuApp();
-    if (existingApp) {
-        await existingApp.close();
-    }
-    
-    // Also check for orphaned menus on the canvas
-    const orphanedMenus = canvas.tokens?.children?.filter(child => 
-        child.name === "tokencontextmenu-weapon-menu"
-    ) || [];
-    
-    for (const menu of orphanedMenus) {
-        if (menu.parent) {
-            menu.parent.removeChild(menu);
-        }
-        if (menu.weaponContainers) {
-            menu.weaponContainers.forEach(wc => wc.removeAllListeners());
-        }
-    }
+    const { closeWeaponMenu } = await import("./weaponMenuCloser.js");
+    await closeWeaponMenu({ reason: 'opening-new-menu' });
 
     // Get equipped weapons
     const equippedWeapons = getEquippedWeapons(token);

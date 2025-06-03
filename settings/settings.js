@@ -1,3 +1,8 @@
+/**
+ * Register all module settings with Foundry
+ * @description Defines all user-configurable settings for the token context menu.
+ * Settings are client-scoped (per-user) to allow individual preferences.
+ */
 export function registerSettings() {
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
         name: game.i18n.localize("tokencontextmenu.Settings.AutoRemoveTargets"),
@@ -86,17 +91,26 @@ export function registerSettings() {
     });
 }
 
-// Helper function to check if targets should be automatically removed
+/**
+ * Check if targets should be automatically removed when selecting weapons
+ * @returns {boolean} True if auto-remove is enabled
+ */
 export function shouldAutoRemoveTargets() {
     return game.settings.get("tokencontextmenu", "autoRemoveTargets");
 }
 
-// Helper function to check if weapon menu should show on selection
+/**
+ * Check if weapon menu should show automatically on token selection
+ * @returns {boolean} True if auto-show is enabled
+ */
 export function shouldShowWeaponMenuOnSelection() {
     return game.settings.get("tokencontextmenu", "showWeaponMenuOnSelection");
 }
 
-// Export function to get the setting
+/**
+ * Get the number of weapon items to display per row
+ * @returns {number} Items per row (2-8)
+ */
 export function getWeaponMenuItemsPerRow() {
     return game.settings.get("tokencontextmenu", "weaponMenuItemsPerRow");
 }
@@ -117,12 +131,21 @@ export function getWeaponMenuIconScale() {
     return game.settings.get("tokencontextmenu", "weaponMenuIconScale");
 }
 
-// Helper function to check if weapon menu should reopen after dragging
+/**
+ * Check if weapon menu should reopen after dragging tokens
+ * @returns {boolean} True if reopen after drag is enabled
+ */
 export function shouldReopenMenuAfterDrag() {
     return game.settings.get("tokencontextmenu", "reopenMenuAfterDrag");
 }
 
-// Helper function to check if debug mode is enabled
+/**
+ * Check if debug mode is enabled
+ * @returns {boolean} True if debug mode is active
+ * @description Includes safety check for early module initialization before
+ * Foundry's game object is available. This prevents errors during singleton
+ * construction.
+ */
 export function isDebugEnabled() {
     // The WeaponMenuTokenClickManager singleton is created at module load time,
     // before Foundry's game object is initialized. This check prevents errors

@@ -86,14 +86,14 @@ export function registerTokenHudSelectionHandler() {
  * Listens to updateToken hook to detect position changes
  */
 export function registerTokenHudMovementHandler() {
-    Hooks.on("updateToken", (tokenDocument, changes, options, userId) => {
+    Hooks.on("updateToken", async (tokenDocument, changes, options, userId) => {
         if (!("x" in changes || "y" in changes)) return;
 
         const token = tokenDocument.object;
         if (!token || !token.controlled) return;
 
         weaponMenuTokenClickManager.resetDragState(token);
-        closeWeaponMenu();
+        await closeWeaponMenu();
 
         if (shouldReopenMenuAfterDrag()) {
             trackTokenMovementForMenuReshow(token);
@@ -106,9 +106,9 @@ export function registerTokenHudMovementHandler() {
  * Uses timing to distinguish between selection events and actual HUD opens
  */
 export function registerTokenHudTokenHudHandler() {
-    Hooks.on("renderTokenHUD", (hud, html, data) => {
+    Hooks.on("renderTokenHUD", async (hud, html, data) => {
         // This is a legitimate HUD open (right-click, etc.) - close the weapon menu
-        closeWeaponMenu();
+        await closeWeaponMenu();
         canvas.tokens.controlled.forEach(token => {
             stopTokenMovementTracker(token);
         });
@@ -119,8 +119,8 @@ export function registerTokenHudTokenHudHandler() {
  * Registers a handler to close weapon menu when tokens are deleted
  */
 export function registerTokenHudDeletionHandler() {
-    Hooks.on("deleteToken", (tokenDocument, options, userId) => {
-        closeWeaponMenu();
+    Hooks.on("deleteToken", async (tokenDocument, options, userId) => {
+        await closeWeaponMenu();
         if (tokenDocument.object) {
             stopTokenMovementTracker(tokenDocument.object);
         }
@@ -129,40 +129,11 @@ export function registerTokenHudDeletionHandler() {
 
 /**
  * Closes any open weapon menu
- * Handles both tracked menus via coordinator and orphaned canvas children
  * @private
  */
-function closeWeaponMenu() {
-    const existingApp = weaponSystemCoordinator.getMenuApp();
-
-    if (existingApp) {
-        existingApp.close();
-        return;
-    }
-
-    const existingMenu = canvas.tokens?.children?.find(child =>
-        child.name === "tokencontextmenu-weapon-menu"
-    );
-
-    if (existingMenu) {
-        canvas.tokens.removeChild(existingMenu);
-
-        if (existingMenu.weaponContainers) {
-            existingMenu.weaponContainers.forEach(wc => {
-                wc.removeAllListeners();
-            });
-        }
-
-        Hooks.call('tokencontextmenu.weaponMenuClosed');
-    }
-
-    if (weaponSystemCoordinator.isMenuOpen() && !existingApp && !existingMenu) {
-        weaponSystemCoordinator.updateMenuState({
-            weaponMenuOpen: false,
-            currentToken: null,
-            currentMenuApp: null
-        });
-    }
+async function closeWeaponMenu() {
+    const { closeWeaponMenu } = await import("../utils/weaponMenuCloser.js");
+    return closeWeaponMenu({ reason: 'token-event-handler' });
 }
 
 /**
@@ -188,9 +159,9 @@ export function debugAssertState() {
  * Cleanup function for when the module is disabled or scenes change
  * Removes all event handlers and closes any open menus
  */
-export function cleanupTokenHandlers() {
+export async function cleanupTokenHandlers() {
     weaponMenuTokenClickManager.cleanup();
-    closeWeaponMenu();
+    await closeWeaponMenu();
 
     canvas.tokens?.controlled?.forEach(token => {
         stopTokenMovementTracker(token);

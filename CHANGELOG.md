@@ -64,3 +64,12 @@ All notable changes to this project will be documented in this file.
   - All UI dimensions use UI constants
   - Fixed remaining hardcoded z-index value
 - **Import Cleanup** - Added missing constant imports where needed
+- **Menu Closing Consolidation** - Created centralized weapon menu closing utility
+  - Eliminated duplicate closing logic from 5 different locations
+  - Consistent cleanup sequence across all close operations
+  - Better debugging with close reason tracking
+  - Improved orphaned menu detection and cleanup
+- **Documentation** - Added comprehensive JSDoc comments
+  - Documented state machine pattern and architecture
+  - Added JSDoc to all manager classes and utility functions
+  - Explained design patterns and their purposes

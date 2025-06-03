@@ -1,6 +1,26 @@
 /**
  * Manages token drag states for the weapon menu system
- * Tracks drag operations to determine when to show/hide menus
+ * 
+ * @class TokenDragManager
+ * @description Tracks pointer/mouse movements on tokens to distinguish between clicks
+ * and drags. This is essential for determining when to show the weapon menu (click)
+ * versus when to hide it (drag). Uses WeakMap to automatically clean up when tokens
+ * are destroyed.
+ * 
+ * @example
+ * // Initialize tracking for a token
+ * const dragState = tokenDragManager.initializeDragState(token);
+ * 
+ * // Start tracking on pointer down
+ * tokenDragManager.startDrag(token, {x: event.x, y: event.y});
+ * 
+ * // Update on pointer move
+ * const hasMoved = tokenDragManager.updateDragMovement(token, {x: event.x, y: event.y}, 5);
+ * if (hasMoved) {
+ *     console.log('Token is being dragged');
+ * }
+ * 
+ * @property {WeakMap} dragStates - Maps tokens to their drag state objects
  */
 class TokenDragManager {
     constructor() {

@@ -509,31 +509,12 @@ export class WeaponMenuTokenClickManager {
     }
 
     /**
-     * Close weapon menu - delegates to existing system
-     * Handles both tracked menus and orphaned canvas children
+     * Close weapon menu - delegates to centralized closer
      * @private
      */
     async closeWeaponMenu() {
-        const existingApp = weaponSystemCoordinator.getMenuApp();
-        if (existingApp) {
-            await existingApp.close();
-            return;
-        }
-
-        // Fallback: Check for orphaned menu on canvas
-        const existingMenu = canvas.tokens?.children?.find(child =>
-            child.name === "tokencontextmenu-weapon-menu"
-        );
-
-        if (existingMenu) {
-            canvas.tokens.removeChild(existingMenu);
-            if (existingMenu.weaponContainers) {
-                existingMenu.weaponContainers.forEach(wc => {
-                    wc.removeAllListeners();
-                });
-            }
-            Hooks.call('tokencontextmenu.weaponMenuClosed');
-        }
+        const { closeWeaponMenu } = await import("../utils/weaponMenuCloser.js");
+        return closeWeaponMenu({ reason: 'token-click-manager' });
     }
 
     /**

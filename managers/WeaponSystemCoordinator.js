@@ -1,3 +1,17 @@
+/**
+ * @file WeaponSystemCoordinator - Central hub for weapon menu system coordination
+ * @description This manager implements a facade pattern to coordinate between different
+ * subsystems of the weapon menu module. It manages state, handles cross-component
+ * communication, and ensures consistency across the system.
+ * 
+ * Architecture Overview:
+ * - WeaponSystemCoordinator (this file) - Central state hub
+ * - WeaponMenuTokenClickManager - Handles all token click/drag interactions
+ * - TokenDragManager - Tracks drag states for individual tokens
+ * - TargetingSessionManager - Manages weapon targeting workflows
+ * - WeaponMenuApplication - The PIXI-based menu UI
+ */
+
 import { tickerDelay } from "../utils/timingUtils.js";
 import { TIMING } from "../utils/constants.js";
 import { tokenDragManager } from "./TokenDragManager.js";
@@ -5,7 +19,18 @@ import { targetingSessionManager } from "./TargetingSessionManager.js";
 
 /**
  * Coordinates between weapon menu, selection, and movement systems
- * Acts as the central hub for cross-component communication
+ * 
+ * @class WeaponSystemCoordinator
+ * @description Central coordinator that manages the overall state of the weapon menu
+ * system. Uses the facade pattern to provide a simple interface to complex subsystems.
+ * All major components communicate through this coordinator to ensure consistency.
+ * 
+ * @property {Object} state - Central state store for the weapon menu system
+ * @property {boolean} state.weaponMenuOpen - Whether a menu is currently open
+ * @property {number} state.menuOpenedAt - Timestamp when menu was opened
+ * @property {WeaponMenuApplication|null} state.currentMenuApp - Reference to current menu
+ * @property {Token|null} state.currentToken - Token associated with current menu
+ * @property {Map} state.movementTrackers - Active movement tracking tickers
  */
 class WeaponSystemCoordinator {
     constructor() {
@@ -42,16 +67,12 @@ class WeaponSystemCoordinator {
             // Clear any selection processing timeouts
             this.clearSelectionProcessing();
 
-            // Update menu state AFTER all other cleanup
-            this.updateMenuState({
-                weaponMenuOpen: false,
-                currentMenuApp: null,
-                currentToken: null
-            });
+            // Note: Menu state is already updated by weaponMenuCloser.js
+            // This hook is just for additional cleanup
         });
 
-        Hooks.on('canvasReady', () => {
-            this.reset();
+        Hooks.on('canvasReady', async () => {
+            await this.reset();
         });
     }
 
@@ -264,11 +285,10 @@ class WeaponSystemCoordinator {
      * Full system reset - ensures UI and state stay synchronized
      * Called on scene changes to prevent state leaks
      */
-    reset() {
-        // Close any open menu application BEFORE clearing state
-        if (this.state.currentMenuApp) {
-            this.state.currentMenuApp.close();
-        }
+    async reset() {
+        // Use centralized closer for menu cleanup
+        const { forceCloseAllMenus } = await import("../utils/weaponMenuCloser.js");
+        await forceCloseAllMenus('system-reset');
 
         // Stop all movement trackers
         for (const [tokenId, ticker] of this.state.movementTrackers) {
@@ -279,13 +299,8 @@ class WeaponSystemCoordinator {
         // Clear selection processing
         this.clearSelectionProcessing();
 
-        // Clear menu state
-        this.updateMenuState({
-            weaponMenuOpen: false,
-            currentMenuApp: null,
-            currentToken: null,
-            menuOpenedAt: 0
-        });
+        // Clear menu state - no need to update here as forceCloseAllMenus already does it
+        this.state.menuOpenedAt = 0;
     }
 }
 

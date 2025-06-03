@@ -6,6 +6,14 @@
 
 /**
  * Manages delayed callbacks using canvas ticker with proper cleanup
+ * 
+ * @class TickerDelayManager
+ * @description Provides timing functionality that integrates with Foundry's rendering
+ * loop. Unlike setTimeout, these delays respect Foundry's pause state and are
+ * automatically cleaned up on scene changes. Uses PIXI ticker for frame-accurate timing.
+ * 
+ * @property {Map} delays - Map of active delays by ID
+ * @property {number} nextId - Counter for generating unique delay IDs
  */
 class TickerDelayManager {
     constructor() {
@@ -93,6 +101,21 @@ class TickerDelayManager {
 
 /**
  * Manages simple timestamp-based timing without continuous tickers
+ * 
+ * @class TimestampManager
+ * @description Tracks named timestamps for implementing debouncing and timing checks.
+ * More lightweight than ticker delays for simple "has X time passed" checks.
+ * 
+ * @example
+ * // Mark an event
+ * timestamps.mark('lastClick');
+ * 
+ * // Check if debounce period has passed
+ * if (timestamps.hasElapsed('lastClick', 75)) {
+ *     // Process click
+ * }
+ * 
+ * @property {Map} timestamps - Map of event names to timestamps
  */
 class TimestampManager {
     constructor() {
