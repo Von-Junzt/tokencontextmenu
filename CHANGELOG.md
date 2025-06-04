@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2025-01-06
+## [Unreleased] - 2025-01-07
 
 ### Added
 - **SWADE System Dependency** - Added explicit SWADE system requirement to module.json
@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
   - Color constants for all UI elements (COLORS)
   - UI positioning and layout constants (UI)
   - Weapon sorting priority constants (WEAPON_PRIORITY)
+- **Immediate Drag Detection** - Enhanced drag detection for token selection
+  - Menu no longer opens when clicking and immediately dragging an unselected token
+  - Added 150ms delay to distinguish between clicks and drags
+  - Preserves existing toggle behavior for already-selected tokens
 
 ### Changed
 - **Foundry Compatibility** - Updated to v12.331 (stable)

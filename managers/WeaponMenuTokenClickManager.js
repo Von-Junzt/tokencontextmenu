@@ -3,6 +3,7 @@ import { tokenDragManager } from "./TokenDragManager.js";
 import { shouldShowWeaponMenuOnSelection } from "../settings/settings.js";
 import { TIMING } from "../utils/constants.js";
 import { debug } from "../utils/debug.js";
+import { tickerDelay } from "../utils/timingUtils.js";
 
 /**
  * Centralized manager for all token click interactions related to weapon menus
@@ -32,7 +33,11 @@ export class WeaponMenuTokenClickManager {
             lastMouseButton: null,
             
             // Token selection tracking
-            lastSelectedToken: null
+            lastSelectedToken: null,
+            
+            // Selection drag tracking
+            selectionDrag: null,
+            menuDelayId: null
         };
 
         // Don't setup handlers in constructor - let the calling code decide when
@@ -61,8 +66,14 @@ export class WeaponMenuTokenClickManager {
         Hooks.on('canvasReady', () => {
             const newSceneId = canvas.scene?.id;
             if (currentSceneId !== newSceneId) {
-                debug('Scene changed, clearing last selected token');
+                debug('Scene changed, clearing state');
                 this.state.lastSelectedToken = null;
+                this.state.selectionDrag = null;
+                // Cancel any pending menu open
+                if (this.state.menuDelayId) {
+                    tickerDelay.cancel(this.state.menuDelayId);
+                    this.state.menuDelayId = null;
+                }
                 currentSceneId = newSceneId;
             } else {
                 debug('Canvas ready but same scene, keeping state');
@@ -118,69 +129,98 @@ export class WeaponMenuTokenClickManager {
                 lastTokenId: manager.state.lastSelectedToken?.id
             });
             
-            // If token is already controlled and selected, set up drag detection
-            // We'll handle the menu toggle on mouse up to avoid showing menu during drags
-            if (this.controlled && canvas.tokens.controlled.length === 1 && 
-                manager.state.lastSelectedToken === this) {
-                
-                debug('Setting up drag detection for already selected token');
-                
-                // Store that we're tracking this token for potential menu toggle
-                manager._pendingMenuToggle = {
-                    token: token,
-                    startX: event.data.global.x,
-                    startY: event.data.global.y,
-                    isDragging: false
-                };
-                
-                const checkDrag = (e) => {
-                    if (!manager._pendingMenuToggle) return;
-                    const dx = Math.abs(e.data.global.x - manager._pendingMenuToggle.startX);
-                    const dy = Math.abs(e.data.global.y - manager._pendingMenuToggle.startY);
-                    if (dx > TIMING.DRAG_THRESHOLD_PIXELS || dy > TIMING.DRAG_THRESHOLD_PIXELS) {
-                        manager._pendingMenuToggle.isDragging = true;
-                        
-                        // Close menu immediately when drag is detected
-                        if (weaponSystemCoordinator.isMenuOpen()) {
-                            debug('Drag detected, closing menu immediately');
-                            manager.closeWeaponMenu();
-                        }
-                    }
-                };
-                
-                const handleMouseUp = (e) => {
-                    debug('Mouse up detected', {
-                        hasPendingToggle: !!manager._pendingMenuToggle,
-                        isDragging: manager._pendingMenuToggle?.isDragging,
-                        token: token.name
-                    });
-                    
-                    token.off('pointermove', checkDrag);
-                    token.off('pointerup', handleMouseUp);
-                    token.off('pointerupoutside', handleMouseUp);
-                    
-                    // Toggle menu if we didn't drag
-                    if (manager._pendingMenuToggle && !manager._pendingMenuToggle.isDragging) {
-                        debug('Click (not drag) on already selected token, toggling menu');
-                        if (weaponSystemCoordinator.isMenuOpen()) {
-                            manager.closeWeaponMenu();
-                        } else {
-                            manager.openWeaponMenu(token);
-                        }
-                    } else {
-                        debug('Not toggling menu', {
-                            reason: !manager._pendingMenuToggle ? 'no pending toggle' : 'was dragging'
-                        });
-                    }
-                    
-                    manager._pendingMenuToggle = null;
-                };
-                
-                // Use the token's event handlers instead of canvas stage
-                this.on('pointermove', checkDrag);
-                this.on('pointerup', handleMouseUp);
-                this.on('pointerupoutside', handleMouseUp);
+            // Always set up drag detection to catch immediate drags on selection
+            const startX = event.data.global.x;
+            const startY = event.data.global.y;
+            const isAlreadySelected = this.controlled && canvas.tokens.controlled.length === 1 && 
+                                    manager.state.lastSelectedToken === this;
+            
+            debug('Setting up drag detection', {
+                token: this.name,
+                isAlreadySelected,
+                startX,
+                startY
+            });
+            
+            // Store drag tracking info
+            const dragInfo = {
+                token: token,
+                startX: startX,
+                startY: startY,
+                isDragging: false,
+                isAlreadySelected: isAlreadySelected
+            };
+            
+            // Store for selection tracking
+            if (!isAlreadySelected) {
+                manager.state.selectionDrag = dragInfo;
             }
+            
+            // Store for menu toggle tracking (already selected tokens)
+            if (isAlreadySelected) {
+                manager._pendingMenuToggle = dragInfo;
+            }
+            
+            const checkDrag = (e) => {
+                const dx = Math.abs(e.data.global.x - startX);
+                const dy = Math.abs(e.data.global.y - startY);
+                if (dx > TIMING.DRAG_THRESHOLD_PIXELS || dy > TIMING.DRAG_THRESHOLD_PIXELS) {
+                    dragInfo.isDragging = true;
+                    
+                    // Update the stored state
+                    if (manager.state.selectionDrag === dragInfo) {
+                        manager.state.selectionDrag.isDragging = true;
+                    }
+                    if (manager._pendingMenuToggle === dragInfo) {
+                        manager._pendingMenuToggle.isDragging = true;
+                    }
+                    
+                    // Close menu immediately when drag is detected on already selected token
+                    if (isAlreadySelected && weaponSystemCoordinator.isMenuOpen()) {
+                        debug('Drag detected on selected token, closing menu immediately');
+                        manager.closeWeaponMenu();
+                    }
+                    
+                    // Cancel any pending menu open
+                    if (manager.state.menuDelayId) {
+                        tickerDelay.cancel(manager.state.menuDelayId);
+                        manager.state.menuDelayId = null;
+                    }
+                }
+            };
+            
+            const handleMouseUp = (e) => {
+                debug('Mouse up detected', {
+                    isDragging: dragInfo.isDragging,
+                    isAlreadySelected: dragInfo.isAlreadySelected,
+                    token: token.name
+                });
+                
+                this.off('pointermove', checkDrag);
+                this.off('pointerup', handleMouseUp);
+                this.off('pointerupoutside', handleMouseUp);
+                
+                // Handle menu toggle for already selected tokens
+                if (isAlreadySelected && manager._pendingMenuToggle && !dragInfo.isDragging) {
+                    debug('Click (not drag) on already selected token, toggling menu');
+                    if (weaponSystemCoordinator.isMenuOpen()) {
+                        manager.closeWeaponMenu();
+                    } else {
+                        manager.openWeaponMenu(token);
+                    }
+                }
+                
+                // Clear tracking
+                if (manager._pendingMenuToggle === dragInfo) {
+                    manager._pendingMenuToggle = null;
+                }
+                // Don't clear selectionDrag here - let handleTokenSelection use it
+            };
+            
+            // Use the token's event handlers
+            this.on('pointermove', checkDrag);
+            this.on('pointerup', handleMouseUp);
+            this.on('pointerupoutside', handleMouseUp);
             
             // Continue with normal token selection
             return wrapped.call(this, event);
@@ -243,6 +283,12 @@ export class WeaponMenuTokenClickManager {
                 
                 if (!isSameToken) {
                     // New token selection
+                    // Cancel any pending menu open
+                    if (this.state.menuDelayId) {
+                        tickerDelay.cancel(this.state.menuDelayId);
+                        this.state.menuDelayId = null;
+                    }
+                    
                     // Close existing menu if open
                     if (weaponSystemCoordinator.isMenuOpen()) {
                         await this.closeWeaponMenu();
@@ -250,18 +296,31 @@ export class WeaponMenuTokenClickManager {
                     
                     // Only open menu if setting is enabled
                     if (settingEnabled) {
-                        await this.openWeaponMenu(token);
+                        // Check if we're already dragging from the selection
+                        if (this.state.selectionDrag?.isDragging) {
+                            debug('Selection drag already detected, not opening menu');
+                            this.state.selectionDrag = null;
+                        } else {
+                            // Use tickerDelay to wait and check for drag
+                            debug('Setting up delayed menu open to check for drag');
+                            this.state.menuDelayId = tickerDelay.delay(async () => {
+                                // Double-check drag state and that token is still selected
+                                if (!this.state.selectionDrag?.isDragging && 
+                                    canvas.tokens.controlled.includes(token)) {
+                                    debug('No drag detected during delay, opening menu');
+                                    await this.openWeaponMenu(token);
+                                } else {
+                                    debug('Drag detected or token deselected, not opening menu');
+                                }
+                                // Clear the selection drag tracking
+                                this.state.selectionDrag = null;
+                                this.state.menuDelayId = null;
+                            }, TIMING.DRAG_DETECTION_DELAY, 'menuOpenDelay');
+                        }
                     }
                 } else {
-                    // Click on already selected token - always toggle menu regardless of setting
-                    debug('Toggling menu for already selected token');
-                    if (weaponSystemCoordinator.isMenuOpen()) {
-                        debug('Closing menu');
-                        await this.closeWeaponMenu();
-                    } else {
-                        debug('Opening menu');
-                        await this.openWeaponMenu(token);
-                    }
+                    // Click on already selected token - handled in mouse up handler
+                    debug('Click on already selected token - handled in mouseup');
                 }
             }
             

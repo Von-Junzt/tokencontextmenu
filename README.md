@@ -34,6 +34,7 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
   - No timeout - take as long as you need to select targets
   - Auto-remove existing targets option
 - **Movement Handling**: Menu hides during token movement and can reopen afterward
+- **Drag Detection**: Menu won't open when clicking and immediately dragging tokens
 - **Token Selection**: Optional auto-show menu when selecting tokens
 - **Better Rolls Integration**: Seamlessly works with Better Rolls for SWADE
 

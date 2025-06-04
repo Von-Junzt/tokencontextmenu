@@ -22,6 +22,7 @@ export const TIMING = {
     
     // Drag detection
     DRAG_THRESHOLD_PIXELS: 5,                // Pixels to move before considering it a drag
+    DRAG_DETECTION_DELAY: 150,               // Delay before opening menu to check for drag
 };
 
 /**
