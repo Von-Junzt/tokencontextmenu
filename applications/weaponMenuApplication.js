@@ -606,7 +606,11 @@ export class WeaponMenuApplication extends Application {
 
                 // Clear state manager reference if this is the current menu
                 if (weaponSystemCoordinator.getMenuApp() === this) {
-                    weaponSystemCoordinator.setMenuApp(null);
+                    weaponSystemCoordinator.updateMenuState({
+                        weaponMenuOpen: false,
+                        currentToken: null,
+                        currentMenuApp: null
+                    });
                 }
 
                 // Transition to CLOSED

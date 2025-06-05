@@ -6,6 +6,7 @@
 import {shouldAutoRemoveTargets} from "../settings/settings.js";
 import {showTargetTooltip, setupTargetClickHandlers, emergencyCleanupTargeting} from "./interactionLayerUtils.js";
 import {targetingSessionManager} from "../managers/TargetingSessionManager.js";
+import {debug} from "./debug.js";
 
 /**
  * Handles weapon selection logic (enhanced with state manager coordination)
@@ -25,12 +26,34 @@ export async function handleWeaponSelection(token, weaponId, hideMenuCallback) {
         return;
     }
 
+    // Ensure weapon data is up to date
+    await weapon.prepareDerivedData?.();
+
+    // Debug logging for template properties
+    debug(`Checking weapon "${weapon.name}" for templates:`, {
+        weaponId: weapon.id,
+        templates: weapon.system?.templates,
+        hasTemplates: weapon.system?.templates ? Object.entries(weapon.system.templates) : 'No templates object'
+    });
+
     // Check if weapon has any template AOE properties activated
     const hasTemplateAOE = weapon?.system?.templates &&
         Object.values(weapon.system.templates).some(v => v === true);
 
+    debug(`Template check result:`, {
+        hasTemplateAOE,
+        currentTargetsSize: game.user.targets.size,
+        willSkipTargeting: hasTemplateAOE && !game.user.targets.size
+    });
+
     // If it's a template weapon, create the roll card immediately without requiring a target
-    if (hasTemplateAOE && !game.user.targets.size) {
+    if (hasTemplateAOE) {
+        // Clear any lingering targets for template weapons
+        if (game.user.targets.size > 0) {
+            debug(`Clearing ${game.user.targets.size} lingering targets for template weapon`);
+            game.user.targets.forEach(t => t.setTarget(false, {user: game.user}));
+            game.user.targets.clear();
+        }
         await game.brsw.create_item_card(token.actor, weaponId, {});
         return;
     }
