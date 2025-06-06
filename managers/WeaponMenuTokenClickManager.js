@@ -151,15 +151,9 @@ export class WeaponMenuTokenClickManager {
                 isAlreadySelected: isAlreadySelected
             };
             
-            // Store for selection tracking
-            if (!isAlreadySelected) {
-                manager.state.selectionDrag = dragInfo;
-            }
-            
-            // Store for menu toggle tracking (already selected tokens)
-            if (isAlreadySelected) {
-                manager._pendingMenuToggle = dragInfo;
-            }
+            // Store drag info for all cases - we'll check actual selection state on mouseup
+            manager.state.selectionDrag = dragInfo;
+            manager._pendingMenuToggle = dragInfo;
             
             const checkDrag = (e) => {
                 const dx = Math.abs(e.data.global.x - startX);
@@ -190,9 +184,15 @@ export class WeaponMenuTokenClickManager {
             };
             
             const handleMouseUp = (e) => {
+                // Check selection state NOW, not from cached value
+                const isCurrentlySelected = token.controlled && 
+                                          canvas.tokens.controlled.length === 1 && 
+                                          manager.state.lastSelectedToken === token;
+                
                 debug('Mouse up detected', {
                     isDragging: dragInfo.isDragging,
                     isAlreadySelected: dragInfo.isAlreadySelected,
+                    isCurrentlySelected: isCurrentlySelected,
                     token: token.name
                 });
                 
@@ -201,7 +201,8 @@ export class WeaponMenuTokenClickManager {
                 this.off('pointerupoutside', handleMouseUp);
                 
                 // Handle menu toggle for already selected tokens
-                if (isAlreadySelected && manager._pendingMenuToggle && !dragInfo.isDragging) {
+                // Use current selection state instead of cached value
+                if (isCurrentlySelected && !dragInfo.isDragging) {
                     debug('Click (not drag) on already selected token, toggling menu');
                     if (weaponSystemCoordinator.isMenuOpen()) {
                         manager.closeWeaponMenu();

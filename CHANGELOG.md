@@ -28,6 +28,10 @@ All notable changes to this project will be documented in this file.
   - Fixed menu showing when dragging tokens instead of clicking
   - Menu now closes immediately when drag is detected
   - Removed all timing dependencies for deterministic behavior
+- **Menu Opening Race Condition** - Fixed timing issue in token selection handling
+  - Menu now correctly opens when clicking unselected tokens
+  - Selection state is checked at the right time (mouseup) instead of being cached too early (mousedown)
+  - Resolves issue where token becomes selected between mouse events
 
 ### Changed
 - **Mouse Button Detection** - Now intercepts `Token._onClickLeft` and `Token._onClickRight` directly via libWrapper
@@ -77,3 +81,9 @@ All notable changes to this project will be documented in this file.
   - Documented state machine pattern and architecture
   - Added JSDoc to all manager classes and utility functions
   - Explained design patterns and their purposes
+- **Template Weapon Detection** - Fixed template weapons requiring target selection
+  - Added weapon data preparation to ensure templates are properly loaded
+  - Template weapons (AOE) now correctly create roll cards immediately
+- **Menu State Management** - Fixed "state mismatch" console warnings
+  - Menu close now properly updates all coordinator state flags
+  - Eliminated warnings when clicking tokens after weapon selection
