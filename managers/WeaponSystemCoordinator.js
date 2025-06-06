@@ -16,6 +16,7 @@ import { tickerDelay } from "../utils/timingUtils.js";
 import { TIMING } from "../utils/constants.js";
 import { tokenDragManager } from "./TokenDragManager.js";
 import { targetingSessionManager } from "./TargetingSessionManager.js";
+import { debug, debugWarn } from "../utils/debug.js";
 
 /**
  * Coordinates between weapon menu, selection, and movement systems
@@ -142,13 +143,19 @@ class WeaponSystemCoordinator {
      * Prevents race conditions between selection and click events
      */
     startSelectionProcessing() {
+        if (this.state.isProcessingSelection) {
+            debugWarn('Selection processing already active, resetting timeout');
+        }
+        
         this.state.isProcessingSelection = true;
+        debug('Selection processing started, will timeout in', TIMING.SELECTION_TIMEOUT, 'ms');
 
         if (this.state.selectionDelayId !== null) {
             tickerDelay.cancel(this.state.selectionDelayId);
         }
 
         this.state.selectionDelayId = tickerDelay.delay(() => {
+            debugWarn('Selection processing timed out, force clearing');
             this.clearSelectionProcessing();
         }, TIMING.SELECTION_TIMEOUT, 'selectionProcessingTimeout');
     }
@@ -161,7 +168,11 @@ class WeaponSystemCoordinator {
             tickerDelay.cancel(this.state.selectionDelayId);
             this.state.selectionDelayId = null;
         }
-        this.state.isProcessingSelection = false;
+        
+        if (this.state.isProcessingSelection) {
+            debug('Selection processing cleared');
+            this.state.isProcessingSelection = false;
+        }
     }
 
     /**

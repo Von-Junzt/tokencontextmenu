@@ -517,6 +517,11 @@ export class WeaponMenuTokenClickManager {
 
         switch (action) {
             case 'open':
+                // Clear any lingering selection processing before opening
+                if (weaponSystemCoordinator.isProcessingSelection()) {
+                    debug('Clearing lingering selection processing before open');
+                    weaponSystemCoordinator.clearSelectionProcessing();
+                }
                 await this.openWeaponMenu(token);
                 break;
 
@@ -528,6 +533,16 @@ export class WeaponMenuTokenClickManager {
 
                 if (weaponSystemCoordinator.isMenuOpen()) {
                     await this.closeWeaponMenu();
+                }
+
+                // Check if token is still valid before opening menu
+                if (!token || !canvas.tokens.placeables.includes(token)) {
+                    debug('Token no longer valid, skipping menu open');
+                    // Clear selection processing before returning
+                    if (type === 'selection') {
+                        weaponSystemCoordinator.clearSelectionProcessing();
+                    }
+                    return;
                 }
 
                 // Open menu immediately without delay

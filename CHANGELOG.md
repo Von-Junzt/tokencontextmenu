@@ -32,6 +32,16 @@ All notable changes to this project will be documented in this file.
   - Menu now correctly opens when clicking unselected tokens
   - Selection state is checked at the right time (mouseup) instead of being cached too early (mousedown)
   - Resolves issue where token becomes selected between mouse events
+- **Selection Processing Flag** - Fixed flag getting stuck in processing state
+  - Flag is now cleared in all code paths including early returns
+  - Added token validation to prevent operations on deleted/invalid tokens
+  - Enhanced debug logging to track flag lifecycle
+  - Existing 500ms timeout provides additional safety net
+- **Performance Optimization** - Added caching for controlled tokens
+  - Implemented centralized cache in WeaponSystemCoordinator
+  - Reduces repeated `canvas.tokens.controlled` queries during click handling
+  - Uses version counter for robust cache invalidation
+  - Handles canvas state transitions properly
 
 ### Changed
 - **Mouse Button Detection** - Now intercepts `Token._onClickLeft` and `Token._onClickRight` directly via libWrapper
