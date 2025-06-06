@@ -43,6 +43,13 @@ All notable changes to this project will be documented in this file.
   - Uses version counter for robust cache invalidation
   - Handles canvas state transitions properly
 
+### Removed
+- **Auto-Close Timer** - Removed automatic menu closure after 10 seconds
+  - Menu now stays open until explicitly closed by user action
+  - Improves user experience by preventing premature closure while reading tooltips
+  - Aligns with standard Foundry VTT UI patterns
+  - Simplifies codebase by removing timer management
+
 ### Changed
 - **Mouse Button Detection** - Now intercepts `Token._onClickLeft` and `Token._onClickRight` directly via libWrapper
 - **Drag Detection** - Added 5-pixel threshold to distinguish clicks from drags

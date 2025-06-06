@@ -2,7 +2,7 @@ import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow } from "../settings/se
 import { handleWeaponSelection, handleWeaponEdit } from "../utils/weaponHandlers.js";
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
-import { TIMING, SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
+import { SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
 
 /**
@@ -17,7 +17,6 @@ export class WeaponMenuApplication extends Application {
         this.weaponContainers = [];
         this.clickOutsideHandler = null;
         this.keyHandler = null;
-        this.autoCloseDelayId = null;
         this._currentTooltipUpdate = null;
         
         // New state management
@@ -97,7 +96,6 @@ export class WeaponMenuApplication extends Application {
                 
                 // Set up event handling
                 this._setupEventListeners();
-                this._setupAutoClose();
 
                 // Transition to OPEN state
                 this.stateMachine.transition('OPEN');
@@ -479,19 +477,6 @@ export class WeaponMenuApplication extends Application {
         }
     }
 
-    /**
-     * Set up auto-close timer
-     * Menu closes automatically after inactivity
-     * @private
-     */
-    _setupAutoClose() {
-        // Use ticker delay for auto-close instead of setTimeout
-        this.autoCloseDelayId = tickerDelay.delay(() => {
-            if (this.stateMachine.getState() === 'OPEN') {
-                this.close();
-            }
-        }, TIMING.MENU_AUTO_CLOSE, 'weaponMenuAutoClose');
-    }
 
     /**
      * Show tooltip with weapon information
@@ -570,12 +555,6 @@ export class WeaponMenuApplication extends Application {
             this.stateMachine.transition('CLOSING');
             
             try {
-                // Cancel auto-close timer first
-                if (this.autoCloseDelayId !== null) {
-                    tickerDelay.cancel(this.autoCloseDelayId);
-                    this.autoCloseDelayId = null;
-                }
-
                 // Hide tooltip
                 this._hideTooltip();
 
@@ -653,13 +632,6 @@ export class WeaponMenuApplication extends Application {
             this._hideTooltip();
         } catch (e) {}
         
-        // Force cancel timers
-        try {
-            if (this.autoCloseDelayId !== null) {
-                tickerDelay.cancel(this.autoCloseDelayId);
-            }
-        } catch (e) {}
-        
         // Force destroy container
         try {
             if (this.container) {
@@ -693,8 +665,7 @@ export class WeaponMenuApplication extends Application {
             containerValid: ContainerVerification.isValid(this.container),
             tokenId: this.token?.id,
             operationQueue: this.operationQueue.getStatus(),
-            hasEventListeners: !!(this.clickOutsideHandler || this.keyHandler),
-            autoCloseActive: this.autoCloseDelayId !== null
+            hasEventListeners: !!(this.clickOutsideHandler || this.keyHandler)
         };
     }
 }

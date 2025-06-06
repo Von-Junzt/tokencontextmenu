@@ -18,7 +18,6 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
 - **Right Click**: Open the weapon's item sheet for editing
 - **Escape Key**: Close the menu
 - **Click Outside**: Close the menu
-- **Auto-Close**: Menu automatically closes after 10 seconds of inactivity
 
 ### 🎨 UI Design
 - **Responsive Layout**: Configurable items per row (default: 4)

@@ -10,7 +10,6 @@ export const TIMING = {
     // Weapon menu timings
     MENU_RENDER_HOOK_DELAY: 50,              // Delay before calling weaponMenuRendered hook
     MENU_CLICK_DEBOUNCE: 75,                 // Debounce for click detection
-    MENU_AUTO_CLOSE: 10000,                  // Auto-close menu after 10 seconds
     MENU_SELECTION_CLEAR: 100,               // Delay to clear selection processing
     
     // Selection processing
