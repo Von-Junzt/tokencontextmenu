@@ -49,6 +49,14 @@ class WeaponSystemCoordinator {
             movementTrackers: new Map()
         };
 
+        // Performance cache for controlled tokens
+        this._controlledTokensCache = {
+            tokens: [],
+            count: 0,
+            singleToken: null,
+            version: 0  // Use version counter instead of timestamp
+        };
+
         this._setupHooks();
     }
 
@@ -57,6 +65,11 @@ class WeaponSystemCoordinator {
      * @private
      */
     _setupHooks() {
+        // Invalidate cache when token control changes
+        Hooks.on('controlToken', () => {
+            this._invalidateControlledTokensCache();
+        });
+
         Hooks.on('tokencontextmenu.weaponMenuClosed', () => {
             // Stop all movement trackers FIRST
             for (const [tokenId, ticker] of this.state.movementTrackers) {
@@ -73,6 +86,7 @@ class WeaponSystemCoordinator {
 
         Hooks.on('canvasReady', async () => {
             await this.reset();
+            this._invalidateControlledTokensCache();
         });
     }
 
@@ -270,7 +284,15 @@ class WeaponSystemCoordinator {
             
             // Delegated state
             dragManager: tokenDragManager.getDebugInfo(this.state.currentToken),
-            targetingManager: targetingSessionManager.getDebugInfo()
+            targetingManager: targetingSessionManager.getDebugInfo(),
+            
+            // Cache state
+            controlledTokensCache: {
+                count: this._controlledTokensCache.count,
+                hasSingle: !!this._controlledTokensCache.singleToken,
+                version: this._controlledTokensCache.version,
+                cachedVersion: this._cachedVersion
+            }
         };
     }
 
@@ -279,6 +301,87 @@ class WeaponSystemCoordinator {
      */
     logState() {
         console.debug('Token Context Menu: System State:', this.getStateSnapshot());
+    }
+
+    /**
+     * Invalidate the controlled tokens cache
+     * @private
+     */
+    _invalidateControlledTokensCache() {
+        this._controlledTokensCache.version++;
+    }
+
+    /**
+     * Update the controlled tokens cache if needed
+     * @private
+     */
+    _updateControlledTokensCache() {
+        // Skip if cache is already updated for this version
+        if (this._cachedVersion === this._controlledTokensCache.version) {
+            return;
+        }
+
+        // Clear cache if canvas not ready
+        if (!canvas?.ready) {
+            this._controlledTokensCache.tokens = [];
+            this._controlledTokensCache.count = 0;
+            this._controlledTokensCache.singleToken = null;
+            this._cachedVersion = this._controlledTokensCache.version;
+            return;
+        }
+
+        const controlled = canvas.tokens?.controlled || [];
+        this._controlledTokensCache.tokens = [...controlled]; // Defensive copy
+        this._controlledTokensCache.count = controlled.length;
+        this._controlledTokensCache.singleToken = controlled.length === 1 ? controlled[0] : null;
+        this._cachedVersion = this._controlledTokensCache.version;
+    }
+
+    /**
+     * Get controlled tokens (cached)
+     * @returns {Token[]} Array of controlled tokens
+     */
+    getControlledTokens() {
+        this._updateControlledTokensCache();
+        return this._controlledTokensCache.tokens;
+    }
+
+    /**
+     * Get count of controlled tokens (cached)
+     * @returns {number} Number of controlled tokens
+     */
+    getControlledTokensCount() {
+        this._updateControlledTokensCache();
+        return this._controlledTokensCache.count;
+    }
+
+    /**
+     * Check if exactly one token is controlled (cached)
+     * @returns {boolean} True if exactly one token is controlled
+     */
+    hasExactlyOneControlledToken() {
+        this._updateControlledTokensCache();
+        return this._controlledTokensCache.count === 1;
+    }
+
+    /**
+     * Get the single controlled token if exactly one is controlled (cached)
+     * @returns {Token|null} The single controlled token or null
+     */
+    getSingleControlledToken() {
+        this._updateControlledTokensCache();
+        return this._controlledTokensCache.singleToken;
+    }
+
+    /**
+     * Check if a specific token is the only controlled token (cached)
+     * @param {Token} token - Token to check
+     * @returns {boolean} True if this token is the only controlled token
+     */
+    isOnlyControlledToken(token) {
+        this._updateControlledTokensCache();
+        return this._controlledTokensCache.count === 1 && 
+               this._controlledTokensCache.singleToken === token;
     }
 
     /**

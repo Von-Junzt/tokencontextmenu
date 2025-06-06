@@ -49,7 +49,7 @@ function trackTokenMovementForMenuReshow(token) {
 
                 if (token.controlled &&
                     !canvas.hud.token.rendered &&
-                    canvas.tokens.controlled.length === 1) {
+                    weaponSystemCoordinator.hasExactlyOneControlledToken()) {
 
                     showWeaponMenuUnderToken(token);
                 }
@@ -109,7 +109,7 @@ export function registerTokenHudTokenHudHandler() {
     Hooks.on("renderTokenHUD", async (hud, html, data) => {
         // This is a legitimate HUD open (right-click, etc.) - close the weapon menu
         await closeWeaponMenu();
-        canvas.tokens.controlled.forEach(token => {
+        weaponSystemCoordinator.getControlledTokens().forEach(token => {
             stopTokenMovementTracker(token);
         });
     });

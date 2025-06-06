@@ -132,7 +132,8 @@ export class WeaponMenuTokenClickManager {
             // Always set up drag detection to catch immediate drags on selection
             const startX = event.data.global.x;
             const startY = event.data.global.y;
-            const isAlreadySelected = this.controlled && canvas.tokens.controlled.length === 1 && 
+            const isAlreadySelected = this.controlled && 
+                                    weaponSystemCoordinator.isOnlyControlledToken(this) && 
                                     manager.state.lastSelectedToken === this;
             
             debug('Setting up drag detection', {
@@ -186,7 +187,7 @@ export class WeaponMenuTokenClickManager {
             const handleMouseUp = (e) => {
                 // Check selection state NOW, not from cached value
                 const isCurrentlySelected = token.controlled && 
-                                          canvas.tokens.controlled.length === 1 && 
+                                          weaponSystemCoordinator.isOnlyControlledToken(token) && 
                                           manager.state.lastSelectedToken === token;
                 
                 debug('Mouse up detected', {
@@ -262,7 +263,7 @@ export class WeaponMenuTokenClickManager {
             // Handle deselection - don't close menu here
             // Let the canvas click handler or new selection handle menu closing
             return;
-        } else if (controlled && token.isOwner && canvas.tokens.controlled.length === 1) {
+        } else if (controlled && token.isOwner && weaponSystemCoordinator.hasExactlyOneControlledToken()) {
             // Handle selection - check if we should show menu
             const wasLeftClick = this.state.lastMouseButton === 0;
             const settingEnabled = shouldShowWeaponMenuOnSelection();
@@ -307,7 +308,7 @@ export class WeaponMenuTokenClickManager {
                             this.state.menuDelayId = tickerDelay.delay(async () => {
                                 // Double-check drag state and that token is still selected
                                 if (!this.state.selectionDrag?.isDragging && 
-                                    canvas.tokens.controlled.includes(token)) {
+                                    weaponSystemCoordinator.getControlledTokens().includes(token)) {
                                     debug('No drag detected during delay, opening menu');
                                     await this.openWeaponMenu(token);
                                 } else {
@@ -365,7 +366,7 @@ export class WeaponMenuTokenClickManager {
         }
         
         // Only proceed if this is the only controlled token
-        if (canvas.tokens.controlled.length !== 1) {
+        if (!weaponSystemCoordinator.hasExactlyOneControlledToken()) {
             return;
         }
 
@@ -450,7 +451,7 @@ export class WeaponMenuTokenClickManager {
         // Check basic conditions
         if (!token.controlled ||
             !token.isOwner ||
-            canvas.tokens.controlled.length !== 1 ||
+            !weaponSystemCoordinator.hasExactlyOneControlledToken() ||
             canvas.hud.token.rendered) {
             return {
                 action: 'ignore',
