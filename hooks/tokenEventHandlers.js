@@ -49,7 +49,8 @@ function trackTokenMovementForMenuReshow(token) {
 
                 if (token.controlled &&
                     !canvas.hud.token.rendered &&
-                    weaponSystemCoordinator.hasExactlyOneControlledToken()) {
+                    weaponSystemCoordinator.hasExactlyOneControlledToken() &&
+                    shouldShowWeaponMenuOnSelection()) {
 
                     showWeaponMenuUnderToken(token);
                 }

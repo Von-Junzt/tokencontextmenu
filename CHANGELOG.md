@@ -28,6 +28,11 @@ All notable changes to this project will be documented in this file.
   - Fixed menu showing when dragging tokens instead of clicking
   - Menu now closes immediately when drag is detected
   - Removed all timing dependencies for deterministic behavior
+- **Event Listener Memory Leak** - Fixed PIXI event listeners accumulating on tokens
+  - Added proper cleanup tracking using WeakMap
+  - Listeners are now removed before adding new ones
+  - Cleanup occurs on token deselection, deletion, and scene changes
+  - Prevents performance degradation over long play sessions
 - **Menu Opening Race Condition** - Fixed timing issue in token selection handling
   - Menu now correctly opens when clicking unselected tokens
   - Selection state is checked at the right time (mouseup) instead of being cached too early (mousedown)

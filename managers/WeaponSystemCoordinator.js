@@ -27,7 +27,6 @@ import { debug, debugWarn } from "../utils/debug.js";
  * All major components communicate through this coordinator to ensure consistency.
  * 
  * @property {Object} state - Central state store for the weapon menu system
- * @property {boolean} state.weaponMenuOpen - Whether a menu is currently open
  * @property {number} state.menuOpenedAt - Timestamp when menu was opened
  * @property {WeaponMenuApplication|null} state.currentMenuApp - Reference to current menu
  * @property {Token|null} state.currentToken - Token associated with current menu
@@ -37,7 +36,6 @@ class WeaponSystemCoordinator {
     constructor() {
         this.state = {
             // Menu state
-            weaponMenuOpen: false,
             menuOpenedAt: 0,
             currentMenuApp: null,
             currentToken: null,
@@ -103,8 +101,8 @@ class WeaponSystemCoordinator {
     updateMenuState(changes) {
         Object.assign(this.state, changes);
 
-        // Clear selection processing when menu successfully opens
-        if (changes.weaponMenuOpen === true) {
+        // Clear selection processing when menu app is set
+        if (changes.currentMenuApp) {
             tickerDelay.delay(() => {
                 this.clearSelectionProcessing();
             }, TIMING.MENU_SELECTION_CLEAR, 'clearSelectionOnOpen');
@@ -116,7 +114,7 @@ class WeaponSystemCoordinator {
      * @returns {boolean} True if menu is open
      */
     isMenuOpen() {
-        return this.state.weaponMenuOpen;
+        return this.state.currentMenuApp?.stateMachine?.isActive() || false;
     }
 
     /**
@@ -293,7 +291,7 @@ class WeaponSystemCoordinator {
     getStateSnapshot() {
         return {
             // Core state
-            weaponMenuOpen: this.state.weaponMenuOpen,
+            weaponMenuOpen: this.isMenuOpen(),
             isProcessingSelection: this.state.isProcessingSelection,
             currentToken: this.state.currentToken?.name || null,
             movementTrackerCount: this.state.movementTrackers.size,

@@ -80,7 +80,6 @@ export class WeaponMenuApplication extends Application {
                 // Register with state manager
                 weaponSystemCoordinator.setMenuApp(this);
                 weaponSystemCoordinator.updateMenuState({
-                    weaponMenuOpen: true,
                     currentToken: this.token,
                     currentMenuApp: this
                 });
@@ -586,7 +585,6 @@ export class WeaponMenuApplication extends Application {
                 // Clear state manager reference if this is the current menu
                 if (weaponSystemCoordinator.getMenuApp() === this) {
                     weaponSystemCoordinator.updateMenuState({
-                        weaponMenuOpen: false,
                         currentToken: null,
                         currentMenuApp: null
                     });

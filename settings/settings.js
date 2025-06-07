@@ -19,8 +19,8 @@ export function registerSettings() {
 
     // Add the new setting for weapon menu on token selection
     game.settings.register("tokencontextmenu", "showWeaponMenuOnSelection", {
-        name: "tokencontextmenu.Settings.ShowWeaponMenuOnSelection",
-        hint: "tokencontextmenu.Settings.ShowWeaponMenuOnSelectionHint",
+        name: game.i18n.localize("tokencontextmenu.Settings.ShowWeaponMenuOnSelection"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ShowWeaponMenuOnSelectionHint"),
         scope: "client",
         config: true,
         type: Boolean,
@@ -30,8 +30,8 @@ export function registerSettings() {
 
     // Add the new setting for reopening menu after dragging
     game.settings.register("tokencontextmenu", "reopenMenuAfterDrag", {
-        name: "tokencontextmenu.Settings.ReopenMenuAfterDrag",
-        hint: "tokencontextmenu.Settings.ReopenMenuAfterDragHint",
+        name: game.i18n.localize("tokencontextmenu.Settings.ReopenMenuAfterDrag"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ReopenMenuAfterDragHint"),
         scope: "client",
         config: true,
         type: Boolean,
@@ -40,8 +40,8 @@ export function registerSettings() {
     });
 
     game.settings.register("tokencontextmenu", "detailedWeaponTooltips", {
-        name: "tokencontextmenu.Settings.DetailedWeaponTooltips",
-        hint: "tokencontextmenu.Settings.DetailedWeaponTooltipsHint",
+        name: game.i18n.localize("tokencontextmenu.Settings.DetailedWeaponTooltips"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.DetailedWeaponTooltipsHint"),
         scope: "client",
         config: true,
         type: Boolean,
@@ -50,8 +50,8 @@ export function registerSettings() {
     });
 
     game.settings.register("tokencontextmenu", "weaponMenuItemsPerRow", {
-        name: "tokencontextmenu.Settings.WeaponItemsPerRow",
-        hint: "tokencontextmenu.Settings.WeaponItemsPerRowHint",
+        name: game.i18n.localize("tokencontextmenu.Settings.WeaponItemsPerRow"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.WeaponItemsPerRowHint"),
         scope: "client",
         config: true,
         type: Number,
@@ -65,8 +65,8 @@ export function registerSettings() {
     });
 
     game.settings.register("tokencontextmenu", "weaponMenuIconScale", {
-        name: "tokencontextmenu.Settings.WeaponIconScale",
-        hint: "tokencontextmenu.Settings.WeaponIconScaleHint",
+        name: game.i18n.localize("tokencontextmenu.Settings.WeaponIconScale"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.WeaponIconScaleHint"),
         scope: "client",
         config: true,
         type: Number,
@@ -81,8 +81,8 @@ export function registerSettings() {
     
     // Debug setting
     game.settings.register("tokencontextmenu", "debugMode", {
-        name: "tokencontextmenu.Settings.DebugMode",
-        hint: "tokencontextmenu.Settings.DebugModeHint",
+        name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.DebugModeHint"),
         scope: "client",
         config: true,
         type: Boolean,

@@ -204,14 +204,15 @@ export class WeaponMenuTokenClickManager {
             };
             
             const handleMouseUp = (e) => {
-                // Check selection state NOW, not from cached value
+                // Check if token was already selected BEFORE this click (using dragInfo.isAlreadySelected)
+                // This avoids race condition with lastSelectedToken update
+                const wasAlreadySelected = dragInfo.isAlreadySelected;
                 const isCurrentlySelected = token.controlled && 
-                                          weaponSystemCoordinator.isOnlyControlledToken(token) && 
-                                          manager.state.lastSelectedToken === token;
+                                          weaponSystemCoordinator.isOnlyControlledToken(token);
                 
                 debug('Mouse up detected', {
                     isDragging: dragInfo.isDragging,
-                    isAlreadySelected: dragInfo.isAlreadySelected,
+                    wasAlreadySelected: wasAlreadySelected,
                     isCurrentlySelected: isCurrentlySelected,
                     token: token.name
                 });
@@ -220,9 +221,9 @@ export class WeaponMenuTokenClickManager {
                 this.off('pointerup', handleMouseUp);
                 this.off('pointerupoutside', handleMouseUp);
                 
-                // Handle menu toggle for already selected tokens
-                // Use current selection state instead of cached value
-                if (isCurrentlySelected && !dragInfo.isDragging) {
+                // Handle menu toggle ONLY for tokens that were already selected before the click
+                // This prevents opening menu on initial selection when setting is disabled
+                if (wasAlreadySelected && isCurrentlySelected && !dragInfo.isDragging) {
                     debug('Click (not drag) on already selected token, toggling menu');
                     if (weaponSystemCoordinator.isMenuOpen()) {
                         manager.closeWeaponMenu();
