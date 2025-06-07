@@ -40,6 +40,9 @@ export class WeaponMenuTokenClickManager {
             menuDelayId: null
         };
 
+        // Track token event listeners for cleanup
+        this._tokenListeners = new WeakMap();
+
         // Don't setup handlers in constructor - let the calling code decide when
         this.boundHandlers = {
             handleTokenSelection: this.handleTokenSelection.bind(this),
@@ -63,7 +66,9 @@ export class WeaponMenuTokenClickManager {
         // Clear last selected token on scene changes
         // But don't clear it on every render - only on actual scene changes
         let currentSceneId = canvas.scene?.id;
-        Hooks.on('canvasReady', () => {
+        
+        // Store hook handler references for cleanup
+        this._canvasReadyHandler = () => {
             const newSceneId = canvas.scene?.id;
             if (currentSceneId !== newSceneId) {
                 debug('Scene changed, clearing state');
@@ -74,11 +79,25 @@ export class WeaponMenuTokenClickManager {
                     tickerDelay.cancel(this.state.menuDelayId);
                     this.state.menuDelayId = null;
                 }
+                // Clean up all token listeners on scene change
+                if (canvas?.tokens?.placeables) {
+                    canvas.tokens.placeables.forEach(token => {
+                        this.cleanupTokenListeners(token);
+                    });
+                }
                 currentSceneId = newSceneId;
             } else {
                 debug('Canvas ready but same scene, keeping state');
             }
-        });
+        };
+        
+        this._deleteTokenHandler = (token) => {
+            this.cleanupTokenListeners(token);
+        };
+        
+        // Register the hooks
+        Hooks.on('canvasReady', this._canvasReadyHandler);
+        Hooks.on('deleteToken', this._deleteTokenHandler);
     }
 
     /**
@@ -260,7 +279,8 @@ export class WeaponMenuTokenClickManager {
         });
         
         if (!controlled) {
-            // Handle deselection - don't close menu here
+            // Handle deselection - clean up listeners
+            this.cleanupTokenListeners(token);
             // Let the canvas click handler or new selection handle menu closing
             return;
         } else if (controlled && token.isOwner && weaponSystemCoordinator.hasExactlyOneControlledToken()) {
@@ -603,27 +623,36 @@ export class WeaponMenuTokenClickManager {
     initializeDragDetection(token) {
         const dragState = tokenDragManager.initializeDragState(token);
         
-        // Set up listeners once per token
-        if (dragState._listenersSetup) return dragState;
+        // Clean up any existing listeners first
+        this.cleanupTokenListeners(token);
+
+        // Create listener functions that we can reference for cleanup
+        const listeners = {
+            pointerdown: (event) => {
+                tokenDragManager.startDrag(token, {
+                    x: event.data.global.x,
+                    y: event.data.global.y
+                });
+            },
+            pointermove: (event) => {
+                tokenDragManager.updateDragMovement(token, {
+                    x: event.data.global.x,
+                    y: event.data.global.y
+                }, this.state.dragThresholdPixels);
+            },
+            pointerup: () => {
+                tokenDragManager.endDrag(token);
+            }
+        };
+
+        // Add the listeners
+        Object.entries(listeners).forEach(([event, handler]) => {
+            token.on(event, handler);
+        });
+
+        // Store listeners for cleanup
+        this._tokenListeners.set(token, listeners);
         dragState._listenersSetup = true;
-
-        token.on('pointerdown', (event) => {
-            tokenDragManager.startDrag(token, {
-                x: event.data.global.x,
-                y: event.data.global.y
-            });
-        });
-
-        token.on('pointermove', (event) => {
-            tokenDragManager.updateDragMovement(token, {
-                x: event.data.global.x,
-                y: event.data.global.y
-            }, this.state.dragThresholdPixels);
-        });
-
-        token.on('pointerup', () => {
-            tokenDragManager.endDrag(token);
-        });
 
         return dragState;
     }
@@ -669,26 +698,74 @@ export class WeaponMenuTokenClickManager {
     }
 
     /**
+     * Clean up event listeners from a specific token
+     * @param {Token} token - The token to clean up
+     */
+    cleanupTokenListeners(token) {
+        const listeners = this._tokenListeners.get(token);
+        if (listeners) {
+            Object.entries(listeners).forEach(([event, handler]) => {
+                token.off(event, handler);
+            });
+            this._tokenListeners.delete(token);
+            debug('Cleaned up listeners for token:', token.name);
+        }
+    }
+
+    /**
      * Cleanup all event handlers
      * Call this when the module is disabled or during scene teardown
      */
     cleanup() {
+        // Remove hook handlers
         if (this.boundHandlers.handleTokenSelection) {
             Hooks.off("controlToken", this.boundHandlers.handleTokenSelection);
         }
+        
+        if (this._canvasReadyHandler) {
+            Hooks.off('canvasReady', this._canvasReadyHandler);
+            this._canvasReadyHandler = null;
+        }
+        
+        if (this._deleteTokenHandler) {
+            Hooks.off('deleteToken', this._deleteTokenHandler);
+            this._deleteTokenHandler = null;
+        }
 
+        // Remove canvas stage handlers
         if (this.state.canvasClickHandler) {
             canvas.stage?.off("pointertap", this.state.canvasClickHandler);
         }
 
-        // Unregister libWrapper hooks
-        libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
-        libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickRight');
+        // Cancel any pending menu operations
+        if (this.state.menuDelayId) {
+            tickerDelay.cancel(this.state.menuDelayId);
+            this.state.menuDelayId = null;
+        }
+
+        // Clean up all token listeners
+        if (canvas?.tokens?.placeables) {
+            canvas.tokens.placeables.forEach(token => {
+                this.cleanupTokenListeners(token);
+            });
+        }
+
+        // Unregister libWrapper hooks if available
+        if (typeof libWrapper !== 'undefined') {
+            try {
+                libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
+                libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickRight');
+            } catch (error) {
+                debug('Error unregistering libWrapper hooks:', error);
+            }
+        }
 
         // Clear state
         this.state.isCanvasHandlerSetup = false;
         this.state.lastSelectedToken = null;
         this.state.lastMouseButton = null;
+        this.state.selectionDrag = null;
+        this._pendingMenuToggle = null;
     }
 
     /**

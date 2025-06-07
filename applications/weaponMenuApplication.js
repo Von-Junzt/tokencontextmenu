@@ -2,7 +2,7 @@ import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow } from "../settings/se
 import { handleWeaponSelection, handleWeaponEdit } from "../utils/weaponHandlers.js";
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
-import { SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
+import { TIMING, SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
 
 /**

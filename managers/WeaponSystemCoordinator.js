@@ -66,12 +66,12 @@ class WeaponSystemCoordinator {
      * @private
      */
     _setupHooks() {
-        // Invalidate cache when token control changes
-        Hooks.on('controlToken', () => {
+        // Store hook handlers for cleanup
+        this._controlTokenHandler = () => {
             this._invalidateControlledTokensCache();
-        });
-
-        Hooks.on('tokencontextmenu.weaponMenuClosed', () => {
+        };
+        
+        this._weaponMenuClosedHandler = () => {
             // Stop all movement trackers FIRST
             for (const [tokenId, ticker] of this.state.movementTrackers) {
                 ticker.stop();
@@ -83,12 +83,17 @@ class WeaponSystemCoordinator {
 
             // Note: Menu state is already updated by weaponMenuCloser.js
             // This hook is just for additional cleanup
-        });
-
-        Hooks.on('canvasReady', async () => {
+        };
+        
+        this._canvasReadyHandler = async () => {
             await this.reset();
             this._invalidateControlledTokensCache();
-        });
+        };
+        
+        // Register hooks
+        Hooks.on('controlToken', this._controlTokenHandler);
+        Hooks.on('tokencontextmenu.weaponMenuClosed', this._weaponMenuClosedHandler);
+        Hooks.on('canvasReady', this._canvasReadyHandler);
     }
 
     /**
@@ -415,6 +420,31 @@ class WeaponSystemCoordinator {
 
         // Clear menu state - no need to update here as forceCloseAllMenus already does it
         this.state.menuOpenedAt = 0;
+    }
+    
+    /**
+     * Cleanup all hooks and state
+     * Call this when the module is disabled
+     */
+    cleanup() {
+        // Remove hooks
+        if (this._controlTokenHandler) {
+            Hooks.off('controlToken', this._controlTokenHandler);
+            this._controlTokenHandler = null;
+        }
+        
+        if (this._weaponMenuClosedHandler) {
+            Hooks.off('tokencontextmenu.weaponMenuClosed', this._weaponMenuClosedHandler);
+            this._weaponMenuClosedHandler = null;
+        }
+        
+        if (this._canvasReadyHandler) {
+            Hooks.off('canvasReady', this._canvasReadyHandler);
+            this._canvasReadyHandler = null;
+        }
+        
+        // Reset the system
+        this.reset();
     }
 }
 

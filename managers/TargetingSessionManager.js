@@ -131,6 +131,25 @@ class TargetingSessionManager {
             sessionInfo: this.getSessionInfo()
         };
     }
+    
+    /**
+     * Cleanup hooks when module is disabled
+     */
+    cleanup() {
+        // End any active session
+        this.endSession();
+        
+        // Remove hooks
+        if (this._canvasReadyHandler) {
+            Hooks.off('canvasReady', this._canvasReadyHandler);
+            this._canvasReadyHandler = null;
+        }
+        
+        if (this._weaponMenuClosedHandler) {
+            Hooks.off('tokencontextmenu.weaponMenuClosed', this._weaponMenuClosedHandler);
+            this._weaponMenuClosedHandler = null;
+        }
+    }
 }
 
 // Export singleton instance

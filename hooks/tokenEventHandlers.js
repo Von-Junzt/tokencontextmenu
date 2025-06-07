@@ -160,9 +160,18 @@ export function debugAssertState() {
  * Removes all event handlers and closes any open menus
  */
 export async function cleanupTokenHandlers() {
+    // Import managers that need cleanup
+    const { targetingSessionManager } = await import("../managers/TargetingSessionManager.js");
+    
+    // Clean up all managers
     weaponMenuTokenClickManager.cleanup();
+    weaponSystemCoordinator.cleanup();
+    targetingSessionManager.cleanup();
+    
+    // Close any open menus
     await closeWeaponMenu();
 
+    // Stop any active movement trackers
     canvas.tokens?.controlled?.forEach(token => {
         stopTokenMovementTracker(token);
     });

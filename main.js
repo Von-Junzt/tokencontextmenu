@@ -51,7 +51,12 @@ Hooks.once('ready', async () => {
         }
     };
     window.tokencontextmenu.getSystemState = () => weaponSystemCoordinator.getStateSnapshot();
-    console.log("Token Context Menu | Debug commands available: tokencontextmenu.getWeaponMenuStatus(), tokencontextmenu.getSystemState()");
+    window.tokencontextmenu.cleanup = async () => {
+        const { cleanupTokenHandlers } = await import("./hooks/tokenEventHandlers.js");
+        await cleanupTokenHandlers();
+        console.warn('Token Context Menu: Manual cleanup completed');
+    };
+    console.log("Token Context Menu | Debug commands available: tokencontextmenu.getWeaponMenuStatus(), tokencontextmenu.getSystemState(), tokencontextmenu.cleanup()");
 
     // final setup message
     console.warn("Token Context Menu: Module initialized! Happy Gaming!");
@@ -76,4 +81,14 @@ Hooks.on('canvasDimensionsReady', () => {
 Hooks.once('canvasInit', () => {
     deactivateInteractionLayer();
     resetGlobalInteractionLayer()
+});
+
+/**
+ * Handle module cleanup when it's disabled or the game closes
+ */
+Hooks.once('closeGame', async () => {
+    console.warn('Token Context Menu: Cleaning up module resources');
+    if (window.tokencontextmenu?.cleanup) {
+        await window.tokencontextmenu.cleanup();
+    }
 });
