@@ -17,6 +17,8 @@ import { TIMING } from "../utils/constants.js";
 import { tokenDragManager } from "./TokenDragManager.js";
 import { targetingSessionManager } from "./TargetingSessionManager.js";
 import { debug, debugWarn } from "../utils/debug.js";
+import { CleanupManager } from "./CleanupManager.js";
+import { StateManager } from "./StateManager.js";
 
 /**
  * Coordinates between weapon menu, selection, and movement systems
@@ -28,25 +30,32 @@ import { debug, debugWarn } from "../utils/debug.js";
  * 
  * @property {Object} state - Central state store for the weapon menu system
  * @property {number} state.menuOpenedAt - Timestamp when menu was opened
- * @property {WeaponMenuApplication|null} state.currentMenuApp - Reference to current menu
- * @property {Token|null} state.currentToken - Token associated with current menu
- * @property {Map} state.movementTrackers - Active movement tracking tickers
+ * @property {boolean} state.isProcessingSelection - Whether selection is being processed
+ * @property {number|null} state.selectionDelayId - Timeout ID for selection processing
+ * @property {WeaponMenuApplication|null} currentMenuApp - Reference to current menu (instance property)
+ * @property {Token|null} currentToken - Token associated with current menu (instance property)
+ * @property {Map} movementTrackers - Active movement tracking tickers (instance property)
  */
-class WeaponSystemCoordinator {
+class WeaponSystemCoordinator extends CleanupManager {
     constructor() {
-        this.state = {
+        super();
+        
+        // Initialize state using StateManager mixin
+        this.initializeState({
             // Menu state
             menuOpenedAt: 0,
-            currentMenuApp: null,
-            currentToken: null,
 
             // Selection coordination
             isProcessingSelection: false,
-            selectionDelayId: null,
-
-            // Movement tracking
-            movementTrackers: new Map()
-        };
+            selectionDelayId: null
+        });
+        
+        // Object references - keep as instance properties since they can't be merged
+        this.currentMenuApp = null;
+        this.currentToken = null;
+        
+        // Movement tracking - keep as instance property since Map can't be in state
+        this.movementTrackers = new Map();
 
         // Performance cache for controlled tokens
         this._controlledTokensCache = {
@@ -55,6 +64,15 @@ class WeaponSystemCoordinator {
             singleToken: null,
             version: 0  // Use version counter instead of timestamp
         };
+        
+        // Register cleanup callback for movement trackers
+        this.onCleanup(() => {
+            // Stop all movement trackers
+            for (const [tokenId, ticker] of this.movementTrackers) {
+                ticker.stop();
+            }
+            this.movementTrackers.clear();
+        });
 
         this._setupHooks();
     }
@@ -64,8 +82,8 @@ class WeaponSystemCoordinator {
      * @private
      */
     _setupHooks() {
-        // Store hook handlers for cleanup
-        this._controlTokenHandler = (token, controlled) => {
+        // Register hooks using CleanupManager's automatic tracking
+        this.registerHook('controlToken', (token, controlled) => {
             this._invalidateControlledTokensCache();
             
             // Clear selection processing if token is being deselected
@@ -73,28 +91,23 @@ class WeaponSystemCoordinator {
                 debug('Token deselected during selection processing, clearing timeout');
                 this.clearSelectionProcessing();
             }
-        };
+        });
         
-        this._weaponMenuClosedHandler = () => {
+        this.registerHook('tokencontextmenu.weaponMenuClosed', () => {
             // Stop all movement trackers FIRST
-            for (const [tokenId, ticker] of this.state.movementTrackers) {
+            for (const [tokenId, ticker] of this.movementTrackers) {
                 ticker.stop();
             }
-            this.state.movementTrackers.clear();
+            this.movementTrackers.clear();
 
             // Clear any selection processing timeouts
             this.clearSelectionProcessing();
 
             // Note: Menu state is already updated by weaponMenuCloser.js
             // This hook is just for additional cleanup
-        };
+        });
         
-        this._canvasReadyHandler = async () => {
-            await this.reset();
-            this._invalidateControlledTokensCache();
-        };
-        
-        this._deleteTokenHandler = (tokenDocument) => {
+        this.registerHook('deleteToken', (tokenDocument) => {
             // Clear selection processing if the deleted token was being processed
             if (this.state.isProcessingSelection) {
                 debug('Token deleted during selection processing, clearing timeout');
@@ -103,13 +116,16 @@ class WeaponSystemCoordinator {
             
             // Also invalidate cache since controlled tokens may have changed
             this._invalidateControlledTokensCache();
-        };
-        
-        // Register hooks
-        Hooks.on('controlToken', this._controlTokenHandler);
-        Hooks.on('tokencontextmenu.weaponMenuClosed', this._weaponMenuClosedHandler);
-        Hooks.on('canvasReady', this._canvasReadyHandler);
-        Hooks.on('deleteToken', this._deleteTokenHandler);
+        });
+    }
+    
+    /**
+     * Override handleCanvasReady from CleanupManager
+     * Called automatically on canvasReady hook
+     */
+    async handleCanvasReady() {
+        await this.reset();
+        this._invalidateControlledTokensCache();
     }
 
     /**
@@ -117,7 +133,26 @@ class WeaponSystemCoordinator {
      * @param {Object} changes - State changes to apply
      */
     updateMenuState(changes) {
-        Object.assign(this.state, changes);
+        // Handle object references separately
+        if ('currentMenuApp' in changes) {
+            this.currentMenuApp = changes.currentMenuApp;
+        }
+        if ('currentToken' in changes) {
+            this.currentToken = changes.currentToken;
+        }
+        
+        // Filter out object references before updating state
+        const stateChanges = {};
+        for (const [key, value] of Object.entries(changes)) {
+            if (key !== 'currentMenuApp' && key !== 'currentToken') {
+                stateChanges[key] = value;
+            }
+        }
+        
+        // Update state with only serializable values
+        if (Object.keys(stateChanges).length > 0) {
+            this.updateState(stateChanges);
+        }
 
         // Clear selection processing when menu app is set
         if (changes.currentMenuApp) {
@@ -132,7 +167,7 @@ class WeaponSystemCoordinator {
      * @returns {boolean} True if menu is open
      */
     isMenuOpen() {
-        return this.state.currentMenuApp?.stateMachine?.isActive() || false;
+        return this.currentMenuApp?.stateMachine?.isActive() || false;
     }
 
     /**
@@ -140,7 +175,7 @@ class WeaponSystemCoordinator {
      * @returns {Token|null} The current menu's token
      */
     getMenuToken() {
-        return this.state.currentToken;
+        return this.currentToken;
     }
 
     /**
@@ -148,7 +183,7 @@ class WeaponSystemCoordinator {
      * @param {WeaponMenuApplication|null} app - The menu application
      */
     setMenuApp(app) {
-        this.state.currentMenuApp = app;
+        this.currentMenuApp = app;
     }
 
     /**
@@ -156,7 +191,7 @@ class WeaponSystemCoordinator {
      * @returns {WeaponMenuApplication|null} The current menu app
      */
     getMenuApp() {
-        return this.state.currentMenuApp;
+        return this.currentMenuApp;
     }
 
     /**
@@ -168,17 +203,19 @@ class WeaponSystemCoordinator {
             debugWarn('Selection processing already active, resetting timeout');
         }
         
-        this.state.isProcessingSelection = true;
+        this.updateState({ isProcessingSelection: true });
         debug('Selection processing started, will timeout in', TIMING.SELECTION_TIMEOUT, 'ms');
 
         if (this.state.selectionDelayId !== null) {
             tickerDelay.cancel(this.state.selectionDelayId);
         }
 
-        this.state.selectionDelayId = tickerDelay.delay(() => {
+        const delayId = tickerDelay.delay(() => {
             debugWarn('Selection processing timed out, force clearing');
             this.clearSelectionProcessing();
         }, TIMING.SELECTION_TIMEOUT, 'selectionProcessingTimeout');
+        
+        this.updateState({ selectionDelayId: delayId });
     }
 
     /**
@@ -187,12 +224,12 @@ class WeaponSystemCoordinator {
     clearSelectionProcessing() {
         if (this.state.selectionDelayId !== null) {
             tickerDelay.cancel(this.state.selectionDelayId);
-            this.state.selectionDelayId = null;
+            this.updateState({ selectionDelayId: null });
         }
         
         if (this.state.isProcessingSelection) {
             debug('Selection processing cleared');
-            this.state.isProcessingSelection = false;
+            this.updateState({ isProcessingSelection: false });
         }
     }
 
@@ -217,7 +254,7 @@ class WeaponSystemCoordinator {
      * Update the menu opened timestamp for debouncing
      */
     updateOpenTime() {
-        this.state.menuOpenedAt = Date.now();
+        this.updateState({ menuOpenedAt: Date.now() });
     }
 
     /**
@@ -226,7 +263,7 @@ class WeaponSystemCoordinator {
      * @param {PIXI.Ticker} ticker - The PIXI ticker instance
      */
     addMovementTracker(tokenId, ticker) {
-        this.state.movementTrackers.set(tokenId, ticker);
+        this.movementTrackers.set(tokenId, ticker);
     }
 
     /**
@@ -234,10 +271,10 @@ class WeaponSystemCoordinator {
      * @param {string} tokenId - The token ID
      */
     removeMovementTracker(tokenId) {
-        const ticker = this.state.movementTrackers.get(tokenId);
+        const ticker = this.movementTrackers.get(tokenId);
         if (ticker) {
             ticker.stop();
-            this.state.movementTrackers.delete(tokenId);
+            this.movementTrackers.delete(tokenId);
         }
     }
 
@@ -311,11 +348,11 @@ class WeaponSystemCoordinator {
             // Core state
             weaponMenuOpen: this.isMenuOpen(),
             isProcessingSelection: this.state.isProcessingSelection,
-            currentToken: this.state.currentToken?.name || null,
-            movementTrackerCount: this.state.movementTrackers.size,
+            currentToken: this.currentToken?.name || null,
+            movementTrackerCount: this.movementTrackers.size,
             
             // Delegated state
-            dragManager: tokenDragManager.getDebugInfo(this.state.currentToken),
+            dragManager: tokenDragManager.getDebugInfo(this.currentToken),
             targetingManager: targetingSessionManager.getDebugInfo(),
             
             // Cache state
@@ -425,17 +462,24 @@ class WeaponSystemCoordinator {
         const { forceCloseAllMenus } = await import("../utils/weaponMenuCloser.js");
         await forceCloseAllMenus('system-reset');
 
-        // Stop all movement trackers
-        for (const [tokenId, ticker] of this.state.movementTrackers) {
+        // Stop all movement trackers before resetting state
+        for (const [tokenId, ticker] of this.movementTrackers) {
             ticker.stop();
         }
-        this.state.movementTrackers.clear();
 
         // Clear selection processing
         this.clearSelectionProcessing();
 
-        // Clear menu state - no need to update here as forceCloseAllMenus already does it
-        this.state.menuOpenedAt = 0;
+        // Reset state to initial values using StateManager
+        this.resetState();
+        
+        // Reset instance properties
+        this.currentMenuApp = null;
+        this.currentToken = null;
+        this.movementTrackers.clear();
+        
+        // Re-invalidate cache after reset
+        this._invalidateControlledTokensCache();
     }
     
     /**
@@ -443,31 +487,16 @@ class WeaponSystemCoordinator {
      * Call this when the module is disabled
      */
     cleanup() {
-        // Remove hooks
-        if (this._controlTokenHandler) {
-            Hooks.off('controlToken', this._controlTokenHandler);
-            this._controlTokenHandler = null;
-        }
-        
-        if (this._weaponMenuClosedHandler) {
-            Hooks.off('tokencontextmenu.weaponMenuClosed', this._weaponMenuClosedHandler);
-            this._weaponMenuClosedHandler = null;
-        }
-        
-        if (this._canvasReadyHandler) {
-            Hooks.off('canvasReady', this._canvasReadyHandler);
-            this._canvasReadyHandler = null;
-        }
-        
-        if (this._deleteTokenHandler) {
-            Hooks.off('deleteToken', this._deleteTokenHandler);
-            this._deleteTokenHandler = null;
-        }
-        
-        // Reset the system
+        // Reset the system first
         this.reset();
+        
+        // Call parent cleanup to remove all hooks automatically
+        super.cleanup();
     }
 }
+
+// Apply StateManager mixin
+Object.assign(WeaponSystemCoordinator.prototype, StateManager);
 
 // Export singleton instance  
 export const weaponSystemCoordinator = new WeaponSystemCoordinator();

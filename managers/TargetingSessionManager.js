@@ -1,7 +1,11 @@
+import { CleanupManager } from "./CleanupManager.js";
+import { StateManager } from "./StateManager.js";
+
 /**
  * Manages targeting sessions for the weapon menu system
  * 
  * @class TargetingSessionManager
+ * @extends {CleanupManager}
  * @description Coordinates target selection workflows, ensuring only one targeting session
  * is active at a time. Handles cleanup when sessions end or scenes change.
  * 
@@ -18,9 +22,15 @@
  * 
  * @property {Object|null} activeSession - Current active targeting session
  */
-class TargetingSessionManager {
+class TargetingSessionManager extends CleanupManager {
     constructor() {
-        this.activeSession = null;
+        super();
+        
+        // Initialize state using StateManager
+        this.initializeState({
+            activeSession: null
+        });
+        
         this._setupHooks();
     }
     
@@ -29,15 +39,20 @@ class TargetingSessionManager {
      * @private
      */
     _setupHooks() {
-        // Clean up on canvas ready
-        Hooks.on('canvasReady', () => {
-            this.endSession();
-        });
+        // Register hooks using CleanupManager
+        // Note: canvasReady is already handled by handleCanvasReady
         
         // Clean up if weapon menu closes during targeting
-        Hooks.on('tokencontextmenu.weaponMenuClosed', () => {
+        this.registerHook('tokencontextmenu.weaponMenuClosed', () => {
             this.endSession();
         });
+    }
+    
+    /**
+     * Override handleCanvasReady from CleanupManager
+     */
+    handleCanvasReady() {
+        this.endSession();
     }
     
     /**
@@ -51,16 +66,18 @@ class TargetingSessionManager {
      */
     startSession(sessionId, cleanupCallback) {
         // End any existing session first
-        if (this.activeSession) {
+        if (this.state.activeSession) {
             this.endSession();
         }
         
-        this.activeSession = {
-            id: sessionId,
-            startTime: Date.now(),
-            cleanup: cleanupCallback,
-            targets: new Set()
-        };
+        this.updateState({
+            activeSession: {
+                id: sessionId,
+                startTime: Date.now(),
+                cleanup: cleanupCallback,
+                targets: new Set()
+            }
+        });
         
         console.debug(`tokencontextmenu | Started targeting session: ${sessionId}`);
         return true;
@@ -71,9 +88,9 @@ class TargetingSessionManager {
      * @param {boolean} executeCleanup - Whether to run the cleanup callback
      */
     endSession(executeCleanup = true) {
-        if (!this.activeSession) return;
+        if (!this.state.activeSession) return;
         
-        const session = this.activeSession;
+        const session = this.state.activeSession;
         console.debug(`tokencontextmenu | Ending targeting session: ${session.id}`);
         
         // Run cleanup callback if requested
@@ -86,7 +103,7 @@ class TargetingSessionManager {
         }
         
         // Clear the session
-        this.activeSession = null;
+        this.updateState({ activeSession: null });
     }
     
     /**
@@ -94,7 +111,7 @@ class TargetingSessionManager {
      * @returns {boolean}
      */
     isActive() {
-        return this.activeSession !== null;
+        return this.state.activeSession !== null;
     }
     
     /**
@@ -103,7 +120,7 @@ class TargetingSessionManager {
      * @returns {boolean}
      */
     isCurrentSession(sessionId) {
-        return this.activeSession?.id === sessionId;
+        return this.state.activeSession?.id === sessionId;
     }
 
     /**
@@ -111,13 +128,13 @@ class TargetingSessionManager {
      * @returns {Object|null}
      */
     getSessionInfo() {
-        if (!this.activeSession) return null;
+        if (!this.state.activeSession) return null;
         
         return {
-            id: this.activeSession.id,
-            duration: Date.now() - this.activeSession.startTime,
-            targetCount: this.activeSession.targets.size,
-            hasCleanup: !!this.activeSession.cleanup
+            id: this.state.activeSession.id,
+            duration: Date.now() - this.state.activeSession.startTime,
+            targetCount: this.state.activeSession.targets.size,
+            hasCleanup: !!this.state.activeSession.cleanup
         };
     }
     
@@ -139,18 +156,16 @@ class TargetingSessionManager {
         // End any active session
         this.endSession();
         
-        // Remove hooks
-        if (this._canvasReadyHandler) {
-            Hooks.off('canvasReady', this._canvasReadyHandler);
-            this._canvasReadyHandler = null;
-        }
+        // Reset state
+        this.resetState();
         
-        if (this._weaponMenuClosedHandler) {
-            Hooks.off('tokencontextmenu.weaponMenuClosed', this._weaponMenuClosedHandler);
-            this._weaponMenuClosedHandler = null;
-        }
+        // Call parent cleanup to remove hooks
+        super.cleanup();
     }
 }
+
+// Apply StateManager mixin
+Object.assign(TargetingSessionManager.prototype, StateManager);
 
 // Export singleton instance
 export const targetingSessionManager = new TargetingSessionManager();

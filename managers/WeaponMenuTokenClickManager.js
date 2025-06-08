@@ -4,17 +4,23 @@ import { shouldShowWeaponMenuOnSelection } from "../settings/settings.js";
 import { TIMING } from "../utils/constants.js";
 import { debug } from "../utils/debug.js";
 import { tickerDelay } from "../utils/timingUtils.js";
+import { CleanupManager } from "./CleanupManager.js";
+import { StateManager } from "./StateManager.js";
 
 /**
  * Centralized manager for all token click interactions related to weapon menus
  * Consolidates logic from tokenEventHandlers.js and prevents race conditions
  */
-export class WeaponMenuTokenClickManager {
+export class WeaponMenuTokenClickManager extends CleanupManager {
     constructor() {
+        super();
+        
         this.instanceId = Math.random().toString(36).substr(2, 9);
         // Log instance creation to help debug singleton issues
         console.warn(`[VJ TCM] WeaponMenuTokenClickManager instance created: ${this.instanceId}`);
-        this.state = {
+        
+        // Initialize state using StateManager
+        this.initializeState({
             // Interaction tracking
             lastInteractionTime: 0,
             lastInteractionToken: null,
@@ -29,18 +35,19 @@ export class WeaponMenuTokenClickManager {
             // Event handler references for cleanup
             isCanvasHandlerSetup: false,
             
-            // Token selection tracking - for cleanup only
-            controlledTokens: new Set(),
-            
-            // Active drag tracking
-            activeDrags: new WeakMap(),
-            
-            // Track token event listeners added by interaction setup
-            interactionListeners: new WeakMap(),
-            
             // Menu delay ID for cancellation
             menuDelayId: null
-        };
+        });
+        
+        // Keep these as instance properties, not in state
+        // Token selection tracking - for cleanup only
+        this.controlledTokens = new Set();
+        
+        // Active drag tracking
+        this.activeDrags = new WeakMap();
+        
+        // Track token event listeners added by interaction setup
+        this.interactionListeners = new WeakMap();
 
         // Track token event listeners for cleanup
         this._tokenListeners = new WeakMap();
@@ -83,53 +90,57 @@ export class WeaponMenuTokenClickManager {
         // Store the current scene ID on the instance to persist between handler calls
         this._currentSceneId = canvas?.scene?.id || null;
         
-        // Store hook handler references for cleanup
-        this._canvasReadyHandler = () => {
-            const newSceneId = canvas?.scene?.id;
-            const wasSceneChange = this._currentSceneId !== null && this._currentSceneId !== newSceneId;
-            
-            debug('Canvas ready handler:', {
-                previousSceneId: this._currentSceneId,
-                newSceneId: newSceneId,
-                wasSceneChange: wasSceneChange,
-                instanceId: this.instanceId
-            });
-            
-            if (wasSceneChange) {
-                debug('Scene changed, clearing state');
-                this.state.controlledTokens.clear();
-                this.state.activeDrags.clear();
-                // Cancel any pending menu open
-                if (this.state.menuDelayId) {
-                    tickerDelay.cancel(this.state.menuDelayId);
-                    this.state.menuDelayId = null;
-                }
-                // Clean up all token listeners on scene change
-                if (canvas?.tokens?.placeables) {
-                    canvas.tokens.placeables.forEach(token => {
-                        this.cleanupTokenListeners(token);
-                    });
-                }
-            } else {
-                debug('Canvas ready but same scene or initial load, keeping state');
-            }
-            
-            // Always update the current scene ID
-            this._currentSceneId = newSceneId;
-        };
-        
-        this._deleteTokenHandler = (tokenDocument) => {
+        // Register hooks using CleanupManager
+        this.registerHook('deleteToken', (tokenDocument) => {
             const token = tokenDocument.object;
             if (token) {
                 this.cleanupTokenListeners(token);
-                this.state.controlledTokens.delete(token);
-                this.state.activeDrags.delete(token);
+                this.controlledTokens.delete(token);
+                this.activeDrags.delete(token);
             }
-        };
+        });
+    }
+    
+    /**
+     * Override handleCanvasReady from CleanupManager
+     */
+    handleCanvasReady() {
+        const newSceneId = canvas?.scene?.id;
+        const wasSceneChange = this._currentSceneId !== null && this._currentSceneId !== newSceneId;
         
-        // Register the hooks
-        Hooks.on('canvasReady', this._canvasReadyHandler);
-        Hooks.on('deleteToken', this._deleteTokenHandler);
+        debug('Canvas ready handler:', {
+            previousSceneId: this._currentSceneId,
+            newSceneId: newSceneId,
+            wasSceneChange: wasSceneChange,
+            instanceId: this.instanceId
+        });
+        
+        if (wasSceneChange) {
+            debug('Scene changed, clearing state');
+            this.controlledTokens.clear();
+            // WeakMaps don't have clear() - they auto-cleanup when tokens are GC'd
+            // Just recreate them to ensure clean state
+            this.activeDrags = new WeakMap();
+            this.interactionListeners = new WeakMap();
+            this._tokenListeners = new WeakMap();
+            
+            // Cancel any pending menu open
+            if (this.state.menuDelayId) {
+                tickerDelay.cancel(this.state.menuDelayId);
+                this.state.menuDelayId = null;
+            }
+            // Clean up all token listeners on scene change
+            if (canvas?.tokens?.placeables) {
+                canvas.tokens.placeables.forEach(token => {
+                    this.cleanupTokenListeners(token);
+                });
+            }
+        } else {
+            debug('Canvas ready but same scene or initial load, keeping state');
+        }
+        
+        // Always update the current scene ID
+        this._currentSceneId = newSceneId;
     }
 
     /**
@@ -276,7 +287,7 @@ export class WeaponMenuTokenClickManager {
             timestamp: Date.now()
         };
         
-        this.state.activeDrags.set(token, dragInfo);
+        this.activeDrags.set(token, dragInfo);
         
         const checkDrag = (e) => {
             const dx = Math.abs(e.data.global.x - startX);
@@ -350,7 +361,7 @@ export class WeaponMenuTokenClickManager {
             }
             
             // Clear drag tracking
-            this.state.activeDrags.delete(token);
+            this.activeDrags.delete(token);
         };
         
         // Use the token's event handlers
@@ -359,7 +370,7 @@ export class WeaponMenuTokenClickManager {
         token.on('pointerupoutside', handleMouseUp);
         
         // Store listeners for cleanup
-        this.state.interactionListeners.set(token, {
+        this.interactionListeners.set(token, {
             pointermove: checkDrag,
             pointerup: handleMouseUp,
             pointerupoutside: handleMouseUp
@@ -382,19 +393,19 @@ export class WeaponMenuTokenClickManager {
         
         if (!controlled) {
             // Handle deselection - clean up
-            this.state.controlledTokens.delete(token);
+            this.controlledTokens.delete(token);
             this.cleanupTokenListeners(token);
             
             // Close menu if no tokens are selected
-            if (this.state.controlledTokens.size === 0 && weaponSystemCoordinator.isMenuOpen()) {
+            if (this.controlledTokens.size === 0 && weaponSystemCoordinator.isMenuOpen()) {
                 await this.closeWeaponMenu();
             }
         } else {
             // Track controlled token
-            this.state.controlledTokens.add(token);
+            this.controlledTokens.add(token);
             
             // Close menu if multiple tokens are selected
-            if (this.state.controlledTokens.size > 1 && weaponSystemCoordinator.isMenuOpen()) {
+            if (this.controlledTokens.size > 1 && weaponSystemCoordinator.isMenuOpen()) {
                 await this.closeWeaponMenu();
             }
         }
@@ -446,12 +457,12 @@ export class WeaponMenuTokenClickManager {
         }
         
         // Clean up interaction listeners
-        const interactionListeners = this.state.interactionListeners.get(token);
+        const interactionListeners = this.interactionListeners.get(token);
         if (interactionListeners) {
             Object.entries(interactionListeners).forEach(([event, handler]) => {
                 token.off(event, handler);
             });
-            this.state.interactionListeners.delete(token);
+            this.interactionListeners.delete(token);
         }
         
         if (listeners || interactionListeners) {
@@ -464,22 +475,10 @@ export class WeaponMenuTokenClickManager {
      * Call this when the module is disabled or during scene teardown
      */
     cleanup() {
-        // Remove hook handlers
+        // Remove hook handlers for controlToken if registered separately
         if (this.boundHandlers.handleTokenSelection) {
             Hooks.off("controlToken", this.boundHandlers.handleTokenSelection);
         }
-        
-        if (this._canvasReadyHandler) {
-            Hooks.off('canvasReady', this._canvasReadyHandler);
-            this._canvasReadyHandler = null;
-        }
-        
-        if (this._deleteTokenHandler) {
-            Hooks.off('deleteToken', this._deleteTokenHandler);
-            this._deleteTokenHandler = null;
-        }
-
-        // Note: Removed old canvasClickHandler cleanup - no longer used
 
         // Cancel any pending menu operations
         if (this.state.menuDelayId) {
@@ -500,7 +499,7 @@ export class WeaponMenuTokenClickManager {
             this._handleRightDown = null;
         }
         
-        // Remove canvas ready handler for PIXI re-setup
+        // Remove canvas ready handler for PIXI re-setup if it exists
         if (this._canvasReadyResetHandler) {
             Hooks.off('canvasReady', this._canvasReadyResetHandler);
             this._canvasReadyResetHandler = null;
@@ -509,11 +508,18 @@ export class WeaponMenuTokenClickManager {
         // Unregister libWrapper hooks
         libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
 
-        // Clear state
-        this.state.isCanvasHandlerSetup = false;
-        this.state.controlledTokens.clear();
-        this.state.activeDrags.clear();
-        this.state.interactionListeners = new WeakMap();
+        // Clear collections
+        this.controlledTokens.clear();
+        // WeakMaps don't have clear() - just recreate them
+        this.activeDrags = new WeakMap();
+        this.interactionListeners = new WeakMap();
+        this._tokenListeners = new WeakMap();
+        
+        // Reset state
+        this.resetState();
+        
+        // Call parent cleanup to remove all registered hooks
+        super.cleanup();
     }
 
     /**
@@ -523,11 +529,11 @@ export class WeaponMenuTokenClickManager {
     getDebugInfo() {
         return {
             instanceId: this.instanceId,
-            controlledTokens: Array.from(this.state.controlledTokens).map(t => ({
+            controlledTokens: Array.from(this.controlledTokens).map(t => ({
                 name: t.name,
                 id: t.id
             })),
-            activeDrags: Array.from(this.state.activeDrags.entries()).map(([token, drag]) => ({
+            activeDrags: Array.from(this.activeDrags.entries()).map(([token, drag]) => ({
                 token: token.name,
                 isDragging: drag.isDragging,
                 timestamp: drag.timestamp
@@ -541,6 +547,9 @@ export class WeaponMenuTokenClickManager {
         };
     }
 }
+
+// Apply StateManager mixin
+Object.assign(WeaponMenuTokenClickManager.prototype, StateManager);
 
 // Export singleton instance
 export const weaponMenuTokenClickManager = new WeaponMenuTokenClickManager();

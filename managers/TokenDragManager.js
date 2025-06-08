@@ -1,7 +1,10 @@
+import { CleanupManager } from "./CleanupManager.js";
+
 /**
  * Manages token drag states for the weapon menu system
  * 
  * @class TokenDragManager
+ * @extends {CleanupManager}
  * @description Tracks pointer/mouse movements on tokens to distinguish between clicks
  * and drags. This is essential for determining when to show the weapon menu (click)
  * versus when to hide it (drag). Uses WeakMap to automatically clean up when tokens
@@ -22,10 +25,16 @@
  * 
  * @property {WeakMap} dragStates - Maps tokens to their drag state objects
  */
-class TokenDragManager {
+class TokenDragManager extends CleanupManager {
     constructor() {
+        super();
+        
         // WeakMap to store drag state per token without memory leaks
         this.dragStates = new WeakMap();
+        
+        // Note: No state to track with StateManager since we use WeakMap
+        // which auto-cleans when tokens are garbage collected
+        
         this._setupHooks();
     }
     
@@ -34,10 +43,14 @@ class TokenDragManager {
      * @private
      */
     _setupHooks() {
-        // Clean up on canvas ready
-        Hooks.on('canvasReady', () => {
-            this.clearAll();
-        });
+        // No additional hooks needed - handleCanvasReady is automatic
+    }
+    
+    /**
+     * Override handleCanvasReady from CleanupManager
+     */
+    handleCanvasReady() {
+        this.clearAll();
     }
     
     /**
@@ -181,6 +194,17 @@ class TokenDragManager {
             hasMoved: state.hasMoved,
             hasStartCoords: !!state.startCoords
         };
+    }
+    
+    /**
+     * Cleanup when module is disabled
+     */
+    cleanup() {
+        // Clear all drag states
+        this.clearAll();
+        
+        // Call parent cleanup
+        super.cleanup();
     }
 }
 
