@@ -23,7 +23,24 @@ import {weaponSystemCoordinator} from "./managers/WeaponSystemCoordinator.js";
  * Initialize module on Foundry init
  */
 Hooks.once('init', function() {
-    console.warn('Token Context Menu: Initializing');
+    // Display ASCII art logo
+    const logo = `
+═══════════════════════════════════════════════════════════════
+                                                               
+ ██╗   ██╗     ██╗    ████████╗ ██████╗███╗   ███╗           
+ ██║   ██║     ██║    ╚══██╔══╝██╔════╝████╗ ████║           
+ ██║   ██║     ██║       ██║   ██║     ██╔████╔██║           
+ ╚██╗ ██╔╝██   ██║       ██║   ██║     ██║╚██╔╝██║           
+  ╚████╔╝ ╚█████╔╝       ██║   ╚██████╗██║ ╚═╝ ██║           
+   ╚═══╝   ╚════╝        ╚═╝    ╚═════╝╚═╝     ╚═╝           
+                                                               
+        Token Context Menu for SWADE v1.0.0                    
+                  by Von Junzt                                 
+                                                               
+═══════════════════════════════════════════════════════════════`;
+    
+    console.log(`%c${logo}`, 'color: #ff6400; font-family: monospace; font-weight: bold;');
+    console.log('Token Context Menu: Initializing');
 
     // Register module settings
     registerSettings();
@@ -38,7 +55,7 @@ Hooks.once('ready', async () => {
     registerTokenHudMovementHandler();
     registerTokenHudTokenHudHandler();
     registerTokenHudDeletionHandler();
-    console.warn('Token Context Menu: Token handlers registered');
+    console.log('Token Context Menu: Token handlers registered');
     
     // Add debugging command for weapon menu
     window.tokencontextmenu = window.tokencontextmenu || {};
@@ -57,9 +74,6 @@ Hooks.once('ready', async () => {
         console.warn('Token Context Menu: Manual cleanup completed');
     };
     console.log("Token Context Menu | Debug commands available: tokencontextmenu.getWeaponMenuStatus(), tokencontextmenu.getSystemState(), tokencontextmenu.cleanup()");
-
-    // final setup message
-    console.warn("Token Context Menu: Module initialized! Happy Gaming!");
 });
 
 /**
@@ -68,6 +82,11 @@ Hooks.once('ready', async () => {
 Hooks.on('canvasReady', () => {
     initializeGlobalInteractionLayer(); // Create but don't activate
     updateInteractionLayerHitArea();    // Ensure correct size
+    
+    // Show final setup message when canvas is ready
+    console.log('%c═══════════════════════════════════════════════════════════════', 'color: #ff6400;');
+    console.log('%c VJ TCM: Module initialized! Happy Gaming! 🎮', 'color: #ff6400; font-weight: bold; font-size: 14px;');
+    console.log('%c═══════════════════════════════════════════════════════════════', 'color: #ff6400;');
 });
 
 Hooks.on('canvasPan', () => {
@@ -87,7 +106,7 @@ Hooks.once('canvasInit', () => {
  * Handle module cleanup when it's disabled or the game closes
  */
 Hooks.once('closeGame', async () => {
-    console.warn('Token Context Menu: Cleaning up module resources');
+    console.log('Token Context Menu: Cleaning up module resources');
     if (window.tokencontextmenu?.cleanup) {
         await window.tokencontextmenu.cleanup();
     }
