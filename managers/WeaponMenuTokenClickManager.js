@@ -53,7 +53,15 @@ export class WeaponMenuTokenClickManager {
 
     /**
      * Initialize all event handlers - call this from the main init
-     * Sets up PIXI-based click detection and token cleanup hooks
+     * 
+     * ARCHITECTURE NOTE: This module uses a hybrid event handling approach:
+     * - libWrapper for left-clicks (required - Foundry consumes these events)
+     * - PIXI for right-clicks (optimal - these propagate normally)
+     * 
+     * This is NOT a workaround but the optimal solution for Foundry VTT.
+     * See docs/EVENT_HANDLING.md for detailed explanation.
+     * 
+     * @public
      */
     setupEventHandlers() {
         debug('Setting up all event handlers', { instanceId: this.instanceId });
@@ -64,10 +72,10 @@ export class WeaponMenuTokenClickManager {
             debug('Registered controlToken hook');
         }
 
-        // Setup PIXI-based click detection
+        // Setup optimized click detection:
+        // - PIXI for right-clicks (works reliably)  
+        // - libWrapper for left-clicks (PIXI doesn't catch these)
         this.setupPixiClickHandlers();
-        
-        // Also setup token-level interceptors as backup
         this.setupTokenInterceptors();
         
         debug('Event handlers setup complete');
@@ -125,75 +133,70 @@ export class WeaponMenuTokenClickManager {
     }
 
     /**
-     * Setup PIXI-based click handlers for direct token interaction
-     * Handles both left and right clicks without relying on Foundry's selection system
+     * Setup PIXI-based click handlers for right-clicks only
+     * 
+     * Why this approach:
+     * - Right-clicks propagate through PIXI reliably because Foundry doesn't consume them
+     * - Left-clicks MUST use libWrapper because Token._onClickLeft consumes the event
+     * - This hybrid approach is the most performant solution
+     * 
      * @private
      */
     setupPixiClickHandlers() {
-        if (this.state.isCanvasHandlerSetup || !canvas?.stage) {
-            debug('Skipping PIXI setup', { 
-                isAlreadySetup: this.state.isCanvasHandlerSetup, 
-                hasCanvas: !!canvas?.stage 
-            });
-            return;
-        }
+        if (this.state.isCanvasHandlerSetup || !canvas?.stage) return;
 
-        debug('setupPixiClickHandlers: Starting PIXI event setup');
+        debug('setupPixiClickHandlers: Setting up PIXI right-click handler');
 
-        // We need to add listeners to the tokens layer, not the stage
-        // The stage is too high level and events get consumed by tokens
         const tokensLayer = canvas.tokens;
         if (!tokensLayer) {
             debug('Tokens layer not ready, deferring setup');
             return;
         }
 
-        // Left click handler - use interactive mode
-        this._handlePointerDown = (event) => {
-            // Only handle events that originate from tokens
-            if (event.target instanceof Token || event.target?.parent instanceof Token) {
-                const token = event.target instanceof Token ? event.target : event.target.parent;
-                if (!token || !token.isOwner) return;
-
-                const button = event.data.button;
-                debug('Click intercepted via PIXI pointerdown', { token: token.name, button, method: 'PIXI' });
-                
-                if (button === 0) {
-                    // Left click - set up drag detection and potential menu handling
-                    this._setupTokenInteraction(token, event);
-                }
-                // Right click (button 2) - let Foundry handle selection, no menu
-            }
-        };
-
-        // Right click specific handler
+        // Right click handler - PIXI works reliably for right-clicks
+        // This is more efficient than libWrapper for right-clicks since
+        // we can handle it at the layer level rather than per-token
         this._handleRightDown = (event) => {
-            if (event.target instanceof Token || event.target?.parent instanceof Token) {
-                const token = event.target instanceof Token ? event.target : event.target.parent;
-                if (!token || !token.isOwner) return;
-                
-                debug('Right-click intercepted via PIXI rightdown', { token: token.name, method: 'PIXI' });
-                
-                // Cancel any pending menu operations
-                if (this.state.menuDelayId) {
-                    tickerDelay.cancel(this.state.menuDelayId);
-                    this.state.menuDelayId = null;
+            // Check if the event target is a token or child of a token
+            let token = null;
+            if (event.target instanceof Token) {
+                token = event.target;
+            } else if (event.target?.parent instanceof Token) {
+                token = event.target.parent;
+            } else {
+                // Walk up the parent chain to find a token (for deep children)
+                let parent = event.target?.parent;
+                while (parent && !(parent instanceof Token)) {
+                    parent = parent.parent;
                 }
-                
-                // Close menu if open
-                if (weaponSystemCoordinator.isMenuOpen()) {
-                    this.closeWeaponMenu();
+                if (parent instanceof Token) {
+                    token = parent;
                 }
+            }
+            
+            if (!token || !token.isOwner) return;
+            
+            debug('Right-click intercepted via PIXI', { token: token.name });
+            
+            // Cancel any pending menu operations
+            if (this.state.menuDelayId) {
+                tickerDelay.cancel(this.state.menuDelayId);
+                this.state.menuDelayId = null;
+            }
+            
+            // Close menu if open
+            if (weaponSystemCoordinator.isMenuOpen()) {
+                this.closeWeaponMenu();
             }
         };
 
-        // Add listeners to tokens layer with interactive children enabled
+        // Only register right-click handler at the layer level
+        // This is more efficient than adding listeners to individual tokens
         tokensLayer.interactiveChildren = true;
-        tokensLayer.on('pointerdown', this._handlePointerDown);
         tokensLayer.on('rightdown', this._handleRightDown);
         this.state.isCanvasHandlerSetup = true;
         
-        debug('setupPixiClickHandlers: PIXI event handlers attached to tokens layer');
+        debug('setupPixiClickHandlers: PIXI right-click handler attached');
 
         // Re-setup on scene changes
         if (!this._canvasReadyResetHandler) {
@@ -208,44 +211,34 @@ export class WeaponMenuTokenClickManager {
     // Removed _getTokenFromEvent - token detection now handled inline in event handlers
     
     /**
-     * Setup token-level click interceptors using libWrapper
-     * This ensures we catch clicks even if PIXI events don't propagate properly
+     * Setup libWrapper for left-click interception
+     * PIXI doesn't catch left-clicks reliably on tokens due to Foundry's event consumption,
+     * so we use libWrapper for those. This is the most performant approach.
      * @private
      */
     setupTokenInterceptors() {
-        const manager = this;  // Capture reference for use in wrapped functions
+        const manager = this;
         
-        debug('setupTokenInterceptors: Registering libWrapper hooks for Token click methods');
+        debug('setupTokenInterceptors: Registering libWrapper for left-clicks only');
         
-        // Intercept Token._onClickLeft to handle left clicks
+        // Only intercept left clicks - right clicks are handled reliably by PIXI
+        // This is necessary because Foundry's Token._onClickLeft consumes the event
+        // before PIXI listeners can process it
         libWrapper.register('tokencontextmenu', 'Token.prototype._onClickLeft', function(wrapped, event) {
             const token = this;
-            debug('Click intercepted via libWrapper Token._onClickLeft', { token: token.name, method: 'libWrapper' });
+            
+            // Early exit if not owner to reduce overhead
+            if (!token.isOwner) {
+                return wrapped.call(this, event);
+            }
+            
+            debug('Left-click intercepted via libWrapper', { token: token.name });
             
             // Set up our interaction handling
-            manager._setupTokenInteraction(token, event);
+            manager._setupTokenInteraction(token, event, 'libWrapper');
             
             // Continue with normal Foundry selection
-            return wrapped.call(this, event);
-        }, 'WRAPPER');
-        
-        // Intercept Token._onClickRight to handle right clicks
-        libWrapper.register('tokencontextmenu', 'Token.prototype._onClickRight', function(wrapped, event) {
-            const token = this;
-            debug('Right-click intercepted via libWrapper Token._onClickRight', { token: token.name, method: 'libWrapper' });
-            
-            // Cancel any pending menu operations
-            if (manager.state.menuDelayId) {
-                tickerDelay.cancel(manager.state.menuDelayId);
-                manager.state.menuDelayId = null;
-            }
-            
-            // Close menu if open
-            if (weaponSystemCoordinator.isMenuOpen()) {
-                manager.closeWeaponMenu();
-            }
-            
-            // Continue with normal right-click behavior
+            // This ensures we don't break Foundry's selection logic
             return wrapped.call(this, event);
         }, 'WRAPPER');
         
@@ -255,8 +248,11 @@ export class WeaponMenuTokenClickManager {
     /**
      * Setup interaction handling for a token on left click
      * @private
+     * @param {Token} token - The token to set up interaction for
+     * @param {PIXI.InteractionEvent} event - The click event
+     * @param {string} [source='unknown'] - The source of the call (PIXI or libWrapper)
      */
-    _setupTokenInteraction(token, event) {
+    _setupTokenInteraction(token, event, source = 'unknown') {
         const startX = event.data.global.x;
         const startY = event.data.global.y;
         const isAlreadySelected = token.controlled && 
@@ -267,7 +263,7 @@ export class WeaponMenuTokenClickManager {
             isAlreadySelected,
             startX,
             startY,
-            source: 'Called from click handler'
+            source
         });
         
         // Store drag tracking info
@@ -499,15 +495,9 @@ export class WeaponMenuTokenClickManager {
         }
 
         // Remove PIXI event listeners
-        if (canvas?.tokens) {
-            if (this._handlePointerDown) {
-                canvas.tokens.off('pointerdown', this._handlePointerDown);
-                this._handlePointerDown = null;
-            }
-            if (this._handleRightDown) {
-                canvas.tokens.off('rightdown', this._handleRightDown);
-                this._handleRightDown = null;
-            }
+        if (canvas?.tokens && this._handleRightDown) {
+            canvas.tokens.off('rightdown', this._handleRightDown);
+            this._handleRightDown = null;
         }
         
         // Remove canvas ready handler for PIXI re-setup
@@ -516,9 +506,8 @@ export class WeaponMenuTokenClickManager {
             this._canvasReadyResetHandler = null;
         }
         
-        // Unregister libWrapper hooks - libWrapper handles cases where hooks aren't registered
+        // Unregister libWrapper hooks
         libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
-        libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickRight');
 
         // Clear state
         this.state.isCanvasHandlerSetup = false;
