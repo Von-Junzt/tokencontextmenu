@@ -65,8 +65,14 @@ class WeaponSystemCoordinator {
      */
     _setupHooks() {
         // Store hook handlers for cleanup
-        this._controlTokenHandler = () => {
+        this._controlTokenHandler = (token, controlled) => {
             this._invalidateControlledTokensCache();
+            
+            // Clear selection processing if token is being deselected
+            if (!controlled && this.state.isProcessingSelection) {
+                debug('Token deselected during selection processing, clearing timeout');
+                this.clearSelectionProcessing();
+            }
         };
         
         this._weaponMenuClosedHandler = () => {
@@ -88,10 +94,22 @@ class WeaponSystemCoordinator {
             this._invalidateControlledTokensCache();
         };
         
+        this._deleteTokenHandler = (tokenDocument) => {
+            // Clear selection processing if the deleted token was being processed
+            if (this.state.isProcessingSelection) {
+                debug('Token deleted during selection processing, clearing timeout');
+                this.clearSelectionProcessing();
+            }
+            
+            // Also invalidate cache since controlled tokens may have changed
+            this._invalidateControlledTokensCache();
+        };
+        
         // Register hooks
         Hooks.on('controlToken', this._controlTokenHandler);
         Hooks.on('tokencontextmenu.weaponMenuClosed', this._weaponMenuClosedHandler);
         Hooks.on('canvasReady', this._canvasReadyHandler);
+        Hooks.on('deleteToken', this._deleteTokenHandler);
     }
 
     /**
@@ -439,6 +457,11 @@ class WeaponSystemCoordinator {
         if (this._canvasReadyHandler) {
             Hooks.off('canvasReady', this._canvasReadyHandler);
             this._canvasReadyHandler = null;
+        }
+        
+        if (this._deleteTokenHandler) {
+            Hooks.off('deleteToken', this._deleteTokenHandler);
+            this._deleteTokenHandler = null;
         }
         
         // Reset the system
