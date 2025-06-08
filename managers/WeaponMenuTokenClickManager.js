@@ -27,17 +27,18 @@ export class WeaponMenuTokenClickManager {
             dragThresholdPixels: TIMING.DRAG_THRESHOLD_PIXELS,
 
             // Event handler references for cleanup
-            canvasClickHandler: null,
             isCanvasHandlerSetup: false,
             
-            // Mouse state tracking
-            lastMouseButton: null,
+            // Token selection tracking - for cleanup only
+            controlledTokens: new Set(),
             
-            // Token selection tracking
-            lastSelectedToken: null,
+            // Active drag tracking
+            activeDrags: new WeakMap(),
             
-            // Selection drag tracking
-            selectionDrag: null,
+            // Track token event listeners added by interaction setup
+            interactionListeners: new WeakMap(),
+            
+            // Menu delay ID for cancellation
             menuDelayId: null
         };
 
@@ -46,26 +47,31 @@ export class WeaponMenuTokenClickManager {
 
         // Don't setup handlers in constructor - let the calling code decide when
         this.boundHandlers = {
-            handleTokenSelection: this.handleTokenSelection.bind(this),
-            handleCanvasClick: this.handleCanvasClick.bind(this)
+            handleTokenSelection: this.handleTokenSelection.bind(this)
         };
     }
 
     /**
      * Initialize all event handlers - call this from the main init
-     * Sets up both token selection hooks and canvas click handlers
+     * Sets up PIXI-based click detection and token cleanup hooks
      */
     setupEventHandlers() {
+        debug('Setting up all event handlers', { instanceId: this.instanceId });
+        
+        // Use controlToken hook only for cleanup tracking
         if (this.boundHandlers.handleTokenSelection) {
             Hooks.on("controlToken", this.boundHandlers.handleTokenSelection);
+            debug('Registered controlToken hook');
         }
 
-        // Don't setup canvas click handler - causes mouse up/down conflicts
-        // this.setupCanvasClickHandler();
-        this.setupTokenClickWrapper();
+        // Setup PIXI-based click detection
+        this.setupPixiClickHandlers();
         
-        // Clear last selected token on scene changes
-        // But don't clear it on every render - only on actual scene changes
+        // Also setup token-level interceptors as backup
+        this.setupTokenInterceptors();
+        
+        debug('Event handlers setup complete');
+        
         // Store the current scene ID on the instance to persist between handler calls
         this._currentSceneId = canvas?.scene?.id || null;
         
@@ -83,8 +89,8 @@ export class WeaponMenuTokenClickManager {
             
             if (wasSceneChange) {
                 debug('Scene changed, clearing state');
-                this.state.lastSelectedToken = null;
-                this.state.selectionDrag = null;
+                this.state.controlledTokens.clear();
+                this.state.activeDrags.clear();
                 // Cancel any pending menu open
                 if (this.state.menuDelayId) {
                     tickerDelay.cancel(this.state.menuDelayId);
@@ -108,17 +114,8 @@ export class WeaponMenuTokenClickManager {
             const token = tokenDocument.object;
             if (token) {
                 this.cleanupTokenListeners(token);
-                // Clear lastSelectedToken if the deleted token was the one we were tracking
-                if (this.state.lastSelectedToken === token || 
-                    this.state.lastSelectedToken?.id === token.id ||
-                    this.state.lastSelectedToken?.id === tokenDocument.id) {
-                    debug('Deleted token was lastSelectedToken, clearing reference', {
-                        deletedToken: token?.name,
-                        deletedId: tokenDocument.id,
-                        lastSelectedId: this.state.lastSelectedToken?.id
-                    });
-                    this.state.lastSelectedToken = null;
-                }
+                this.state.controlledTokens.delete(token);
+                this.state.activeDrags.delete(token);
             }
         };
         
@@ -128,288 +125,255 @@ export class WeaponMenuTokenClickManager {
     }
 
     /**
-     * Setup canvas click handler with proper scene change handling
-     * Ensures the handler persists through scene changes
+     * Setup PIXI-based click handlers for direct token interaction
+     * Handles both left and right clicks without relying on Foundry's selection system
      * @private
      */
-    setupCanvasClickHandler() {
-        if (this.state.isCanvasHandlerSetup) return;
+    setupPixiClickHandlers() {
+        if (this.state.isCanvasHandlerSetup || !canvas?.stage) {
+            debug('Skipping PIXI setup', { 
+                isAlreadySetup: this.state.isCanvasHandlerSetup, 
+                hasCanvas: !!canvas?.stage 
+            });
+            return;
+        }
 
-        const setupHandler = () => {
-            if (this.state.canvasClickHandler) {
-                canvas.stage.off("pointertap", this.state.canvasClickHandler);
+        debug('setupPixiClickHandlers: Starting PIXI event setup');
+
+        // We need to add listeners to the tokens layer, not the stage
+        // The stage is too high level and events get consumed by tokens
+        const tokensLayer = canvas.tokens;
+        if (!tokensLayer) {
+            debug('Tokens layer not ready, deferring setup');
+            return;
+        }
+
+        // Left click handler - use interactive mode
+        this._handlePointerDown = (event) => {
+            // Only handle events that originate from tokens
+            if (event.target instanceof Token || event.target?.parent instanceof Token) {
+                const token = event.target instanceof Token ? event.target : event.target.parent;
+                if (!token || !token.isOwner) return;
+
+                const button = event.data.button;
+                debug('Click intercepted via PIXI pointerdown', { token: token.name, button, method: 'PIXI' });
+                
+                if (button === 0) {
+                    // Left click - set up drag detection and potential menu handling
+                    this._setupTokenInteraction(token, event);
+                }
+                // Right click (button 2) - let Foundry handle selection, no menu
             }
-
-            this.state.canvasClickHandler = this.boundHandlers.handleCanvasClick;
-            canvas.stage.on("pointertap", this.state.canvasClickHandler);
-            this.state.isCanvasHandlerSetup = true;
         };
 
-        // Setup immediately if canvas is ready
-        if (canvas.stage) setupHandler();
+        // Right click specific handler
+        this._handleRightDown = (event) => {
+            if (event.target instanceof Token || event.target?.parent instanceof Token) {
+                const token = event.target instanceof Token ? event.target : event.target.parent;
+                if (!token || !token.isOwner) return;
+                
+                debug('Right-click intercepted via PIXI rightdown', { token: token.name, method: 'PIXI' });
+                
+                // Cancel any pending menu operations
+                if (this.state.menuDelayId) {
+                    tickerDelay.cancel(this.state.menuDelayId);
+                    this.state.menuDelayId = null;
+                }
+                
+                // Close menu if open
+                if (weaponSystemCoordinator.isMenuOpen()) {
+                    this.closeWeaponMenu();
+                }
+            }
+        };
+
+        // Add listeners to tokens layer with interactive children enabled
+        tokensLayer.interactiveChildren = true;
+        tokensLayer.on('pointerdown', this._handlePointerDown);
+        tokensLayer.on('rightdown', this._handleRightDown);
+        this.state.isCanvasHandlerSetup = true;
+        
+        debug('setupPixiClickHandlers: PIXI event handlers attached to tokens layer');
 
         // Re-setup on scene changes
-        Hooks.on('canvasReady', setupHandler);
+        if (!this._canvasReadyResetHandler) {
+            this._canvasReadyResetHandler = () => {
+                this.state.isCanvasHandlerSetup = false;
+                this.setupPixiClickHandlers();
+            };
+            Hooks.on('canvasReady', this._canvasReadyResetHandler);
+        }
     }
 
+    // Removed _getTokenFromEvent - token detection now handled inline in event handlers
+    
     /**
-     * Setup libWrapper to intercept token clicks before selection
-     * This captures mouse button info before Foundry processes the selection
+     * Setup token-level click interceptors using libWrapper
+     * This ensures we catch clicks even if PIXI events don't propagate properly
      * @private
      */
-    setupTokenClickWrapper() {
-        // Add multiple event listeners for comprehensive mouse button detection
-        if (canvas?.stage) {
-            const manager = weaponMenuTokenClickManager;
-            
-            // Remove any existing listeners first (cleanup)
-            if (this._canvasPointerDownHandler) {
-                canvas.stage.off('pointerdown', this._canvasPointerDownHandler);
-                canvas.stage.off('rightdown', this._canvasRightDownHandler);
-                canvas.stage.off('mousedown', this._canvasMouseDownHandler);
-            }
-            
-            // Handler for pointerdown events (may not catch all right-clicks)
-            this._canvasPointerDownHandler = (event) => {
-                const button = event.data.button;
-                if (button === 2) {
-                    manager.state.lastMouseButton = 2;
-                    debug('Canvas stage pointerdown: Right-click (button 2)');
-                    
-                    // Cancel any pending menu operations
-                    if (manager.state.menuDelayId) {
-                        tickerDelay.cancel(manager.state.menuDelayId);
-                        manager.state.menuDelayId = null;
-                        debug('Cancelled pending menu open due to right-click');
-                    }
-                } else if (button === 0) {
-                    manager.state.lastMouseButton = 0;
-                    debug('Canvas stage pointerdown: Left-click (button 0)');
-                }
-            };
-            
-            // Specific handler for rightdown events (PIXI event)
-            this._canvasRightDownHandler = (event) => {
-                manager.state.lastMouseButton = 2;
-                debug('Canvas stage rightdown: Right-click detected');
-                
-                // Cancel any pending menu operations when right-clicking
-                if (manager.state.menuDelayId) {
-                    tickerDelay.cancel(manager.state.menuDelayId);
-                    manager.state.menuDelayId = null;
-                    debug('Cancelled pending menu open due to right-click');
-                }
-            };
-            
-            // Fallback mousedown handler
-            this._canvasMouseDownHandler = (event) => {
-                const button = event.data?.originalEvent?.button ?? event.button;
-                if (button === 2) {
-                    manager.state.lastMouseButton = 2;
-                    debug('Canvas stage mousedown: Right-click (button 2)');
-                } else if (button === 0) {
-                    manager.state.lastMouseButton = 0;
-                    debug('Canvas stage mousedown: Left-click (button 0)');
-                }
-            };
-            
-            // Add all listeners for maximum coverage
-            canvas.stage.on('pointerdown', this._canvasPointerDownHandler);
-            canvas.stage.on('rightdown', this._canvasRightDownHandler);
-            canvas.stage.on('mousedown', this._canvasMouseDownHandler);
-            
-            // Also add a document-level listener as last resort
-            this._documentMouseDownHandler = (event) => {
-                // Only process if clicking on the canvas
-                if (event.target.closest('#board')) {
-                    if (event.button === 2) {
-                        manager.state.lastMouseButton = 2;
-                        debug('Document mousedown: Right-click detected on canvas');
-                        
-                        // Cancel any pending menu operations
-                        if (manager.state.menuDelayId) {
-                            tickerDelay.cancel(manager.state.menuDelayId);
-                            manager.state.menuDelayId = null;
-                            debug('Cancelled pending menu open due to right-click');
-                        }
-                    } else if (event.button === 0) {
-                        manager.state.lastMouseButton = 0;
-                        debug('Document mousedown: Left-click detected on canvas');
-                    }
-                }
-            };
-            
-            document.addEventListener('mousedown', this._documentMouseDownHandler, true);
-        }
+    setupTokenInterceptors() {
+        const manager = this;  // Capture reference for use in wrapped functions
         
-        // Also wrap control method to catch right-click selections as backup
-        libWrapper.register('tokencontextmenu', 'Token.prototype.control', function(wrapped, options) {
-            const manager = weaponMenuTokenClickManager;
-            
-            // Right-click selections pass releaseOthers: false
-            // This is a backup detection method
-            if (options?.releaseOthers === false && !this.controlled) {
-                // Only set to 2 if not already set by MouseInteractionManager
-                if (manager.state.lastMouseButton !== 2) {
-                    debug('Token.control: Backup right-click detection (releaseOthers: false)');
-                    manager.state.lastMouseButton = 2;
-                }
-            }
-            
-            return wrapped.call(this, options);
-        }, 'WRAPPER');
+        debug('setupTokenInterceptors: Registering libWrapper hooks for Token click methods');
         
-        // Use libWrapper to intercept Token._onClickLeft
+        // Intercept Token._onClickLeft to handle left clicks
         libWrapper.register('tokencontextmenu', 'Token.prototype._onClickLeft', function(wrapped, event) {
-            // Store the actual click event data before selection happens
-            const manager = weaponMenuTokenClickManager;
             const token = this;
-            manager.state.lastMouseButton = 0; // Left click
+            debug('Click intercepted via libWrapper Token._onClickLeft', { token: token.name, method: 'libWrapper' });
             
-            debug('Token Left Click Intercepted:', {
-                token: this.name,
-                button: 0,
-                controlled: this.controlled,
-                lastSelectedToken: manager.state.lastSelectedToken?.name,
-                isSameAsLast: manager.state.lastSelectedToken === this,
-                tokenId: this.id,
-                lastTokenId: manager.state.lastSelectedToken?.id
-            });
+            // Set up our interaction handling
+            manager._setupTokenInteraction(token, event);
             
-            // Always set up drag detection to catch immediate drags on selection
-            const startX = event.data.global.x;
-            const startY = event.data.global.y;
-            // Check if this token is already the only controlled token
-            // This works regardless of how it was selected (left or right click)
-            const isAlreadySelected = this.controlled && 
-                                    weaponSystemCoordinator.isOnlyControlledToken(this);
-            
-            debug('Setting up drag detection', {
-                token: this.name,
-                isAlreadySelected,
-                startX,
-                startY
-            });
-            
-            // Store drag tracking info
-            const dragInfo = {
-                token: token,
-                startX: startX,
-                startY: startY,
-                isDragging: false,
-                isAlreadySelected: isAlreadySelected
-            };
-            
-            // Store drag info for all cases - we'll check actual selection state on mouseup
-            manager.state.selectionDrag = dragInfo;
-            manager._pendingMenuToggle = dragInfo;
-            
-            const checkDrag = (e) => {
-                const dx = Math.abs(e.data.global.x - startX);
-                const dy = Math.abs(e.data.global.y - startY);
-                if (dx > TIMING.DRAG_THRESHOLD_PIXELS || dy > TIMING.DRAG_THRESHOLD_PIXELS) {
-                    dragInfo.isDragging = true;
-                    
-                    // Update the stored state
-                    if (manager.state.selectionDrag === dragInfo) {
-                        manager.state.selectionDrag.isDragging = true;
-                    }
-                    if (manager._pendingMenuToggle === dragInfo) {
-                        manager._pendingMenuToggle.isDragging = true;
-                    }
-                    
-                    // Close menu immediately when drag is detected on already selected token
-                    if (isAlreadySelected && weaponSystemCoordinator.isMenuOpen()) {
-                        debug('Drag detected on selected token, closing menu immediately');
-                        manager.closeWeaponMenu();
-                    }
-                    
-                    // Cancel any pending menu open
-                    if (manager.state.menuDelayId) {
-                        tickerDelay.cancel(manager.state.menuDelayId);
-                        manager.state.menuDelayId = null;
-                    }
-                }
-            };
-            
-            const handleMouseUp = (e) => {
-                // Check if token was already selected BEFORE this click (using dragInfo.isAlreadySelected)
-                // This avoids race condition with lastSelectedToken update
-                const wasAlreadySelected = dragInfo.isAlreadySelected;
-                const isCurrentlySelected = token.controlled && 
-                                          weaponSystemCoordinator.isOnlyControlledToken(token);
-                
-                debug('Mouse up detected', {
-                    isDragging: dragInfo.isDragging,
-                    wasAlreadySelected: wasAlreadySelected,
-                    isCurrentlySelected: isCurrentlySelected,
-                    token: token.name
-                });
-                
-                this.off('pointermove', checkDrag);
-                this.off('pointerup', handleMouseUp);
-                this.off('pointerupoutside', handleMouseUp);
-                
-                // Handle menu toggle ONLY for tokens that were already selected before the click
-                // This prevents opening menu on initial selection when setting is disabled
-                if (wasAlreadySelected && isCurrentlySelected && !dragInfo.isDragging) {
-                    debug('Click (not drag) on already selected token, toggling menu');
-                    if (weaponSystemCoordinator.isMenuOpen()) {
-                        manager.closeWeaponMenu();
-                    } else {
-                        manager.openWeaponMenu(token);
-                    }
-                }
-                
-                // Clear tracking
-                if (manager._pendingMenuToggle === dragInfo) {
-                    manager._pendingMenuToggle = null;
-                }
-                // Don't clear selectionDrag here - let handleTokenSelection use it
-            };
-            
-            // Use the token's event handlers
-            this.on('pointermove', checkDrag);
-            this.on('pointerup', handleMouseUp);
-            this.on('pointerupoutside', handleMouseUp);
-            
-            // Continue with normal token selection
+            // Continue with normal Foundry selection
             return wrapped.call(this, event);
         }, 'WRAPPER');
         
-        // Also intercept right clicks to distinguish them
+        // Intercept Token._onClickRight to handle right clicks
         libWrapper.register('tokencontextmenu', 'Token.prototype._onClickRight', function(wrapped, event) {
-            // Store right click info IMMEDIATELY
-            const manager = weaponMenuTokenClickManager;
-            manager.state.lastMouseButton = 2; // Right click
+            const token = this;
+            debug('Right-click intercepted via libWrapper Token._onClickRight', { token: token.name, method: 'libWrapper' });
             
-            // Clear any pending menu operations on right-click
+            // Cancel any pending menu operations
             if (manager.state.menuDelayId) {
                 tickerDelay.cancel(manager.state.menuDelayId);
                 manager.state.menuDelayId = null;
             }
             
-            debug('Token Right Click Intercepted - BEFORE selection:', {
-                token: this.name,
-                button: 2,
-                controlled: this.controlled,
-                lastSelectedToken: manager.state.lastSelectedToken?.name
-            });
+            // Close menu if open
+            if (weaponSystemCoordinator.isMenuOpen()) {
+                manager.closeWeaponMenu();
+            }
             
             // Continue with normal right-click behavior
-            const result = wrapped.call(this, event);
-            
-            // Ensure the mouse button stays set even after the wrapped call
-            manager.state.lastMouseButton = 2;
-            
-            return result;
+            return wrapped.call(this, event);
         }, 'WRAPPER');
+        
+        debug('Token interceptors registered successfully');
+    }
+
+    /**
+     * Setup interaction handling for a token on left click
+     * @private
+     */
+    _setupTokenInteraction(token, event) {
+        const startX = event.data.global.x;
+        const startY = event.data.global.y;
+        const isAlreadySelected = token.controlled && 
+                                weaponSystemCoordinator.isOnlyControlledToken(token);
+        
+        debug('Setting up token interaction', {
+            token: token.name,
+            isAlreadySelected,
+            startX,
+            startY,
+            source: 'Called from click handler'
+        });
+        
+        // Store drag tracking info
+        const dragInfo = {
+            token: token,
+            startX: startX,
+            startY: startY,
+            isDragging: false,
+            isAlreadySelected: isAlreadySelected,
+            timestamp: Date.now()
+        };
+        
+        this.state.activeDrags.set(token, dragInfo);
+        
+        const checkDrag = (e) => {
+            const dx = Math.abs(e.data.global.x - startX);
+            const dy = Math.abs(e.data.global.y - startY);
+            if (dx > TIMING.DRAG_THRESHOLD_PIXELS || dy > TIMING.DRAG_THRESHOLD_PIXELS) {
+                dragInfo.isDragging = true;
+                
+                // Close menu immediately when drag is detected on already selected token
+                if (isAlreadySelected && weaponSystemCoordinator.isMenuOpen()) {
+                    debug('DRAG DETECTED: Closing menu immediately', {
+                        dragDistance: { dx: dx, dy: dy },
+                        threshold: TIMING.DRAG_THRESHOLD_PIXELS
+                    });
+                    this.closeWeaponMenu();
+                }
+                
+                // Cancel any pending menu open
+                if (this.state.menuDelayId) {
+                    tickerDelay.cancel(this.state.menuDelayId);
+                    this.state.menuDelayId = null;
+                }
+            }
+        };
+        
+        const handleMouseUp = async (e) => {
+            const wasAlreadySelected = dragInfo.isAlreadySelected;
+            const isCurrentlySelected = token.controlled && 
+                                      weaponSystemCoordinator.isOnlyControlledToken(token);
+            
+            debug('Mouse up detected - evaluating action', {
+                token: token.name,
+                isDragging: dragInfo.isDragging,
+                wasAlreadySelected,
+                isCurrentlySelected,
+                menuOpen: weaponSystemCoordinator.isMenuOpen(),
+                setting: shouldShowWeaponMenuOnSelection()
+            });
+            
+            token.off('pointermove', checkDrag);
+            token.off('pointerup', handleMouseUp);
+            token.off('pointerupoutside', handleMouseUp);
+            
+            // Handle interaction based on state
+            if (!dragInfo.isDragging) {
+                if (wasAlreadySelected && isCurrentlySelected) {
+                    // Click on already selected token - toggle menu
+                    debug('ACTION: Toggle menu on already selected token', {
+                        currentMenuState: weaponSystemCoordinator.isMenuOpen() ? 'open' : 'closed',
+                        newMenuState: weaponSystemCoordinator.isMenuOpen() ? 'closing' : 'opening'
+                    });
+                    if (weaponSystemCoordinator.isMenuOpen()) {
+                        await this.closeWeaponMenu();
+                    } else {
+                        await this.openWeaponMenu(token);
+                    }
+                } else if (!wasAlreadySelected && isCurrentlySelected && shouldShowWeaponMenuOnSelection()) {
+                    // New selection with setting enabled - open menu after delay
+                    debug('ACTION: New selection - will open menu after drag check', {
+                        delayMs: TIMING.DRAG_DETECTION_DELAY,
+                        settingEnabled: true
+                    });
+                    this.state.menuDelayId = tickerDelay.delay(async () => {
+                        if (!dragInfo.isDragging && 
+                            weaponSystemCoordinator.getControlledTokens().includes(token)) {
+                            debug('ACTION: Opening menu - no drag detected during delay');
+                            await this.openWeaponMenu(token);
+                        }
+                        this.state.menuDelayId = null;
+                    }, TIMING.DRAG_DETECTION_DELAY, 'menuOpenDelay');
+                }
+            }
+            
+            // Clear drag tracking
+            this.state.activeDrags.delete(token);
+        };
+        
+        // Use the token's event handlers
+        token.on('pointermove', checkDrag);
+        token.on('pointerup', handleMouseUp);
+        token.on('pointerupoutside', handleMouseUp);
+        
+        // Store listeners for cleanup
+        this.state.interactionListeners.set(token, {
+            pointermove: checkDrag,
+            pointerup: handleMouseUp,
+            pointerupoutside: handleMouseUp
+        });
     }
 
 
     /**
      * Handle token selection events (from controlToken hook)
-     * Uses mouse button tracking to distinguish left/right clicks
+     * Now only used for tracking controlled tokens for cleanup
      * @param {Token} token - The token being selected/deselected
      * @param {boolean} controlled - Whether the token is now controlled
      */
@@ -417,357 +381,34 @@ export class WeaponMenuTokenClickManager {
         debug('handleTokenSelection called:', { 
             token: token.name, 
             controlled,
-            instanceId: this.instanceId,
-            currentLastSelected: this.state.lastSelectedToken?.name
+            instanceId: this.instanceId
         });
         
         if (!controlled) {
-            // Handle deselection - clean up listeners
+            // Handle deselection - clean up
+            this.state.controlledTokens.delete(token);
             this.cleanupTokenListeners(token);
-            // Let the canvas click handler or new selection handle menu closing
-            return;
-        } else if (controlled && token.isOwner && weaponSystemCoordinator.hasExactlyOneControlledToken()) {
-            // Handle selection - check if we should show menu
-            // IMPORTANT: Only treat as left-click if lastMouseButton is explicitly 0
-            // If it's null or 2, it's not a left-click (could be right-click or programmatic)
-            const wasLeftClick = this.state.lastMouseButton === 0;
-            const settingEnabled = shouldShowWeaponMenuOnSelection();
             
-            debug('Token Selection Debug:', {
-                token: token.name,
-                wasLeftClick,
-                settingEnabled,
-                lastMouseButton: this.state.lastMouseButton,
-                lastSelectedToken: this.state.lastSelectedToken?.name,
-                isSameAsLast: this.state.lastSelectedToken === token,
-                menuOpen: weaponSystemCoordinator.isMenuOpen()
-            });
-            
-            // Handle based on whether it's a new selection or click on already selected
-            if (wasLeftClick) {
-                // Check if this is the same token we just processed
-                // Use ID comparison as tokens can be recreated between interactions
-                const isSameToken = this.state.lastSelectedToken === token || 
-                                  this.state.lastSelectedToken?.id === token.id;
-                
-                debug('Token comparison:', {
-                    lastSelectedToken: this.state.lastSelectedToken?.name,
-                    lastSelectedId: this.state.lastSelectedToken?.id,
-                    currentToken: token.name,
-                    currentId: token.id,
-                    isSameToken,
-                    referenceEqual: this.state.lastSelectedToken === token,
-                    idEqual: this.state.lastSelectedToken?.id === token.id,
-                    instanceId: this.instanceId
-                });
-                
-                if (!isSameToken) {
-                    // New token selection
-                    // Cancel any pending menu open
-                    if (this.state.menuDelayId) {
-                        tickerDelay.cancel(this.state.menuDelayId);
-                        this.state.menuDelayId = null;
-                    }
-                    
-                    // Close existing menu if open
-                    if (weaponSystemCoordinator.isMenuOpen()) {
-                        await this.closeWeaponMenu();
-                    }
-                    
-                    // Only open menu if setting is enabled
-                    if (settingEnabled) {
-                        // Check if we're already dragging from the selection
-                        if (this.state.selectionDrag?.isDragging) {
-                            debug('Selection drag already detected, not opening menu');
-                            this.state.selectionDrag = null;
-                        } else {
-                            // Use tickerDelay to wait and check for drag
-                            debug('Setting up delayed menu open to check for drag');
-                            this.state.menuDelayId = tickerDelay.delay(async () => {
-                                // Double-check drag state and that token is still selected
-                                if (!this.state.selectionDrag?.isDragging && 
-                                    weaponSystemCoordinator.getControlledTokens().includes(token)) {
-                                    debug('No drag detected during delay, opening menu');
-                                    await this.openWeaponMenu(token);
-                                } else {
-                                    debug('Drag detected or token deselected, not opening menu');
-                                }
-                                // Clear the selection drag tracking
-                                this.state.selectionDrag = null;
-                                this.state.menuDelayId = null;
-                            }, TIMING.DRAG_DETECTION_DELAY, 'menuOpenDelay');
-                        }
-                    }
-                } else {
-                    // Click on already selected token - handled in mouse up handler
-                    debug('Click on already selected token - handled in mouseup');
-                }
-            }
-            
-            // Only update last selected token for left clicks
-            // This prevents right-click selections from polluting the state
-            if (wasLeftClick) {
-                const prevToken = this.state.lastSelectedToken;
-                this.state.lastSelectedToken = token;
-                debug('Updated lastSelectedToken:', {
-                    previous: prevToken?.name,
-                    previousId: prevToken?.id,
-                    new: token.name,
-                    newId: token.id,
-                    instanceId: this.instanceId,
-                    stateCheck: this.state.lastSelectedToken === token
-                });
-            } else {
-                debug('Right-click or programmatic selection detected, NOT updating lastSelectedToken', {
-                    currentLastSelected: this.state.lastSelectedToken?.name,
-                    instanceId: this.instanceId
-                });
-            }
-            
-            // Clear lastMouseButton after processing to prevent stale values
-            // Add small delay to ensure any subsequent events can still read the value
-            setTimeout(() => {
-                this.state.lastMouseButton = null;
-            }, 100);
-        }
-    }
-
-    /**
-     * Handle direct canvas clicks (from pointertap event)
-     * Only processes left-clicks on tokens
-     * @param {PIXI.InteractionEvent} event - The PIXI interaction event
-     */
-    async handleCanvasClick(event) {
-        // Only left-button, no modifiers
-        const orig = event.data.originalEvent;
-        if (orig.button !== 0 || orig.shiftKey || orig.ctrlKey || orig.altKey) return;
-
-        // Skip if we're processing a selection event
-        if (weaponSystemCoordinator.isProcessingSelection()) return;
-
-        // Find the Token sprite under the pointer
-        let clickedToken = event.target;
-        while (clickedToken && !(clickedToken instanceof Token)) {
-            clickedToken = clickedToken.parent;
-        }
-
-        // Must be a valid token owned by the user
-        if (!(clickedToken instanceof Token && clickedToken.isOwner)) {
-            return;
-        }
-
-        // Only handle clicks on already controlled tokens
-        // Selection is handled by handleTokenSelection
-        if (!clickedToken.controlled) {
-            return;
-        }
-        
-        // Only proceed if this is the only controlled token
-        if (!weaponSystemCoordinator.hasExactlyOneControlledToken()) {
-            return;
-        }
-
-        const interactionData = {
-            type: 'click',
-            token: clickedToken,
-            timestamp: Date.now(),
-            event: event
-        };
-
-        await this.processTokenInteraction(interactionData);
-    }
-
-    /**
-     * Central processing logic for all token interactions
-     * Coordinates between drag detection, action determination, and execution
-     * @param {Object} interactionData - The interaction data
-     * @param {string} interactionData.type - Type of interaction ('selection' or 'click')
-     * @param {Token} interactionData.token - The token involved
-     * @param {number} interactionData.timestamp - When the interaction occurred
-     * @private
-     */
-    async processTokenInteraction(interactionData) {
-        const { type, token, timestamp } = interactionData;
-
-        // Initialize drag detection for this token
-        this.initializeDragDetection(token);
-
-        // Determine what action to take
-        const actionData = this.determineAction(interactionData);
-
-        if (actionData.action === 'ignore') {
-            debug('Click Manager - Interaction ignored:', actionData.reason);
-            return;
-        }
-
-        // Execute the determined action
-        await this.executeAction(actionData);
-
-        // Update state tracking
-        this.updateInteractionState(interactionData);
-    }
-
-    /**
-     * Determine what action should be taken based on the interaction
-     * Implements complex decision logic for menu behavior
-     * @param {Object} interactionData - The interaction data
-     * @returns {Object} Action data with action type and parameters
-     * @private
-     */
-    determineAction(interactionData) {
-        const { type, token, timestamp } = interactionData;
-
-        // Check for race conditions between selection and click events
-        if (weaponSystemCoordinator.isProcessingSelection() && type === 'click') {
-            return {
-                action: 'ignore',
-                reason: 'selection in progress',
-                type: type
-            };
-        }
-
-        // Check debounce window
-        if (weaponSystemCoordinator.isWithinDebounceWindow()) {
-            return {
-                action: 'ignore',
-                reason: 'within debounce window',
-                type: type
-            };
-        }
-
-        // Check if this was a drag operation
-        if (this.wasDragging(token)) {
-            return {
-                action: 'close_and_cleanup_drag',
-                token: token,
-                reason: 'was dragging',
-                type: type
-            };
-        }
-
-        // Check basic conditions
-        if (!token.controlled ||
-            !token.isOwner ||
-            !weaponSystemCoordinator.hasExactlyOneControlledToken() ||
-            canvas.hud.token.rendered) {
-            return {
-                action: 'ignore',
-                reason: 'basic conditions not met',
-                type: type
-            };
-        }
-
-        const showOnSelection = shouldShowWeaponMenuOnSelection();
-
-        // Handle selection events
-        if (type === 'selection') {
-            if (!showOnSelection) {
-                return {
-                    action: 'ignore',
-                    reason: 'show on selection disabled',
-                    type: type
-                };
-            }
-
-            return {
-                action: 'open_after_close',
-                token: token,
-                type: type
-            };
-        }
-
-        // Handle click events (always work regardless of setting)
-        if (type === 'click') {
-            if (weaponSystemCoordinator.isMenuOpen()) {
-                return {
-                    action: 'close',
-                    token: token,
-                    type: type
-                };
-            } else {
-                return {
-                    action: 'open',
-                    token: token,
-                    type: type
-                };
-            }
-        }
-
-        return {
-            action: 'ignore',
-            reason: 'no matching conditions',
-            type: type
-        };
-    }
-
-    /**
-     * Execute the determined action
-     * Handles menu opening, closing, and state transitions
-     * @param {Object} actionData - The action to execute
-     * @param {string} actionData.action - Action type ('open', 'close', etc.)
-     * @param {Token} actionData.token - The token involved
-     * @param {string} actionData.type - Original interaction type
-     * @private
-     */
-    async executeAction(actionData) {
-        const { action, token, type } = actionData;
-
-        switch (action) {
-            case 'open':
-                // Clear any lingering selection processing before opening
-                if (weaponSystemCoordinator.isProcessingSelection()) {
-                    debug('Clearing lingering selection processing before open');
-                    weaponSystemCoordinator.clearSelectionProcessing();
-                }
-                await this.openWeaponMenu(token);
-                break;
-
-            case 'open_after_close':
-                // Mark selection processing ONLY for selection events
-                if (type === 'selection') {
-                    weaponSystemCoordinator.startSelectionProcessing();
-                }
-
-                if (weaponSystemCoordinator.isMenuOpen()) {
-                    await this.closeWeaponMenu();
-                }
-
-                // Check if token is still valid before opening menu
-                if (!token || !canvas.tokens.placeables.includes(token)) {
-                    debug('Token no longer valid, skipping menu open');
-                    // Clear selection processing before returning
-                    if (type === 'selection') {
-                        weaponSystemCoordinator.clearSelectionProcessing();
-                    }
-                    return;
-                }
-
-                // Open menu immediately without delay
-                await this.openWeaponMenu(token);
-                
-                // Clear selection processing after menu opens
-                if (type === 'selection') {
-                    weaponSystemCoordinator.clearSelectionProcessing();
-                }
-                break;
-
-            case 'close':
+            // Close menu if no tokens are selected
+            if (this.state.controlledTokens.size === 0 && weaponSystemCoordinator.isMenuOpen()) {
                 await this.closeWeaponMenu();
-                break;
-
-            case 'close_and_cleanup_drag':
-                this.resetDragState(token);
+            }
+        } else {
+            // Track controlled token
+            this.state.controlledTokens.add(token);
+            
+            // Close menu if multiple tokens are selected
+            if (this.state.controlledTokens.size > 1 && weaponSystemCoordinator.isMenuOpen()) {
                 await this.closeWeaponMenu();
-                this.stopTokenMovementTracker(token);
-                break;
-
-            default:
-                console.warn('Token Context Menu: Click Manager - Unknown action:', action);
+            }
         }
-
-        // Always reset drag state after processing
-        this.resetDragState(token);
     }
+
+    // Note: Removed handleTokenLeftClick and handleTokenRightClick methods
+    // These were intended for a different architecture and are not called anywhere
+
+    // Removed processTokenInteraction, determineAction, and executeAction methods
+    // These are no longer needed with PIXI-first approach
 
     /**
      * Open weapon menu - delegates to existing system
@@ -776,6 +417,7 @@ export class WeaponMenuTokenClickManager {
      * @private
      */
     async openWeaponMenu(token) {
+        debug('openWeaponMenu called', { token: token.name });
         // Import here to avoid circular dependencies
         const { showWeaponMenuUnderToken } = await import("../utils/weaponMenuDisplay.js");
         await showWeaponMenuUnderToken(token);
@@ -786,105 +428,37 @@ export class WeaponMenuTokenClickManager {
      * @private
      */
     async closeWeaponMenu() {
+        debug('closeWeaponMenu called from token-click-manager');
         const { closeWeaponMenu } = await import("../utils/weaponMenuCloser.js");
         return closeWeaponMenu({ reason: 'token-click-manager' });
     }
 
-    /**
-     * Initialize drag detection for a token
-     * Sets up PIXI event listeners for drag tracking
-     * @param {Token} token - The token to track drag for
-     * @returns {Object} The drag state object
-     * @private
-     */
-    initializeDragDetection(token) {
-        const dragState = tokenDragManager.initializeDragState(token);
-        
-        // Clean up any existing listeners first
-        this.cleanupTokenListeners(token);
-
-        // Create listener functions that we can reference for cleanup
-        const listeners = {
-            pointerdown: (event) => {
-                tokenDragManager.startDrag(token, {
-                    x: event.data.global.x,
-                    y: event.data.global.y
-                });
-            },
-            pointermove: (event) => {
-                tokenDragManager.updateDragMovement(token, {
-                    x: event.data.global.x,
-                    y: event.data.global.y
-                }, this.state.dragThresholdPixels);
-            },
-            pointerup: () => {
-                tokenDragManager.endDrag(token);
-            }
-        };
-
-        // Add the listeners
-        Object.entries(listeners).forEach(([event, handler]) => {
-            token.on(event, handler);
-        });
-
-        // Store listeners for cleanup
-        this._tokenListeners.set(token, listeners);
-        dragState._listenersSetup = true;
-
-        return dragState;
-    }
-
-    /**
-     * Check if token was being dragged
-     * @param {Token} token - The token to check
-     * @returns {boolean} True if the token was dragged
-     * @private
-     */
-    wasDragging(token) {
-        return tokenDragManager.isDragging(token);
-    }
-
-    /**
-     * Reset drag state for a token
-     * @param {Token} token - The token to reset
-     * @private
-     */
-    resetDragState(token) {
-        tokenDragManager.resetDragState(token);
-    }
-
-    /**
-     * Update interaction state tracking
-     * @param {Object} interactionData - The interaction data to track
-     * @private
-     */
-    updateInteractionState(interactionData) {
-        this.state.lastInteractionTime = interactionData.timestamp;
-        this.state.lastInteractionToken = interactionData.token;
-        this.state.lastInteractionType = interactionData.type;
-    }
-
-    /**
-     * Stop movement tracker for a token (delegates to existing system)
-     * @param {Token} token - The token to stop tracking
-     * @private
-     */
-    stopTokenMovementTracker(token) {
-        const tickerId = `menu-reshow-${token.id}`;
-        weaponSystemCoordinator.removeMovementTracker(tickerId);
-    }
+    // Removed drag detection methods - now handled inline in PIXI handlers
 
     /**
      * Clean up event listeners from a specific token
      * @param {Token} token - The token to clean up
      */
     cleanupTokenListeners(token) {
+        // Clean up old-style listeners
         const listeners = this._tokenListeners.get(token);
         if (listeners) {
             Object.entries(listeners).forEach(([event, handler]) => {
                 token.off(event, handler);
             });
             this._tokenListeners.delete(token);
+        }
+        
+        // Clean up interaction listeners
+        const interactionListeners = this.state.interactionListeners.get(token);
+        if (interactionListeners) {
+            Object.entries(interactionListeners).forEach(([event, handler]) => {
+                token.off(event, handler);
+            });
+            this.state.interactionListeners.delete(token);
+        }
+        
+        if (listeners || interactionListeners) {
             debug('Cleaned up listeners for token:', token.name);
         }
     }
@@ -909,10 +483,7 @@ export class WeaponMenuTokenClickManager {
             this._deleteTokenHandler = null;
         }
 
-        // Remove canvas stage handlers
-        if (this.state.canvasClickHandler) {
-            canvas.stage?.off("pointertap", this.state.canvasClickHandler);
-        }
+        // Note: Removed old canvasClickHandler cleanup - no longer used
 
         // Cancel any pending menu operations
         if (this.state.menuDelayId) {
@@ -927,45 +498,33 @@ export class WeaponMenuTokenClickManager {
             });
         }
 
-        // Remove all canvas stage event listeners
-        if (canvas?.stage) {
-            if (this._canvasPointerDownHandler) {
-                canvas.stage.off('pointerdown', this._canvasPointerDownHandler);
-                this._canvasPointerDownHandler = null;
+        // Remove PIXI event listeners
+        if (canvas?.tokens) {
+            if (this._handlePointerDown) {
+                canvas.tokens.off('pointerdown', this._handlePointerDown);
+                this._handlePointerDown = null;
             }
-            if (this._canvasRightDownHandler) {
-                canvas.stage.off('rightdown', this._canvasRightDownHandler);
-                this._canvasRightDownHandler = null;
-            }
-            if (this._canvasMouseDownHandler) {
-                canvas.stage.off('mousedown', this._canvasMouseDownHandler);
-                this._canvasMouseDownHandler = null;
+            if (this._handleRightDown) {
+                canvas.tokens.off('rightdown', this._handleRightDown);
+                this._handleRightDown = null;
             }
         }
         
-        // Remove document event listener
-        if (this._documentMouseDownHandler) {
-            document.removeEventListener('mousedown', this._documentMouseDownHandler, true);
-            this._documentMouseDownHandler = null;
+        // Remove canvas ready handler for PIXI re-setup
+        if (this._canvasReadyResetHandler) {
+            Hooks.off('canvasReady', this._canvasReadyResetHandler);
+            this._canvasReadyResetHandler = null;
         }
         
-        // Unregister libWrapper hooks if available
-        if (typeof libWrapper !== 'undefined') {
-            try {
-                libWrapper.unregister('tokencontextmenu', 'Token.prototype.control');
-                libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
-                libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickRight');
-            } catch (error) {
-                debug('Error unregistering libWrapper hooks:', error);
-            }
-        }
+        // Unregister libWrapper hooks - libWrapper handles cases where hooks aren't registered
+        libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
+        libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickRight');
 
         // Clear state
         this.state.isCanvasHandlerSetup = false;
-        this.state.lastSelectedToken = null;
-        this.state.lastMouseButton = null;
-        this.state.selectionDrag = null;
-        this._pendingMenuToggle = null;
+        this.state.controlledTokens.clear();
+        this.state.activeDrags.clear();
+        this.state.interactionListeners = new WeakMap();
     }
 
     /**
@@ -975,23 +534,21 @@ export class WeaponMenuTokenClickManager {
     getDebugInfo() {
         return {
             instanceId: this.instanceId,
-            lastSelectedToken: {
-                name: this.state.lastSelectedToken?.name,
-                id: this.state.lastSelectedToken?.id,
-                exists: !!this.state.lastSelectedToken
-            },
-            lastMouseButton: this.state.lastMouseButton,
+            controlledTokens: Array.from(this.state.controlledTokens).map(t => ({
+                name: t.name,
+                id: t.id
+            })),
+            activeDrags: Array.from(this.state.activeDrags.entries()).map(([token, drag]) => ({
+                token: token.name,
+                isDragging: drag.isDragging,
+                timestamp: drag.timestamp
+            })),
             lastInteraction: {
                 time: this.state.lastInteractionTime,
                 token: this.state.lastInteractionToken?.name,
                 type: this.state.lastInteractionType
             },
-            canvasHandlerSetup: this.state.isCanvasHandlerSetup,
-            selectionDrag: this.state.selectionDrag ? {
-                token: this.state.selectionDrag.token?.name,
-                isDragging: this.state.selectionDrag.isDragging,
-                isAlreadySelected: this.state.selectionDrag.isAlreadySelected
-            } : null
+            canvasHandlerSetup: this.state.isCanvasHandlerSetup
         };
     }
 }

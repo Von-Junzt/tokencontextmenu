@@ -93,7 +93,6 @@ export function registerTokenHudMovementHandler() {
         const token = tokenDocument.object;
         if (!token || !token.controlled) return;
 
-        weaponMenuTokenClickManager.resetDragState(token);
         await closeWeaponMenu();
 
         if (shouldReopenMenuAfterDrag()) {
