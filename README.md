@@ -1,17 +1,18 @@
 # Token Context Menu for SWADE
 
-A Foundry VTT module that adds a weapon menu for quick access to weapons and powers in the Savage Worlds Adventure Edition (SWADE) system.
+A Foundry VTT module that adds a quick-access context menu for weapons and powers in the Savage Worlds Adventure Edition (SWADE) system.
 
 ![Foundry Version](https://img.shields.io/badge/Foundry-v12.331-green)
 ![SWADE Compatible](https://img.shields.io/badge/SWADE-v4.4.3-blue)
+![Module Version](https://img.shields.io/badge/Module-v1.0.0-orange)
 
 ## Features
 
 ### 🎯 Quick Weapon Access
-- **Token Menu**: Click on any token you control to display a menu of equipped weapons and favorite powers
+- **Token Menu**: Click on any token you control to display a radial menu of equipped weapons and favorite powers
 - **Smart Filtering**: Only shows equipped weapons (including unarmed attacks) and favorited powers
 - **Visual Separation**: Powers are visually separated from weapons with a divider line
-- **Module ID**: `tokencontextmenu` (formerly part of vjpmacros)
+- **Performance Optimized**: Uses controlled token caching and efficient event handling
 
 ### 🖱️ Controls
 - **Left Click**: Select a weapon to use
@@ -26,16 +27,21 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
 - **Detailed Tooltips**: Optional detailed weapon stats on hover (damage, range, AP, etc.)
 - **Ammo Display**: Shows current/max ammunition for ranged weapons
 
-### ⚡ Workflow
-- **Smart Targeting**: 
-  - Template weapons (AOE) create attack cards immediately
+### ⚡ Smart Workflow
+- **Intelligent Targeting**: 
+  - Template/AOE weapons create attack cards immediately
   - Single-target weapons enter targeting mode if no target selected
   - No timeout - take as long as you need to select targets
-  - Auto-remove existing targets option
-- **Movement Handling**: Menu hides during token movement and can reopen afterward
-- **Drag Detection**: Menu won't open when clicking and immediately dragging tokens
-- **Token Selection**: Optional auto-show menu when selecting tokens
-- **Better Rolls Integration**: Seamlessly works with Better Rolls for SWADE
+  - Optional auto-remove existing targets
+- **Movement Awareness**: 
+  - Menu automatically hides during token movement
+  - Optionally reopens after movement stops
+  - Drag detection prevents menu during token drags (5-pixel threshold)
+- **Selection Integration**: 
+  - Click unselected token: Opens menu if "Show on Selection" enabled
+  - Click selected token: Toggles menu open/closed
+  - Right-click any token: Closes menu
+- **Better Rolls Integration**: Seamlessly creates attack cards via Better Rolls for SWADE
 
 ### ⚙️ Customization Options
 - **Show on Selection**: Toggle automatic menu display on token selection
@@ -46,8 +52,15 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
 - **Auto-Remove Targets**: Clear existing targets when selecting new weapons
 - **Hide Target Button**: Optional removal of default target button from token HUD
 
-### 🔧 Outlook and limitations
-- At the moment only a single target can be selected, planned extension to multiple targets
+### 🏗️ Architecture Highlights
+- **Hybrid Event System**: Optimized libWrapper + PIXI event handling
+- **State Machine**: Reliable menu lifecycle management (CLOSED → OPENING → OPEN → CLOSING)
+- **Resource Management**: Automatic cleanup via CleanupManager base class
+- **Memory Efficient**: WeakMap-based tracking prevents memory leaks
+- **Performance Focused**: Controlled token caching reduces DOM queries
+
+### 🔧 Current Limitations
+- Single target selection only (multiple targets planned for future release)
 
 ## Installation
 
@@ -70,11 +83,16 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
 ## Usage
 
 ### Basic Usage
-1. Click on a token you control to open the weapon menu
-2. Click a weapon to use it:
-   - You'll enter targeting mode
-   - Template weapons (AOE) roll without requiring targets
-3. Right-click any weapon to edit its item sheet
+1. **Opening the Menu**:
+   - Click unselected token → Selects and opens menu (if setting enabled)
+   - Click already selected token → Toggles menu open/closed
+   - Right-click any token → Closes menu if open
+
+2. **Using Weapons**:
+   - Left-click weapon → Enter targeting mode or roll immediately (AOE/templates)
+   - Right-click weapon → Open item sheet for editing
+   - Escape key → Close menu
+   - Click outside → Close menu
 
 ### Keyboard Shortcuts
 - **Escape**: Close the weapon menu
@@ -84,6 +102,7 @@ A Foundry VTT module that adds a weapon menu for quick access to weapons and pow
 - Weapons are sorted by equip status (two-handed → main hand → off-hand → carried → melee)
 - Powers appear in a separate section below weapons
 - Only equipped weapons and favorited powers appear in the menu
+- Menu won't open if you click and immediately drag a token
 
 ## Configuration
 
@@ -105,10 +124,20 @@ Access module settings through Foundry's module configuration:
 - Ensure you have control of the token
 - Check that weapons are equipped or powers are favorited
 - Verify Better Rolls for SWADE 2 is installed and active
+- Enable debug mode in settings to see diagnostic messages
+
+### Performance Issues
+- Check browser console for errors
+- Disable conflicting modules that modify token behavior
+- Report issues with debug logs enabled
 
 ### Conflicts
 - The module may conflict with other UI modification modules
 - Disable "Show on Selection" if using other token selection handlers
+- Check for modules that also wrap `Token._onClickLeft`
+
+### Debug Mode
+Enable debug mode in module settings to see detailed logs prefixed with "VJ TCM:"
 
 ## Credits
 
