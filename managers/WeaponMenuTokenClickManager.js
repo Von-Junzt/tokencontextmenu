@@ -12,7 +12,8 @@ import { tickerDelay } from "../utils/timingUtils.js";
 export class WeaponMenuTokenClickManager {
     constructor() {
         this.instanceId = Math.random().toString(36).substr(2, 9);
-        debug('Creating WeaponMenuTokenClickManager instance:', this.instanceId);
+        // Log instance creation to help debug singleton issues
+        console.warn(`[VJ TCM] WeaponMenuTokenClickManager instance created: ${this.instanceId}`);
         this.state = {
             // Interaction tracking
             lastInteractionTime: 0,
@@ -65,12 +66,22 @@ export class WeaponMenuTokenClickManager {
         
         // Clear last selected token on scene changes
         // But don't clear it on every render - only on actual scene changes
-        let currentSceneId = canvas.scene?.id;
+        // Store the current scene ID on the instance to persist between handler calls
+        this._currentSceneId = canvas?.scene?.id || null;
         
         // Store hook handler references for cleanup
         this._canvasReadyHandler = () => {
-            const newSceneId = canvas.scene?.id;
-            if (currentSceneId !== newSceneId) {
+            const newSceneId = canvas?.scene?.id;
+            const wasSceneChange = this._currentSceneId !== null && this._currentSceneId !== newSceneId;
+            
+            debug('Canvas ready handler:', {
+                previousSceneId: this._currentSceneId,
+                newSceneId: newSceneId,
+                wasSceneChange: wasSceneChange,
+                instanceId: this.instanceId
+            });
+            
+            if (wasSceneChange) {
                 debug('Scene changed, clearing state');
                 this.state.lastSelectedToken = null;
                 this.state.selectionDrag = null;
@@ -85,14 +96,30 @@ export class WeaponMenuTokenClickManager {
                         this.cleanupTokenListeners(token);
                     });
                 }
-                currentSceneId = newSceneId;
             } else {
-                debug('Canvas ready but same scene, keeping state');
+                debug('Canvas ready but same scene or initial load, keeping state');
             }
+            
+            // Always update the current scene ID
+            this._currentSceneId = newSceneId;
         };
         
-        this._deleteTokenHandler = (token) => {
-            this.cleanupTokenListeners(token);
+        this._deleteTokenHandler = (tokenDocument) => {
+            const token = tokenDocument.object;
+            if (token) {
+                this.cleanupTokenListeners(token);
+                // Clear lastSelectedToken if the deleted token was the one we were tracking
+                if (this.state.lastSelectedToken === token || 
+                    this.state.lastSelectedToken?.id === token.id ||
+                    this.state.lastSelectedToken?.id === tokenDocument.id) {
+                    debug('Deleted token was lastSelectedToken, clearing reference', {
+                        deletedToken: token?.name,
+                        deletedId: tokenDocument.id,
+                        lastSelectedId: this.state.lastSelectedToken?.id
+                    });
+                    this.state.lastSelectedToken = null;
+                }
+            }
         };
         
         // Register the hooks
@@ -131,6 +158,107 @@ export class WeaponMenuTokenClickManager {
      * @private
      */
     setupTokenClickWrapper() {
+        // Add multiple event listeners for comprehensive mouse button detection
+        if (canvas?.stage) {
+            const manager = weaponMenuTokenClickManager;
+            
+            // Remove any existing listeners first (cleanup)
+            if (this._canvasPointerDownHandler) {
+                canvas.stage.off('pointerdown', this._canvasPointerDownHandler);
+                canvas.stage.off('rightdown', this._canvasRightDownHandler);
+                canvas.stage.off('mousedown', this._canvasMouseDownHandler);
+            }
+            
+            // Handler for pointerdown events (may not catch all right-clicks)
+            this._canvasPointerDownHandler = (event) => {
+                const button = event.data.button;
+                if (button === 2) {
+                    manager.state.lastMouseButton = 2;
+                    debug('Canvas stage pointerdown: Right-click (button 2)');
+                    
+                    // Cancel any pending menu operations
+                    if (manager.state.menuDelayId) {
+                        tickerDelay.cancel(manager.state.menuDelayId);
+                        manager.state.menuDelayId = null;
+                        debug('Cancelled pending menu open due to right-click');
+                    }
+                } else if (button === 0) {
+                    manager.state.lastMouseButton = 0;
+                    debug('Canvas stage pointerdown: Left-click (button 0)');
+                }
+            };
+            
+            // Specific handler for rightdown events (PIXI event)
+            this._canvasRightDownHandler = (event) => {
+                manager.state.lastMouseButton = 2;
+                debug('Canvas stage rightdown: Right-click detected');
+                
+                // Cancel any pending menu operations when right-clicking
+                if (manager.state.menuDelayId) {
+                    tickerDelay.cancel(manager.state.menuDelayId);
+                    manager.state.menuDelayId = null;
+                    debug('Cancelled pending menu open due to right-click');
+                }
+            };
+            
+            // Fallback mousedown handler
+            this._canvasMouseDownHandler = (event) => {
+                const button = event.data?.originalEvent?.button ?? event.button;
+                if (button === 2) {
+                    manager.state.lastMouseButton = 2;
+                    debug('Canvas stage mousedown: Right-click (button 2)');
+                } else if (button === 0) {
+                    manager.state.lastMouseButton = 0;
+                    debug('Canvas stage mousedown: Left-click (button 0)');
+                }
+            };
+            
+            // Add all listeners for maximum coverage
+            canvas.stage.on('pointerdown', this._canvasPointerDownHandler);
+            canvas.stage.on('rightdown', this._canvasRightDownHandler);
+            canvas.stage.on('mousedown', this._canvasMouseDownHandler);
+            
+            // Also add a document-level listener as last resort
+            this._documentMouseDownHandler = (event) => {
+                // Only process if clicking on the canvas
+                if (event.target.closest('#board')) {
+                    if (event.button === 2) {
+                        manager.state.lastMouseButton = 2;
+                        debug('Document mousedown: Right-click detected on canvas');
+                        
+                        // Cancel any pending menu operations
+                        if (manager.state.menuDelayId) {
+                            tickerDelay.cancel(manager.state.menuDelayId);
+                            manager.state.menuDelayId = null;
+                            debug('Cancelled pending menu open due to right-click');
+                        }
+                    } else if (event.button === 0) {
+                        manager.state.lastMouseButton = 0;
+                        debug('Document mousedown: Left-click detected on canvas');
+                    }
+                }
+            };
+            
+            document.addEventListener('mousedown', this._documentMouseDownHandler, true);
+        }
+        
+        // Also wrap control method to catch right-click selections as backup
+        libWrapper.register('tokencontextmenu', 'Token.prototype.control', function(wrapped, options) {
+            const manager = weaponMenuTokenClickManager;
+            
+            // Right-click selections pass releaseOthers: false
+            // This is a backup detection method
+            if (options?.releaseOthers === false && !this.controlled) {
+                // Only set to 2 if not already set by MouseInteractionManager
+                if (manager.state.lastMouseButton !== 2) {
+                    debug('Token.control: Backup right-click detection (releaseOthers: false)');
+                    manager.state.lastMouseButton = 2;
+                }
+            }
+            
+            return wrapped.call(this, options);
+        }, 'WRAPPER');
+        
         // Use libWrapper to intercept Token._onClickLeft
         libWrapper.register('tokencontextmenu', 'Token.prototype._onClickLeft', function(wrapped, event) {
             // Store the actual click event data before selection happens
@@ -151,9 +279,10 @@ export class WeaponMenuTokenClickManager {
             // Always set up drag detection to catch immediate drags on selection
             const startX = event.data.global.x;
             const startY = event.data.global.y;
+            // Check if this token is already the only controlled token
+            // This works regardless of how it was selected (left or right click)
             const isAlreadySelected = this.controlled && 
-                                    weaponSystemCoordinator.isOnlyControlledToken(this) && 
-                                    manager.state.lastSelectedToken === this;
+                                    weaponSystemCoordinator.isOnlyControlledToken(this);
             
             debug('Setting up drag detection', {
                 token: this.name,
@@ -250,17 +379,30 @@ export class WeaponMenuTokenClickManager {
         
         // Also intercept right clicks to distinguish them
         libWrapper.register('tokencontextmenu', 'Token.prototype._onClickRight', function(wrapped, event) {
-            // Store right click info
+            // Store right click info IMMEDIATELY
             const manager = weaponMenuTokenClickManager;
             manager.state.lastMouseButton = 2; // Right click
             
-            debug('Token Right Click Intercepted:', {
+            // Clear any pending menu operations on right-click
+            if (manager.state.menuDelayId) {
+                tickerDelay.cancel(manager.state.menuDelayId);
+                manager.state.menuDelayId = null;
+            }
+            
+            debug('Token Right Click Intercepted - BEFORE selection:', {
                 token: this.name,
-                button: 2
+                button: 2,
+                controlled: this.controlled,
+                lastSelectedToken: manager.state.lastSelectedToken?.name
             });
             
             // Continue with normal right-click behavior
-            return wrapped.call(this, event);
+            const result = wrapped.call(this, event);
+            
+            // Ensure the mouse button stays set even after the wrapped call
+            manager.state.lastMouseButton = 2;
+            
+            return result;
         }, 'WRAPPER');
     }
 
@@ -286,6 +428,8 @@ export class WeaponMenuTokenClickManager {
             return;
         } else if (controlled && token.isOwner && weaponSystemCoordinator.hasExactlyOneControlledToken()) {
             // Handle selection - check if we should show menu
+            // IMPORTANT: Only treat as left-click if lastMouseButton is explicitly 0
+            // If it's null or 2, it's not a left-click (could be right-click or programmatic)
             const wasLeftClick = this.state.lastMouseButton === 0;
             const settingEnabled = shouldShowWeaponMenuOnSelection();
             
@@ -302,7 +446,20 @@ export class WeaponMenuTokenClickManager {
             // Handle based on whether it's a new selection or click on already selected
             if (wasLeftClick) {
                 // Check if this is the same token we just processed
-                const isSameToken = this.state.lastSelectedToken === token;
+                // Use ID comparison as tokens can be recreated between interactions
+                const isSameToken = this.state.lastSelectedToken === token || 
+                                  this.state.lastSelectedToken?.id === token.id;
+                
+                debug('Token comparison:', {
+                    lastSelectedToken: this.state.lastSelectedToken?.name,
+                    lastSelectedId: this.state.lastSelectedToken?.id,
+                    currentToken: token.name,
+                    currentId: token.id,
+                    isSameToken,
+                    referenceEqual: this.state.lastSelectedToken === token,
+                    idEqual: this.state.lastSelectedToken?.id === token.id,
+                    instanceId: this.instanceId
+                });
                 
                 if (!isSameToken) {
                     // New token selection
@@ -347,12 +504,31 @@ export class WeaponMenuTokenClickManager {
                 }
             }
             
-            // Update last selected token
-            this.state.lastSelectedToken = token;
-            debug('Updated lastSelectedToken to:', token.name, 'State now:', {
-                lastSelectedToken: this.state.lastSelectedToken?.name,
-                instanceId: this.instanceId
-            });
+            // Only update last selected token for left clicks
+            // This prevents right-click selections from polluting the state
+            if (wasLeftClick) {
+                const prevToken = this.state.lastSelectedToken;
+                this.state.lastSelectedToken = token;
+                debug('Updated lastSelectedToken:', {
+                    previous: prevToken?.name,
+                    previousId: prevToken?.id,
+                    new: token.name,
+                    newId: token.id,
+                    instanceId: this.instanceId,
+                    stateCheck: this.state.lastSelectedToken === token
+                });
+            } else {
+                debug('Right-click or programmatic selection detected, NOT updating lastSelectedToken', {
+                    currentLastSelected: this.state.lastSelectedToken?.name,
+                    instanceId: this.instanceId
+                });
+            }
+            
+            // Clear lastMouseButton after processing to prevent stale values
+            // Add small delay to ensure any subsequent events can still read the value
+            setTimeout(() => {
+                this.state.lastMouseButton = null;
+            }, 100);
         }
     }
 
@@ -751,9 +927,32 @@ export class WeaponMenuTokenClickManager {
             });
         }
 
+        // Remove all canvas stage event listeners
+        if (canvas?.stage) {
+            if (this._canvasPointerDownHandler) {
+                canvas.stage.off('pointerdown', this._canvasPointerDownHandler);
+                this._canvasPointerDownHandler = null;
+            }
+            if (this._canvasRightDownHandler) {
+                canvas.stage.off('rightdown', this._canvasRightDownHandler);
+                this._canvasRightDownHandler = null;
+            }
+            if (this._canvasMouseDownHandler) {
+                canvas.stage.off('mousedown', this._canvasMouseDownHandler);
+                this._canvasMouseDownHandler = null;
+            }
+        }
+        
+        // Remove document event listener
+        if (this._documentMouseDownHandler) {
+            document.removeEventListener('mousedown', this._documentMouseDownHandler, true);
+            this._documentMouseDownHandler = null;
+        }
+        
         // Unregister libWrapper hooks if available
         if (typeof libWrapper !== 'undefined') {
             try {
+                libWrapper.unregister('tokencontextmenu', 'Token.prototype.control');
                 libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
                 libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickRight');
             } catch (error) {
@@ -775,12 +974,24 @@ export class WeaponMenuTokenClickManager {
      */
     getDebugInfo() {
         return {
+            instanceId: this.instanceId,
+            lastSelectedToken: {
+                name: this.state.lastSelectedToken?.name,
+                id: this.state.lastSelectedToken?.id,
+                exists: !!this.state.lastSelectedToken
+            },
+            lastMouseButton: this.state.lastMouseButton,
             lastInteraction: {
                 time: this.state.lastInteractionTime,
                 token: this.state.lastInteractionToken?.name,
                 type: this.state.lastInteractionType
             },
-            canvasHandlerSetup: this.state.isCanvasHandlerSetup
+            canvasHandlerSetup: this.state.isCanvasHandlerSetup,
+            selectionDrag: this.state.selectionDrag ? {
+                token: this.state.selectionDrag.token?.name,
+                isDragging: this.state.selectionDrag.isDragging,
+                isAlreadySelected: this.state.selectionDrag.isAlreadySelected
+            } : null
         };
     }
 }
@@ -790,3 +1001,4 @@ export const weaponMenuTokenClickManager = new WeaponMenuTokenClickManager();
 
 // Export for debugging
 window.tokenContextMenuClickManager = weaponMenuTokenClickManager;
+window.tokenContextMenuDebug = () => weaponMenuTokenClickManager.getDebugInfo();

@@ -16,7 +16,9 @@ export class WeaponMenuApplication extends Application {
         this.container = null;
         this.weaponContainers = [];
         this.clickOutsideHandler = null;
+        this.rightClickHandler = null;
         this.keyHandler = null;
+        this.contextMenuHandler = null;
         this._currentTooltipUpdate = null;
         
         // New state management
@@ -228,7 +230,8 @@ export class WeaponMenuApplication extends Application {
         weaponContainer.x = x;
         weaponContainer.y = y;
         weaponContainer.interactive = true;
-        weaponContainer.buttonMode = true;
+        weaponContainer.eventMode = 'static';  // Enable PIXI v7 event mode
+        weaponContainer.cursor = 'pointer';     // Modern cursor property
         weaponContainer.weapon = weapon;
 
         const iconBg = new PIXI.Graphics();
@@ -412,6 +415,17 @@ export class WeaponMenuApplication extends Application {
                 await this._handleWeaponEdit(weaponContainer.weapon.id);
             }
         });
+
+        // Add dedicated right-click handler as backup
+        weaponContainer.on('rightdown', async (event) => {
+            event.stopPropagation();
+            if (event.data?.originalEvent) {
+                event.data.originalEvent.stopPropagation();
+            }
+
+            this._hideTooltip();
+            await this._handleWeaponEdit(weaponContainer.weapon.id);
+        });
     }
 
     /**
@@ -460,9 +474,34 @@ export class WeaponMenuApplication extends Application {
             }
         };
 
+        // Handle right-click outside menu
+        this.rightClickHandler = (event) => {
+            if (!ContainerVerification.isValid(this.container)) return;
+            if (this.stateMachine.getState() !== 'OPEN') return;
+            
+            try {
+                const bounds = this.container.getBounds();
+                const clickPoint = event.data.global;
+
+                if (!bounds.contains(clickPoint.x, clickPoint.y)) {
+                    this.close();
+                }
+            } catch (error) {
+                console.warn('tokencontextmenu | Error in right-click handler', error);
+            }
+        };
+
         this.keyHandler = (event) => {
             if (event.key === 'Escape' && this.stateMachine.getState() === 'OPEN') {
                 this.close();
+            }
+        };
+
+        // Prevent context menu on canvas while menu is open
+        this.contextMenuHandler = (event) => {
+            if (this.stateMachine.getState() === 'OPEN') {
+                event.preventDefault();
+                event.stopPropagation();
             }
         };
 
@@ -472,7 +511,9 @@ export class WeaponMenuApplication extends Application {
         // Set up event listeners with defensive check
         if (this.stateMachine.isActive() && canvas.stage) {
             canvas.stage.on('pointerdown', this.clickOutsideHandler);
+            canvas.stage.on('rightdown', this.rightClickHandler);
             document.addEventListener('keydown', this.keyHandler);
+            canvas.app.view.addEventListener('contextmenu', this.contextMenuHandler);
         }
     }
 
@@ -562,9 +603,17 @@ export class WeaponMenuApplication extends Application {
                     canvas.stage.off('pointerdown', this.clickOutsideHandler);
                     this.clickOutsideHandler = null;
                 }
+                if (this.rightClickHandler && canvas.stage) {
+                    canvas.stage.off('rightdown', this.rightClickHandler);
+                    this.rightClickHandler = null;
+                }
                 if (this.keyHandler) {
                     document.removeEventListener('keydown', this.keyHandler);
                     this.keyHandler = null;
+                }
+                if (this.contextMenuHandler && canvas.app?.view) {
+                    canvas.app.view.removeEventListener('contextmenu', this.contextMenuHandler);
+                    this.contextMenuHandler = null;
                 }
 
                 // Clean up weapon containers
@@ -620,8 +669,14 @@ export class WeaponMenuApplication extends Application {
             if (this.clickOutsideHandler && canvas.stage) {
                 canvas.stage.off('pointerdown', this.clickOutsideHandler);
             }
+            if (this.rightClickHandler && canvas.stage) {
+                canvas.stage.off('rightdown', this.rightClickHandler);
+            }
             if (this.keyHandler) {
                 document.removeEventListener('keydown', this.keyHandler);
+            }
+            if (this.contextMenuHandler && canvas.app?.view) {
+                canvas.app.view.removeEventListener('contextmenu', this.contextMenuHandler);
             }
         } catch (e) {}
         
@@ -641,7 +696,9 @@ export class WeaponMenuApplication extends Application {
         this.container = null;
         this.weaponContainers = [];
         this.clickOutsideHandler = null;
+        this.rightClickHandler = null;
         this.keyHandler = null;
+        this.contextMenuHandler = null;
         this._currentTooltipUpdate = null;
         
         // Reset state machine
