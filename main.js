@@ -24,6 +24,7 @@ import {weaponSystemCoordinator} from "./managers/WeaponSystemCoordinator.js";
  */
 Hooks.once('init', function() {
     // Display ASCII art logo
+    const version = game.modules.get('tokencontextmenu')?.version || "1.0.0"
     const logo = `
 ═══════════════════════════════════════════════════════════════
                                                                
@@ -34,12 +35,12 @@ Hooks.once('init', function() {
   ╚████╔╝ ╚█████╔╝       ██║   ╚██████╗██║ ╚═╝ ██║           
    ╚═══╝   ╚════╝        ╚═╝    ╚═════╝╚═╝     ╚═╝           
                                                                
-        Token Context Menu for SWADE v1.0.0                    
+        Token Context Menu for SWADE v${version}                    
                   by Von Junzt                                 
                                                                
 ═══════════════════════════════════════════════════════════════`;
     
-    console.log(`%c${logo}`, 'color: #ff6400; font-family: monospace; font-weight: bold;');
+    console.log(`%c${logo}`, 'color: #0095ff; font-family: monospace; font-weight: bold;');
     console.log('Token Context Menu: Initializing');
 
     // Register module settings
