@@ -23,7 +23,7 @@ function trackTokenMovementForMenuReshow(token) {
     const tickerId = `menu-reshow-${token.id}`;
 
     // Check if already tracking
-    if (weaponSystemCoordinator.state.movementTrackers.has(tickerId)) {
+    if (weaponSystemCoordinator.movementTrackers.has(tickerId)) {
         return;
     }
 
