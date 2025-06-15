@@ -340,7 +340,7 @@ export class WeaponMenuApplication extends Application {
                 // Damage
                 if (weapon.system.damage) {
                     // add damage modifier if available
-                    const damageMod = weapon.system.actions.dmgMod || '';
+                    const damageMod = (weapon.system.actions.dmgMod !== '0')? weapon.system.actions.dmgMod : '';
                     statLines.push(`🗲 Damage: ${weapon.system.damage} ${damageMod}`);
                 }
                 
