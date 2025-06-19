@@ -142,8 +142,9 @@ async function closeWeaponMenu() {
  * Logs warnings if mismatches are detected
  */
 export function debugAssertState() {
-    const existingApp = Object.values(ui.windows).find(app => app instanceof WeaponMenuApplication);
-    const actualMenuOpen = !!existingApp;
+    // Since WeaponMenuApplication is no longer a UI Application, check via coordinator
+    const menuApp = weaponSystemCoordinator.getMenuApp();
+    const actualMenuOpen = !!(menuApp && menuApp instanceof WeaponMenuApplication && menuApp.rendered);
     const stateMenuOpen = weaponSystemCoordinator.isMenuOpen();
 
     if (stateMenuOpen !== actualMenuOpen) {

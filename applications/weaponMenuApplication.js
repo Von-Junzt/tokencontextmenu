@@ -6,13 +6,14 @@ import { TIMING, SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
 
 /**
- * Application class for the canvas-based weapon menu
+ * PIXI-based weapon menu for canvas rendering
+ * This is not an HTML Application - it renders directly on the canvas using PIXI
  */
-export class WeaponMenuApplication extends Application {
+export class WeaponMenuApplication {
     constructor(token, weapons, options = {}) {
-        super(options);
         this.token = token;
         this.weapons = weapons;
+        this.options = options;
         this.container = null;
         this.weaponContainers = [];
         this.clickOutsideHandler = null;
@@ -21,7 +22,7 @@ export class WeaponMenuApplication extends Application {
         this.contextMenuHandler = null;
         this._currentTooltipUpdate = null;
         
-        // New state management
+        // State management
         this.stateMachine = new WeaponMenuStateMachine();
         this.operationQueue = new OperationQueue();
         
@@ -31,31 +32,17 @@ export class WeaponMenuApplication extends Application {
         });
     }
 
-    static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
-            id: "weapon-menu",
-            classes: ["tokencontextmenu-weapon-menu"],
-            template: null,
-            popOut: false,
-            minimizable: false,
-            resizable: false,
-            title: "Weapon Menu"
-        });
-    }
-
     get rendered() {
         return this.stateMachine.isActive();
     }
 
     /**
-     * Render the weapon menu
-     * Overrides Application._render with queue-based state management
+     * Render the weapon menu on the canvas
      * @param {boolean} force - Force re-render
      * @param {Object} options - Render options
      * @returns {Promise<WeaponMenuApplication>} This application instance
-     * @override
      */
-    async _render(force, options) {
+    async render(force = false, options = {}) {
         // Queue the render operation to prevent race conditions
         return this.operationQueue.enqueue(async () => {
             // Check if we can transition to OPENING
@@ -644,9 +631,6 @@ export class WeaponMenuApplication extends Application {
 
                 // Call hook after successful close
                 Hooks.call('tokencontextmenu.weaponMenuClosed');
-
-                // Call parent close
-                await super.close(options);
                 
             } catch (error) {
                 console.error('tokencontextmenu | Error during weapon menu close', error);
