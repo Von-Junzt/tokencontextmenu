@@ -145,7 +145,7 @@ export function getWeaponSortPriority(item) {
     if (item.type === 'weapon') {
         const weaponName = item.name.toLowerCase();
 
-        // Check for special weapon types
+        // Check for special weapon types first
         if (weaponName.includes('claws')) {
             return WEAPON_PRIORITY.SPECIAL.CLAWS;
         }
@@ -162,7 +162,18 @@ export function getWeaponSortPriority(item) {
             0: WEAPON_PRIORITY.EQUIPMENT.STORED
         };
 
-        return equipStatusMap[item.system.equipStatus] ?? WEAPON_PRIORITY.DEFAULT;
+        const basePriority = equipStatusMap[item.system.equipStatus] ?? WEAPON_PRIORITY.DEFAULT;
+
+        // Check if it's a template weapon
+        const hasTemplateAOE = item.system?.templates &&
+            Object.values(item.system.templates).some(v => v === true);
+
+        // Add type group offset
+        if (hasTemplateAOE) {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.TEMPLATE + basePriority;
+        } else {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.NORMAL + basePriority;
+        }
     }
 
     return WEAPON_PRIORITY.OTHER;

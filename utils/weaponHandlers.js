@@ -161,3 +161,75 @@ export async function handleWeaponEdit(token, weaponId, hideMenuCallback) {
         ui.notifications.error("Weapon not found.");
     }
 }
+
+/**
+ * Handles equipping a carried weapon
+ * @param {Actor} actor - The actor that owns the weapon
+ * @param {string} weaponId - The ID of the weapon to equip
+ * @returns {Promise<void>}
+ */
+export async function handleWeaponEquip(actor, weaponId) {
+    const weapon = actor.items.get(weaponId);
+    if (!weapon || weapon.type !== "weapon") {
+        debugWarn("Invalid weapon for equipping:", weaponId);
+        return;
+    }
+    
+    debug(`Equipping weapon: ${weapon.name}`);
+    
+    // For now, simply equip to main hand (status 4)
+    // In the future, could add logic to handle two-handed weapons, off-hand conflicts, etc.
+    try {
+        await weapon.update({ "system.equipStatus": 4 });
+    } catch (error) {
+        debugWarn("Failed to equip weapon:", error);
+        ui.notifications.error("Failed to equip weapon");
+    }
+}
+
+/**
+ * Handles toggling favorite status on a power
+ * @param {Actor} actor - The actor that owns the power
+ * @param {string} powerId - The ID of the power to toggle
+ * @returns {Promise<void>}
+ */
+export async function handlePowerFavoriteToggle(actor, powerId) {
+    const power = actor.items.get(powerId);
+    if (!power || power.type !== "power") {
+        debugWarn("Invalid power for favorite toggle:", powerId);
+        return;
+    }
+    
+    const newState = !power.system.favorite;
+    debug(`Toggling power favorite: ${power.name} to ${newState}`);
+    
+    try {
+        await power.update({ "system.favorite": newState });
+    } catch (error) {
+        debugWarn("Failed to toggle power favorite:", error);
+        ui.notifications.error("Failed to update power");
+    }
+}
+
+/**
+ * Handles unequipping a weapon (setting it to carried status)
+ * @param {Actor} actor - The actor that owns the weapon
+ * @param {string} weaponId - The ID of the weapon to unequip
+ * @returns {Promise<void>}
+ */
+export async function handleWeaponUnequip(actor, weaponId) {
+    const weapon = actor.items.get(weaponId);
+    if (!weapon || weapon.type !== "weapon") {
+        debugWarn("Invalid weapon for unequipping:", weaponId);
+        return;
+    }
+    
+    debug(`Unequipping weapon: ${weapon.name}`);
+    
+    try {
+        await weapon.update({ "system.equipStatus": 1 });
+    } catch (error) {
+        debugWarn("Failed to unequip weapon:", error);
+        ui.notifications.error("Failed to unequip weapon");
+    }
+}

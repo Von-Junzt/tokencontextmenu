@@ -89,6 +89,27 @@ export function registerSettings() {
         default: false,
         requiresReload: false
     });
+    
+    // Settings for expanding sections by default
+    game.settings.register("tokencontextmenu", "expandWeaponsByDefault", {
+        name: game.i18n.localize("tokencontextmenu.Settings.ExpandWeaponsByDefault"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ExpandWeaponsByDefaultHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        requiresReload: false
+    });
+    
+    game.settings.register("tokencontextmenu", "expandPowersByDefault", {
+        name: game.i18n.localize("tokencontextmenu.Settings.ExpandPowersByDefault"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ExpandPowersByDefaultHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        requiresReload: false
+    });
 }
 
 /**
@@ -96,6 +117,7 @@ export function registerSettings() {
  * @returns {boolean} True if auto-remove is enabled
  */
 export function shouldAutoRemoveTargets() {
+    if (typeof game === 'undefined' || !game.ready) return true;
     return game.settings.get("tokencontextmenu", "autoRemoveTargets");
 }
 
@@ -104,6 +126,7 @@ export function shouldAutoRemoveTargets() {
  * @returns {boolean} True if auto-show is enabled
  */
 export function shouldShowWeaponMenuOnSelection() {
+    if (typeof game === 'undefined' || !game.ready) return true;
     return game.settings.get("tokencontextmenu", "showWeaponMenuOnSelection");
 }
 
@@ -112,6 +135,7 @@ export function shouldShowWeaponMenuOnSelection() {
  * @returns {number} Items per row (2-8)
  */
 export function getWeaponMenuItemsPerRow() {
+    if (typeof game === 'undefined' || !game.ready) return 4;
     return game.settings.get("tokencontextmenu", "weaponMenuItemsPerRow");
 }
 
@@ -120,6 +144,7 @@ export function getWeaponMenuItemsPerRow() {
  * @returns {boolean} True if detailed tooltips are enabled
  */
 export function shouldShowDetailedTooltips() {
+    if (typeof game === 'undefined' || !game.ready) return true;
     return game.settings.get("tokencontextmenu", "detailedWeaponTooltips");
 }
 
@@ -128,6 +153,7 @@ export function shouldShowDetailedTooltips() {
  * @returns {number} Scale factor (0.3-1.2)
  */
 export function getWeaponMenuIconScale() {
+    if (typeof game === 'undefined' || !game.ready) return 0.5;
     return game.settings.get("tokencontextmenu", "weaponMenuIconScale");
 }
 
@@ -136,6 +162,7 @@ export function getWeaponMenuIconScale() {
  * @returns {boolean} True if reopen after drag is enabled
  */
 export function shouldReopenMenuAfterDrag() {
+    if (typeof game === 'undefined' || !game.ready) return true;
     return game.settings.get("tokencontextmenu", "reopenMenuAfterDrag");
 }
 
@@ -151,8 +178,9 @@ export function isDebugEnabled() {
     // before Foundry's game object is initialized. This check prevents errors
     // when debug() is called from the constructor or other early initialization code.
     // Once Foundry is ready, this will always pass and use the actual setting.
-    if (typeof game === 'undefined' || !game.settings) {
+    if (typeof game === 'undefined' || !game.ready) {
         return false;
     }
+    
     return game.settings.get("tokencontextmenu", "debugMode");
 }

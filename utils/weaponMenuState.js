@@ -1,4 +1,4 @@
-import { debugWarn, debugError } from "./debug.js";
+import { debug, debugWarn, debugError } from "./debug.js";
 
 /**
  * State machine for weapon menu lifecycle management
@@ -154,6 +154,12 @@ export class OperationQueue {
      * @returns {Promise} Resolves when operation completes
      */
     async enqueue(operation, debugName = 'unnamed') {
+        debug(`OperationQueue: Enqueuing operation '${debugName}'`, {
+            queueLength: this.queue.length,
+            processing: this.processing,
+            currentOp: this.currentOperation?.debugName
+        });
+        
         return new Promise((resolve, reject) => {
             this.queue.push({ 
                 operation, 
@@ -170,30 +176,47 @@ export class OperationQueue {
      * Process queued operations sequentially
      * @private
      * @description Executes operations one at a time, using PIXI ticker to avoid stack overflow
-     * on recursive calls. Each operation is wrapped in try-catch to ensure the queue
-     * continues processing even if an operation fails.
+     * on recursive calls.
      */
     async process() {
-        if (this.processing || this.queue.length === 0) return;
+        if (this.processing || this.queue.length === 0) {
+            debug(`OperationQueue: Skipping process`, {
+                processing: this.processing,
+                queueLength: this.queue.length
+            });
+            return;
+        }
         
         this.processing = true;
         this.currentOperation = this.queue.shift();
         const { operation, resolve, reject, debugName } = this.currentOperation;
         
-        try {
-            const result = await operation();
-            resolve(result);
-        } catch (error) {
-            debugError(`Weapon menu operation failed: ${debugName}`, error);
-            reject(error);
-        } finally {
-            this.currentOperation = null;
-            this.processing = false;
-            // Process next operation using ticker to avoid stack overflow
-            if (this.queue.length > 0) {
-                canvas.app.ticker.addOnce(() => this.process());
-            }
-        }
+        debug(`OperationQueue: Processing operation '${debugName}'`);
+        
+        // Use promise chaining for error handling without try-catch
+        operation()
+            .then(result => {
+                debug(`OperationQueue: Operation '${debugName}' completed successfully`);
+                resolve(result);
+                this.currentOperation = null;
+                this.processing = false;
+                // Process next operation using ticker to avoid stack overflow
+                if (this.queue.length > 0) {
+                    debug(`OperationQueue: Scheduling next operation, ${this.queue.length} remaining`);
+                    canvas.app.ticker.addOnce(() => this.process());
+                }
+            })
+            .catch(error => {
+                debugError(`OperationQueue: Operation '${debugName}' failed:`, error);
+                reject(error);
+                this.currentOperation = null;
+                this.processing = false;
+                // Continue processing queue even after error
+                if (this.queue.length > 0) {
+                    debug(`OperationQueue: Scheduling next operation after error, ${this.queue.length} remaining`);
+                    canvas.app.ticker.addOnce(() => this.process());
+                }
+            });
     }
     
     /**
@@ -217,11 +240,14 @@ export class OperationQueue {
      * @returns {string|null} .currentOperation - Name of current operation or null
      */
     getStatus() {
-        return {
+        const status = {
             processing: this.processing,
             queueLength: this.queue.length,
-            currentOperation: this.currentOperation?.debugName || null
+            currentOperation: this.currentOperation?.debugName || null,
+            pendingOperations: this.queue.map(op => op.debugName)
         };
+        debug(`OperationQueue: Current status`, status);
+        return status;
     }
 }
 

@@ -1,4 +1,4 @@
-import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow } from "../settings/settings.js";
+import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, shouldShowDetailedTooltips } from "../settings/settings.js";
 import { handleWeaponSelection, handleWeaponEdit } from "../utils/weaponHandlers.js";
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
@@ -22,6 +22,27 @@ export class WeaponMenuApplication {
         this.keyHandler = null;
         this.contextMenuHandler = null;
         this._currentTooltipUpdate = null;
+        
+        // Extract metadata from options
+        this.itemMetadata = options.metadata || new Map();
+        
+        // Expansion state
+        this.expandedSections = {
+            weapons: false,
+            powers: false
+        };
+        
+        // Equipment mode state
+        this.equipmentMode = false;
+        
+        // Load settings if available
+        if (game?.ready) {
+            this.expandedSections.weapons = game.settings.get("tokencontextmenu", "expandWeaponsByDefault") ?? false;
+            this.expandedSections.powers = game.settings.get("tokencontextmenu", "expandPowersByDefault") ?? false;
+        }
+        
+        // Store expand button references
+        this.expandButtons = new Map();
         
         // State management
         this.stateMachine = new WeaponMenuStateMachine();
@@ -113,6 +134,13 @@ export class WeaponMenuApplication {
      * @private
      */
     async _createPIXIContainer() {
+        // Debug the weapons array
+        debug(`Creating PIXI container with weapons:`, {
+            totalItems: this.weapons.length,
+            expandButtons: this.weapons.filter(w => w.type === "expandButton"),
+            weapons: this.weapons.filter(w => w.type === "weapon").length,
+            powers: this.weapons.filter(w => w.type === "power").length
+        });
         this.container = new PIXI.Container();
         this.container.name = "tokencontextmenu-weapon-menu";
 
@@ -131,12 +159,18 @@ export class WeaponMenuApplication {
 
         const sections = [];
         let current = [];
+        const expandButtons = [];
+        
         for (const w of this.weapons) {
             if (w.type === "separator") {
                 if (current.length > 0) {
                     sections.push(current);
                     current = [];
                 }
+            } else if (w.type === "expandButton") {
+                // Store expand buttons separately
+                expandButtons.push(w);
+                // Don't create a new section for expand buttons
             } else {
                 current.push(w);
             }
@@ -150,7 +184,9 @@ export class WeaponMenuApplication {
         const sepHeight = baseIconSize * SIZES.SEPARATOR_HEIGHT_RATIO;
         const menuHeight = rows.reduce((sum, r) => sum + (r * baseIconSize), 0) + (sepCount * sepHeight);
         const widths = sections.map(sec => Math.min(sec.length, itemsPerRow) * baseIconSize);
-        const menuWidth = Math.max(...widths, baseIconSize);
+        // Add minimal space for expand button on the right if needed
+        const expandButtonSpace = expandButtons.length > 0 ? baseIconSize * 0.3 : 0;
+        const menuWidth = Math.max(...widths, baseIconSize) + expandButtonSpace;
 
         background.beginFill(COLORS.MENU_BACKGROUND, COLORS.MENU_BACKGROUND_ALPHA);
         background.lineStyle(1, COLORS.MENU_BORDER);
@@ -160,6 +196,7 @@ export class WeaponMenuApplication {
 
         let yOffset = 0;
         let sectionIndex = 0;
+        let expandButtonIndex = 0;
 
         for (const section of sections) {
             if (section.length > 0) {
@@ -176,6 +213,45 @@ export class WeaponMenuApplication {
                 const sectionRows = Math.ceil(section.length / itemsPerRow);
                 yOffset += sectionRows * baseIconSize;
 
+                // Check if there's an expand button for this section
+                if (expandButtonIndex < expandButtons.length) {
+                    const expandButton = expandButtons[expandButtonIndex];
+                    // Check if this button belongs to the current section
+                    const sectionType = section[0]?.type; // Get type from first item in section
+                    const buttonBelongsToSection = 
+                        (sectionType === "weapon" && expandButton.section === "weapons") ||
+                        (sectionType === "power" && expandButton.section === "powers");
+                    
+                    debug(`Checking expand button for section ${sectionIndex}:`, {
+                        expandButton,
+                        sectionType,
+                        buttonBelongsToSection,
+                        sectionItems: section.length,
+                        expandButtonIndex
+                    });
+                    
+                    if (buttonBelongsToSection) {
+                        const buttonContainer = this._createExpandButton(
+                            expandButton.section,
+                            expandButton.expanded,
+                            menuWidth,
+                            yOffset - baseIconSize / 2,
+                            baseIconSize
+                        );
+                        
+                        // Position on the right side with reduced spacing
+                        buttonContainer.x = menuWidth / 2 - baseIconSize * 0.2;  // Reduced from 0.3 to take less space
+                        // Position on the last row of items
+                        const lastRowIndex = Math.floor((section.length - 1) / itemsPerRow);
+                        const currentSectionYOffset = yOffset - (sectionRows * baseIconSize);
+                        buttonContainer.y = currentSectionYOffset + (lastRowIndex * baseIconSize) + (baseIconSize / 2);
+                        
+                        this.container.addChild(buttonContainer);
+                        this.expandButtons.set(expandButton.section, buttonContainer);
+                        expandButtonIndex++;
+                    }
+                }
+
                 if (sectionIndex < sections.length - 1) {
                     const separatorContainer = this._createSeparator(
                         { type: "separator" }, menuWidth, yOffset, sepHeight
@@ -186,6 +262,29 @@ export class WeaponMenuApplication {
 
                 sectionIndex++;
             }
+        }
+
+        // Handle any remaining expand buttons (e.g., powers-only case)
+        while (expandButtonIndex < expandButtons.length) {
+            const expandButton = expandButtons[expandButtonIndex];
+            debug(`Processing remaining expand button:`, expandButton);
+            
+            const buttonContainer = this._createExpandButton(
+                expandButton.section,
+                expandButton.expanded,
+                menuWidth,
+                yOffset - baseIconSize / 2,
+                baseIconSize
+            );
+            
+            // Position on the right side
+            buttonContainer.x = menuWidth / 2 - baseIconSize * 0.2;
+            // Position at the current yOffset
+            buttonContainer.y = yOffset - baseIconSize / 2;
+            
+            this.container.addChild(buttonContainer);
+            this.expandButtons.set(expandButton.section, buttonContainer);
+            expandButtonIndex++;
         }
 
         canvas.tokens.addChild(this.container);
@@ -207,6 +306,12 @@ export class WeaponMenuApplication {
      * @private
      */
     async _createWeaponIconWithSection(weapon, indexInSection, totalInSection, itemsPerRow, menuWidth, baseIconSize, iconRadius, spriteSize, fontSize, yOffset = 0) {
+        // Add debugging
+        if (!weapon || typeof weapon !== 'object') {
+            debugError(`Invalid weapon object passed to _createWeaponIconWithSection:`, weapon);
+            throw new Error(`Invalid weapon object: ${weapon}`);
+        }
+        
         const row = Math.floor(indexInSection / itemsPerRow);
         const col = indexInSection % itemsPerRow;
 
@@ -223,8 +328,16 @@ export class WeaponMenuApplication {
         weaponContainer.weapon = weapon;
 
         const iconBg = new PIXI.Graphics();
-        const bgColor = weapon.type === "power" ? COLORS.POWER_BACKGROUND : COLORS.WEAPON_BACKGROUND;
-        const borderColor = weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER;
+        
+        // Check metadata for carried/unfavorited/stored items
+        const metadata = this.itemMetadata.get(weapon.id);
+        const isCarriedOrUnfavorited = metadata?.isCarried || metadata?.isUnfavorited || metadata?.isStored;
+        
+        // Use desaturated colors for carried/unfavorited/stored items
+        const bgColor = isCarriedOrUnfavorited ? COLORS.CARRIED_BACKGROUND :
+                       (weapon.type === "power" ? COLORS.POWER_BACKGROUND : COLORS.WEAPON_BACKGROUND);
+        const borderColor = isCarriedOrUnfavorited ? COLORS.CARRIED_BORDER : 
+                          (weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER);
 
         iconBg.beginFill(bgColor);
         iconBg.lineStyle(1, borderColor);
@@ -232,8 +345,22 @@ export class WeaponMenuApplication {
         iconBg.endFill();
         weaponContainer.addChild(iconBg);
 
-        try {
-            const texture = await PIXI.Texture.fromURL(weapon.img);
+        // Check if weapon has a valid image
+        if (!weapon.img) {
+            debugWarn(`No image for weapon: ${weapon.name}`);
+            const fallbackText = new PIXI.Text(weapon.name.charAt(0), {
+                fontSize: fontSize,
+                fill: COLORS.TEXT_FILL,
+                align: 'center'
+            });
+            fallbackText.anchor.set(0.5);
+            weaponContainer.addChild(fallbackText);
+            this._setupWeaponEvents(weaponContainer, iconBg, iconRadius);
+            return weaponContainer;
+        }
+
+        // Load weapon texture using PIXI.Texture.fromURL (Foundry v12)
+        PIXI.Texture.fromURL(weapon.img).then(texture => {
             const sprite = new PIXI.Sprite(texture);
             sprite.width = spriteSize;
             sprite.height = spriteSize;
@@ -245,10 +372,15 @@ export class WeaponMenuApplication {
             spriteMask.endFill();
 
             sprite.mask = spriteMask;
+            
+            // Apply transparency for carried/unfavorited items
+            if (isCarriedOrUnfavorited) {
+                sprite.alpha = 0.5;  // More transparent for better distinction
+            }
 
             weaponContainer.addChild(spriteMask);
             weaponContainer.addChild(sprite);
-        } catch (error) {
+        }).catch(error => {
             debugWarn(`Failed to load weapon texture for ${weapon.name}:`, error);
             const fallbackText = new PIXI.Text(weapon.name.charAt(0), {
                 fontSize: fontSize,
@@ -257,7 +389,7 @@ export class WeaponMenuApplication {
             });
             fallbackText.anchor.set(0.5);
             weaponContainer.addChild(fallbackText);
-        }
+        });
 
         this._setupWeaponEvents(weaponContainer, iconBg, iconRadius);
         return weaponContainer;
@@ -300,8 +432,14 @@ export class WeaponMenuApplication {
             iconBg.clear();
 
             const weapon = weaponContainer.weapon;
-            const hoverColor = weapon.type === "power" ? COLORS.POWER_HOVER_BACKGROUND : COLORS.WEAPON_HOVER_BACKGROUND;
-            const hoverBorder = weapon.type === "power" ? COLORS.POWER_HOVER_BORDER : COLORS.WEAPON_HOVER_BORDER;
+            const metadata = this.itemMetadata.get(weapon.id);
+            const isCarriedOrUnfavorited = metadata?.isCarried || metadata?.isUnfavorited || metadata?.isStored;
+            
+            // Use desaturated hover colors for carried/unfavorited/stored items
+            const hoverColor = isCarriedOrUnfavorited ? COLORS.CARRIED_HOVER_BACKGROUND :
+                             (weapon.type === "power" ? COLORS.POWER_HOVER_BACKGROUND : COLORS.WEAPON_HOVER_BACKGROUND);
+            const hoverBorder = isCarriedOrUnfavorited ? COLORS.CARRIED_HOVER_BORDER :
+                              (weapon.type === "power" ? COLORS.POWER_HOVER_BORDER : COLORS.WEAPON_HOVER_BORDER);
 
             iconBg.beginFill(hoverColor);
             iconBg.lineStyle(1, hoverBorder);
@@ -311,6 +449,16 @@ export class WeaponMenuApplication {
             // Build tooltip content
             let tooltipContent = weapon.name;
             
+            // Add status indicators
+            if (metadata?.isCarried) {
+                tooltipContent += " [Carried - Click to equip]";
+            } else if (metadata?.isStored) {
+                // Only stored template weapons are shown
+                tooltipContent += " [Stored Template - Click to carry]";
+            } else if (metadata?.isUnfavorited) {
+                tooltipContent += " [Click to favorite]";
+            }
+            
             // Add ammo count if applicable
             if (weapon.type === "weapon" && weapon.system?.currentShots !== undefined && weapon.system?.shots !== undefined &&
                 (weapon.system.currentShots > 0 || weapon.system.shots > 0)) {
@@ -318,7 +466,7 @@ export class WeaponMenuApplication {
             }
             
             // Check if detailed tooltips are enabled - read fresh from settings
-            const showDetailed = game.settings.get("tokencontextmenu", "detailedWeaponTooltips");
+            const showDetailed = shouldShowDetailedTooltips();
             
             // Add detailed stats for both weapons and powers if setting is enabled
             if (showDetailed && weapon.system && (weapon.type === "weapon" || weapon.type === "power")) {
@@ -378,8 +526,14 @@ export class WeaponMenuApplication {
             iconBg.clear();
 
             const weapon = weaponContainer.weapon;
-            const bgColor = weapon.type === "power" ? COLORS.POWER_BACKGROUND : COLORS.WEAPON_BACKGROUND;
-            const borderColor = weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER;
+            const metadata = this.itemMetadata.get(weapon.id);
+            const isCarriedOrUnfavorited = metadata?.isCarried || metadata?.isUnfavorited || metadata?.isStored;
+            
+            // Use desaturated colors for carried/unfavorited/stored items
+            const bgColor = isCarriedOrUnfavorited ? COLORS.CARRIED_BACKGROUND :
+                           (weapon.type === "power" ? COLORS.POWER_BACKGROUND : COLORS.WEAPON_BACKGROUND);
+            const borderColor = isCarriedOrUnfavorited ? COLORS.CARRIED_BORDER : 
+                              (weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER);
 
             iconBg.beginFill(bgColor);
             iconBg.lineStyle(1, borderColor);
@@ -422,7 +576,79 @@ export class WeaponMenuApplication {
      * @private
      */
     async _handleWeaponSelection(weaponId) {
-        await handleWeaponSelection(this.token, weaponId, () => this.close());
+        const metadata = this.itemMetadata.get(weaponId);
+        const weapon = this.token.actor.items.get(weaponId);
+        
+        // Check if we're in equipment mode
+        if (this.equipmentMode && weapon?.type === "weapon") {
+            const weaponName = weapon.name.toLowerCase();
+            const isSpecialWeapon = weaponName.includes('unarmed attack') || weaponName.includes('claws');
+            const hasTemplateAOE = weapon.system?.templates &&
+                Object.values(weapon.system.templates).some(v => v === true);
+            
+            if (isSpecialWeapon) {
+                // Special weapons (unarmed, claws) cannot be stored
+                debug(`Special weapon in equipment mode: ${weapon.name}, current status: ${weapon.system.equipStatus}`);
+                if (weapon.system.equipStatus > 1) {
+                    // Equipped -> Carry it
+                    await weapon.update({ "system.equipStatus": 1 });
+                } else {
+                    // Carried -> Equip it (status 4)
+                    await weapon.update({ "system.equipStatus": 4 });
+                }
+            } else if (hasTemplateAOE) {
+                // Template weapons toggle between carried (1) and stored (0), never equipped
+                debug(`Template weapon in equipment mode: ${weapon.name}, current status: ${weapon.system.equipStatus}`);
+                if (weapon.system.equipStatus >= 2) {
+                    // Incorrectly equipped -> Move to carried
+                    await weapon.update({ "system.equipStatus": 1 });
+                } else if (weapon.system.equipStatus === 1) {
+                    // Carried -> Store it
+                    await weapon.update({ "system.equipStatus": 0 });
+                } else if (weapon.system.equipStatus === 0) {
+                    // Stored -> Carry it
+                    await weapon.update({ "system.equipStatus": 1 });
+                }
+            } else {
+                // Normal weapons toggle between equipped and carried
+                if (weapon.system.equipStatus > 1) {
+                    // Weapon is equipped, unequip it
+                    const { handleWeaponUnequip } = await import("../utils/weaponHandlers.js");
+                    await handleWeaponUnequip(this.token.actor, weaponId);
+                } else {
+                    // Weapon is carried, equip it
+                    const { handleWeaponEquip } = await import("../utils/weaponHandlers.js");
+                    await handleWeaponEquip(this.token.actor, weaponId);
+                }
+            }
+            await this._updateMenuDisplay(); // Refresh the menu
+            return;
+        }
+        
+        // Check if powers are expanded and this is a favorited power
+        if (this.expandedSections.powers && weapon?.type === "power" && weapon.system.favorite === true) {
+            // Toggle favorite off
+            const { handlePowerFavoriteToggle } = await import("../utils/weaponHandlers.js");
+            await handlePowerFavoriteToggle(this.token.actor, weaponId);
+            await this._updateMenuDisplay(); // Refresh to show unfavorited
+            return;
+        }
+        
+        // Normal behavior when not in equipment mode
+        if (metadata?.isCarried) {
+            // Import and use the equip handler
+            const { handleWeaponEquip } = await import("../utils/weaponHandlers.js");
+            await handleWeaponEquip(this.token.actor, weaponId);
+            await this._updateMenuDisplay(); // Refresh to show equipped
+        } else if (metadata?.isUnfavorited) {
+            // Import and use the favorite toggle handler
+            const { handlePowerFavoriteToggle } = await import("../utils/weaponHandlers.js");
+            await handlePowerFavoriteToggle(this.token.actor, weaponId);
+            await this._updateMenuDisplay(); // Refresh to show favorited
+        } else {
+            // Normal use
+            await handleWeaponSelection(this.token, weaponId, () => this.close());
+        }
     }
 
     /**
@@ -707,5 +933,322 @@ export class WeaponMenuApplication {
             operationQueue: this.operationQueue.getStatus(),
             hasEventListeners: !!(this.clickOutsideHandler || this.keyHandler)
         };
+    }
+
+    
+    /**
+     * Creates an expand/collapse button for showing additional items
+     * @param {string} section - The section this button controls (weapons/powers)
+     * @param {boolean} isExpanded - Current expansion state
+     * @param {number} menuWidth - Menu width for positioning
+     * @param {number} yPosition - Vertical position
+     * @param {number} baseIconSize - Base size for scaling
+     * @returns {PIXI.Container} The button container
+     * @private
+     */
+    _createExpandButton(section, isExpanded, menuWidth, yPosition, baseIconSize) {
+        const container = new PIXI.Container();
+        container.name = `expand-button-${section}`;
+        container.interactive = true;
+        container.eventMode = 'static';
+        container.cursor = 'pointer';
+        
+        // Store button metadata
+        container.buttonSection = section;
+        container.isExpanded = isExpanded;
+        
+        // Draw a simple vertical pipe
+        const pipe = new PIXI.Graphics();
+        const pipeHeight = baseIconSize * 0.6;
+        const pipeWidth = 2;
+        
+        // Different opacity based on expanded state
+        const pipeAlpha = isExpanded ? 0.9 : 0.5;
+        
+        pipe.beginFill(COLORS.EXPAND_BUTTON_TEXT, pipeAlpha);
+        pipe.drawRect(-pipeWidth/2, -pipeHeight/2, pipeWidth, pipeHeight);
+        pipe.endFill();
+        
+        container.addChild(pipe);
+        
+        // Store reference for updates
+        container.buttonGraphics = pipe;
+        
+        // Add a larger invisible hit area for easier clicking
+        const hitArea = new PIXI.Graphics();
+        hitArea.beginFill(0xFFFFFF, 0.01);  // Nearly invisible
+        hitArea.drawRect(-baseIconSize/4, -baseIconSize/4, baseIconSize/2, baseIconSize/2);
+        hitArea.endFill();
+        container.addChild(hitArea);
+        
+        // Simple hover effects - brighten on hover
+        container.on('pointerover', () => {
+            pipe.alpha = isExpanded ? 1 : 0.8;
+        });
+        
+        container.on('pointerout', () => {
+            pipe.alpha = isExpanded ? 0.9 : 0.5;
+        });
+        
+        container.on('pointerdown', async (event) => {
+            debug(`Expand button clicked!`, { section, event });
+            event.stopPropagation();
+            if (event.data?.originalEvent) {
+                event.data.originalEvent.stopPropagation();
+            }
+            await this._handleExpandToggle(section);
+        });
+        
+        return container;
+    }
+    
+    /**
+     * Handle expand/collapse toggle for a section
+     * @param {string} section - The section to toggle (weapons/powers)
+     * @private
+     */
+    async _handleExpandToggle(section) {
+        debug(`Expand button clicked for section: ${section}`, {
+            menuState: this.stateMachine.getState()
+        });
+        
+        return this.operationQueue.enqueue(async () => {
+            debug(`Starting expand toggle operation for: ${section}`);
+            
+            // For equipment section, toggle both weapons and powers
+            if (section === 'equipment') {
+                const currentState = this.expandedSections.weapons || this.expandedSections.powers;
+                const newState = !currentState;
+                
+                this.expandedSections.weapons = newState;
+                this.expandedSections.powers = newState;
+                this.equipmentMode = newState;
+                
+                debug(`Toggled equipment mode to: ${newState}`, {
+                    weapons: this.expandedSections.weapons,
+                    powers: this.expandedSections.powers,
+                    equipmentMode: this.equipmentMode
+                });
+            }
+            
+            // Update display
+            debug(`Calling _updateMenuDisplay...`);
+            await this._updateMenuDisplay();
+            debug(`_updateMenuDisplay completed`);
+            
+            // Call hook
+            Hooks.call('tokencontextmenu.sectionToggled', {
+                section,
+                expanded: this.expandedSections[section],
+                token: this.token
+            });
+        }, 'toggleExpand');
+    }
+    
+    /**
+     * Update menu display without closing/reopening
+     * Re-fetches items and rebuilds the menu content
+     * @private
+     */
+    async _updateMenuDisplay() {
+        debug(`_updateMenuDisplay called`, {
+            expandedSections: this.expandedSections,
+            menuState: this.stateMachine.getState()
+        });
+        
+        // Import getMenuItems
+        const { getMenuItems } = await import("../utils/weaponMenuDisplay.js");
+        
+        // Get updated items
+        const { items, metadata } = getMenuItems(this.token, {
+            expandWeapons: this.expandedSections.weapons,
+            expandPowers: this.expandedSections.powers
+        });
+        
+        // Update stored data
+        this.weapons = items;
+        this.itemMetadata = metadata;
+        
+        // Rebuild display
+        if (ContainerVerification.isValid(this.container)) {
+            // Clear existing content
+            while (this.container.children.length > 0) {
+                const child = this.container.children[0];
+                if (child && !child.destroyed) {
+                    if (child.removeAllListeners) {
+                        child.removeAllListeners();
+                    }
+                    this.container.removeChild(child);
+                    if (child.destroy) {
+                        child.destroy();
+                    }
+                }
+            }
+            
+            // Clear weapon containers array
+            this.weaponContainers = [];
+            this.expandButtons.clear();
+            
+            debug(`Container cleared, calling _rebuildMenuContent...`);
+            // Rebuild the menu content
+            await this._rebuildMenuContent();
+            debug(`_rebuildMenuContent completed`);
+        } else {
+            debugWarn(`Container not valid for update:`, {
+                container: !!this.container,
+                destroyed: this.container?.destroyed
+            });
+        }
+    }
+    
+    /**
+     * Rebuild menu content without closing/reopening
+     * @private
+     */
+    async _rebuildMenuContent() {
+        // Defensive check for canvas
+        if (!canvas?.grid?.size) {
+            debugWarn('Canvas grid not available for menu rebuild');
+            return;
+        }
+        const gridSize = canvas.grid.size;
+        const iconScale = getWeaponMenuIconScale();
+        const baseIconSize = gridSize * iconScale;
+        const iconRadius = baseIconSize * SIZES.ICON_RADIUS_RATIO;
+        const spriteSize = baseIconSize * SIZES.SPRITE_SIZE_RATIO;
+        const fontSize = baseIconSize * SIZES.FONT_SIZE_RATIO;
+
+        const background = new PIXI.Graphics();
+        const itemsPerRow = getWeaponMenuItemsPerRow();
+
+        const sections = [];
+        let current = [];
+        const expandButtons = [];
+        
+        for (const w of this.weapons) {
+            if (w.type === "separator") {
+                if (current.length > 0) {
+                    sections.push(current);
+                    current = [];
+                }
+            } else if (w.type === "expandButton") {
+                // Store expand buttons separately
+                expandButtons.push(w);
+                // Don't create a new section for expand buttons
+            } else {
+                current.push(w);
+            }
+        }
+        if (current.length > 0) {
+            sections.push(current);
+        }
+
+        const rows = sections.map(sec => Math.ceil(sec.length / itemsPerRow));
+        const sepCount = Math.max(0, sections.length - 1);
+        const sepHeight = baseIconSize * SIZES.SEPARATOR_HEIGHT_RATIO;
+        const menuHeight = rows.reduce((sum, r) => sum + (r * baseIconSize), 0) + (sepCount * sepHeight);
+        const widths = sections.map(sec => Math.min(sec.length, itemsPerRow) * baseIconSize);
+        // Add minimal space for expand button on the right if needed
+        const expandButtonSpace = expandButtons.length > 0 ? baseIconSize * 0.3 : 0;
+        const menuWidth = Math.max(...widths, baseIconSize) + expandButtonSpace;
+
+        background.beginFill(COLORS.MENU_BACKGROUND, COLORS.MENU_BACKGROUND_ALPHA);
+        background.lineStyle(1, COLORS.MENU_BORDER);
+        background.drawRoundedRect(-menuWidth/2, 0, menuWidth, menuHeight, UI.MENU_CORNER_RADIUS);
+        background.endFill();
+        this.container.addChild(background);
+
+        let yOffset = 0;
+        let sectionIndex = 0;
+        let expandButtonIndex = 0;
+
+        for (const section of sections) {
+            if (section.length > 0) {
+                for (let i = 0; i < section.length; i++) {
+                    const weapon = section[i];
+                    const weaponContainer = await this._createWeaponIconWithSection(
+                        weapon, i, section.length, itemsPerRow, menuWidth,
+                        baseIconSize, iconRadius, spriteSize, fontSize, yOffset
+                    );
+                    this.container.addChild(weaponContainer);
+                    this.weaponContainers.push(weaponContainer);
+                }
+
+                const sectionRows = Math.ceil(section.length / itemsPerRow);
+                yOffset += sectionRows * baseIconSize;
+
+                // Check if there's an expand button for this section
+                if (expandButtonIndex < expandButtons.length) {
+                    const expandButton = expandButtons[expandButtonIndex];
+                    // Check if this button belongs to the current section
+                    const sectionType = section[0]?.type; // Get type from first item in section
+                    const buttonBelongsToSection = 
+                        (sectionType === "weapon" && expandButton.section === "weapons") ||
+                        (sectionType === "power" && expandButton.section === "powers");
+                    
+                    debug(`Checking expand button for section ${sectionIndex}:`, {
+                        expandButton,
+                        sectionType,
+                        buttonBelongsToSection,
+                        sectionItems: section.length,
+                        expandButtonIndex
+                    });
+                    
+                    if (buttonBelongsToSection) {
+                        const buttonContainer = this._createExpandButton(
+                            expandButton.section,
+                            expandButton.expanded,
+                            menuWidth,
+                            yOffset - baseIconSize / 2,
+                            baseIconSize
+                        );
+                        
+                        // Position on the right side with reduced spacing
+                        buttonContainer.x = menuWidth / 2 - baseIconSize * 0.2;  // Reduced from 0.3 to take less space
+                        // Position on the last row of items
+                        const lastRowIndex = Math.floor((section.length - 1) / itemsPerRow);
+                        const currentSectionYOffset = yOffset - (sectionRows * baseIconSize);
+                        buttonContainer.y = currentSectionYOffset + (lastRowIndex * baseIconSize) + (baseIconSize / 2);
+                        
+                        this.container.addChild(buttonContainer);
+                        this.expandButtons.set(expandButton.section, buttonContainer);
+                        expandButtonIndex++;
+                    }
+                }
+
+                if (sectionIndex < sections.length - 1) {
+                    const separatorContainer = this._createSeparator(
+                        { type: "separator" }, menuWidth, yOffset, sepHeight
+                    );
+                    this.container.addChild(separatorContainer);
+                    yOffset += sepHeight;
+                }
+
+                sectionIndex++;
+            }
+        }
+        
+        // Handle any remaining expand buttons (e.g., powers-only case)
+        while (expandButtonIndex < expandButtons.length) {
+            const expandButton = expandButtons[expandButtonIndex];
+            debug(`Processing remaining expand button in update:`, expandButton);
+            
+            const buttonContainer = this._createExpandButton(
+                expandButton.section,
+                expandButton.expanded,
+                menuWidth,
+                yOffset - baseIconSize / 2,
+                baseIconSize
+            );
+            
+            // Position on the right side
+            buttonContainer.x = menuWidth / 2 - baseIconSize * 0.2;
+            // Position at the current yOffset
+            buttonContainer.y = yOffset - baseIconSize / 2;
+            
+            this.container.addChild(buttonContainer);
+            this.expandButtons.set(expandButton.section, buttonContainer);
+            expandButtonIndex++;
+        }
     }
 }

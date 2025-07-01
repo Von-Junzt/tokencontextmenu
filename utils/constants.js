@@ -62,12 +62,22 @@ export const COLORS = {
     POWER_HOVER_BACKGROUND: 0x4a4a7a,        // Power hover background
     POWER_HOVER_BORDER: 0x6a6aaa,            // Power hover border
     
+    // Carried/Unfavorited items (very desaturated)
+    CARRIED_BACKGROUND: 0x0d0d0d,            // Almost black background for carried/unfavorited
+    CARRIED_BORDER: 0x333333,                // Very dark gray border for carried weapons and unfavorited powers
+    CARRIED_HOVER_BACKGROUND: 0x1a1a1a,      // Very dark gray hover for carried/unfavorited
+    CARRIED_HOVER_BORDER: 0x4a4a4a,          // Dark gray hover border for carried/unfavorited
+    
+    // Expand button colors
+    EXPAND_BUTTON_BORDER: 0x666666,          // Expand button border
+    EXPAND_BUTTON_TEXT: 0x666666,            // Darker gray for pipe color
+    
     // Other UI elements
     SEPARATOR_LINE: 0x444444,                // Separator line color
     SEPARATOR_LINE_ALPHA: 0.6,               // Separator line opacity
     SPRITE_MASK: 0xffffff,                   // Sprite mask color
     TEXT_FILL: 0xffffff,                     // Text color
-};
+};;
 
 /**
  * UI positioning and layout constants
@@ -90,6 +100,13 @@ export const WEAPON_PRIORITY = {
         OFF_HAND: 2,          // Equip status 2: Off-hand weapons
         CARRIED: 3,           // Equip status 1: Carried weapons
         STORED: 4             // Equip status 0: Stored weapons
+    },
+    
+    // Weapon type grouping (added to base priority)
+    WEAPON_TYPE_GROUP: {
+        NORMAL: 0,            // Regular weapons (0-29)
+        TEMPLATE: 30,         // Template/AOE weapons (30-59)
+        SPECIAL: 80          // Unarmed, claws (80-99)
     },
     
     // Special weapon type priorities
