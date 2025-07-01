@@ -4,6 +4,7 @@ import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js"
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
 import { TIMING, SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
+import { debug, debugWarn, debugError } from "../utils/debug.js";
 
 /**
  * PIXI-based weapon menu for canvas rendering
@@ -28,7 +29,7 @@ export class WeaponMenuApplication {
         
         // Listen to state changes for debugging
         this.stateMachine.onStateChange((from, to) => {
-            console.debug(`tokencontextmenu | Weapon menu state: ${from} -> ${to}`);
+            debug(`Weapon menu state: ${from} -> ${to}`);
         });
     }
 
@@ -47,7 +48,7 @@ export class WeaponMenuApplication {
         return this.operationQueue.enqueue(async () => {
             // Check if we can transition to OPENING
             if (!this.stateMachine.canTransition('OPENING')) {
-                console.warn(`tokencontextmenu | Cannot open weapon menu in state: ${this.stateMachine.getState()}`);
+                debugWarn(`Cannot open weapon menu in state: ${this.stateMachine.getState()}`);
                 return this;
             }
             
@@ -96,7 +97,7 @@ export class WeaponMenuApplication {
                 return this;
                 
             } catch (error) {
-                console.error('tokencontextmenu | Failed to render weapon menu', error);
+                debugError('Failed to render weapon menu', error);
                 this.stateMachine.transition('ERROR');
                 // Clean up on error
                 this._emergencyCleanup();
@@ -248,7 +249,7 @@ export class WeaponMenuApplication {
             weaponContainer.addChild(spriteMask);
             weaponContainer.addChild(sprite);
         } catch (error) {
-            console.warn(`Failed to load weapon texture for ${weapon.name}:`, error);
+            debugWarn(`Failed to load weapon texture for ${weapon.name}:`, error);
             const fallbackText = new PIXI.Text(weapon.name.charAt(0), {
                 fontSize: fontSize,
                 fill: COLORS.TEXT_FILL,
@@ -457,7 +458,7 @@ export class WeaponMenuApplication {
                     this.close();
                 }
             } catch (error) {
-                console.warn('tokencontextmenu | Error in click outside handler', error);
+                debugWarn('Error in click outside handler', error);
             }
         };
 
@@ -474,7 +475,7 @@ export class WeaponMenuApplication {
                     this.close();
                 }
             } catch (error) {
-                console.warn('tokencontextmenu | Error in right-click handler', error);
+                debugWarn('Error in right-click handler', error);
             }
         };
 
@@ -566,7 +567,7 @@ export class WeaponMenuApplication {
         return this.operationQueue.enqueue(async () => {
             // Check if we can transition to CLOSING
             if (!this.stateMachine.canTransition('CLOSING')) {
-                console.debug(`tokencontextmenu | Cannot close weapon menu in state: ${this.stateMachine.getState()}`);
+                debug(`Cannot close weapon menu in state: ${this.stateMachine.getState()}`);
                 // If we're already closed or closing, just return
                 if (this.stateMachine.getState() === 'CLOSED' || this.stateMachine.getState() === 'CLOSING') {
                     return;
@@ -633,7 +634,7 @@ export class WeaponMenuApplication {
                 Hooks.call('tokencontextmenu.weaponMenuClosed');
                 
             } catch (error) {
-                console.error('tokencontextmenu | Error during weapon menu close', error);
+                debugError('Error during weapon menu close', error);
                 this.stateMachine.transition('ERROR');
                 this._emergencyCleanup();
             }
@@ -646,7 +647,7 @@ export class WeaponMenuApplication {
      * @private
      */
     _emergencyCleanup() {
-        console.warn('tokencontextmenu | Performing emergency weapon menu cleanup');
+        debugWarn('Performing emergency weapon menu cleanup');
         
         // Force remove all event listeners
         try {

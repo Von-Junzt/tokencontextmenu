@@ -7,6 +7,7 @@ import {getWeaponSortPriority, emergencyCleanupTargeting} from "./interactionLay
 import {WeaponMenuApplication} from "../applications/weaponMenuApplication.js";
 import {weaponSystemCoordinator} from "../managers/WeaponSystemCoordinator.js";
 import {targetingSessionManager} from "../managers/TargetingSessionManager.js";
+import {debugWarn} from "./debug.js";
 
 /**
  * Gets equipped weapons and powers for a token, filtered and sorted
@@ -87,7 +88,7 @@ export async function showWeaponMenuUnderToken(token) {
     const equippedWeapons = getEquippedWeapons(token);
 
     if (!equippedWeapons.length) {
-        console.warn("Token Context Menu: No equipped weapons found for", token.name);
+        debugWarn("No equipped weapons found for", token.name);
         return;
     }
 

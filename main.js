@@ -18,6 +18,7 @@ import {
     updateInteractionLayerHitArea
 } from "./utils/interactionLayerUtils.js";
 import {weaponSystemCoordinator} from "./managers/WeaponSystemCoordinator.js";
+import {debug, debugWarn} from "./utils/debug.js";
 
 /**
  * Initialize module on Foundry init
@@ -40,8 +41,9 @@ Hooks.once('init', function() {
                                                                
 ═══════════════════════════════════════════════════════════════`;
     
+    // Keep ASCII art as console.log for visual effect
     console.log(`%c${logo}`, 'color: #0095ff; font-family: monospace; font-weight: bold;');
-    console.log('Token Context Menu: Initializing');
+    debug('Token Context Menu: Initializing');
 
     // Register module settings
     registerSettings();
@@ -56,7 +58,7 @@ Hooks.once('ready', async () => {
     registerTokenHudMovementHandler();
     registerTokenHudTokenHudHandler();
     registerTokenHudDeletionHandler();
-    console.log('Token Context Menu: Token handlers registered');
+    debug('Token Context Menu: Token handlers registered');
     
     // Add debugging command for weapon menu
     window.tokencontextmenu = window.tokencontextmenu || {};
@@ -72,9 +74,9 @@ Hooks.once('ready', async () => {
     window.tokencontextmenu.cleanup = async () => {
         const { cleanupTokenHandlers } = await import("./hooks/tokenEventHandlers.js");
         await cleanupTokenHandlers();
-        console.warn('Token Context Menu: Manual cleanup completed');
+        debugWarn('Token Context Menu: Manual cleanup completed');
     };
-    console.log("Token Context Menu | Debug commands available: tokencontextmenu.getWeaponMenuStatus(), tokencontextmenu.getSystemState(), tokencontextmenu.cleanup()");
+    debug("Debug commands available: tokencontextmenu.getWeaponMenuStatus(), tokencontextmenu.getSystemState(), tokencontextmenu.cleanup()");
 });
 
 /**
@@ -84,7 +86,7 @@ Hooks.on('canvasReady', () => {
     initializeGlobalInteractionLayer(); // Create but don't activate
     updateInteractionLayerHitArea();    // Ensure correct size
     
-    // Show final setup message when canvas is ready
+    // Keep final setup message as console.log for visual effect
     console.log('%c═══════════════════════════════════════════════════════════════', 'color: #ff6400;');
     console.log('%c VJ TCM: Module initialized! Happy Gaming! 🎮', 'color: #ff6400; font-weight: bold; font-size: 14px;');
     console.log('%c═══════════════════════════════════════════════════════════════', 'color: #ff6400;');
@@ -107,7 +109,7 @@ Hooks.once('canvasInit', () => {
  * Handle module cleanup when it's disabled or the game closes
  */
 Hooks.once('closeGame', async () => {
-    console.log('Token Context Menu: Cleaning up module resources');
+    debug('Token Context Menu: Cleaning up module resources');
     if (window.tokencontextmenu?.cleanup) {
         await window.tokencontextmenu.cleanup();
     }

@@ -2,7 +2,7 @@ import { weaponSystemCoordinator } from "./WeaponSystemCoordinator.js";
 import { tokenDragManager } from "./TokenDragManager.js";
 import { shouldShowWeaponMenuOnSelection } from "../settings/settings.js";
 import { TIMING } from "../utils/constants.js";
-import { debug } from "../utils/debug.js";
+import { debug, debugWarn } from "../utils/debug.js";
 import { tickerDelay } from "../utils/timingUtils.js";
 import { CleanupManager } from "./CleanupManager.js";
 import { StateManager } from "./StateManager.js";
@@ -17,7 +17,7 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
         
         this.instanceId = Math.random().toString(36).substr(2, 9);
         // Log instance creation to help debug singleton issues
-        console.warn(`[VJ TCM] WeaponMenuTokenClickManager instance created: ${this.instanceId}`);
+        debugWarn(`WeaponMenuTokenClickManager instance created: ${this.instanceId}`);
         
         // Initialize state using StateManager
         this.initializeState({

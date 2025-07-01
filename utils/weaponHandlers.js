@@ -6,7 +6,7 @@
 import {shouldAutoRemoveTargets} from "../settings/settings.js";
 import {showTargetTooltip, setupTargetClickHandlers, emergencyCleanupTargeting} from "./interactionLayerUtils.js";
 import {targetingSessionManager} from "../managers/TargetingSessionManager.js";
-import {debug} from "./debug.js";
+import {debug, debugWarn} from "./debug.js";
 
 /**
  * Handles weapon selection logic (enhanced with state manager coordination)
@@ -132,7 +132,7 @@ export async function handleWeaponSelection(token, weaponId, hideMenuCallback) {
                     ui.notifications.error("Could not find the actor. Please try again.");
                 }
             } else {
-                console.warn('Token Context Menu: Stored data mismatch or missing');
+                debugWarn('Stored data mismatch or missing');
                 ui.notifications.warn("Action data mismatch. Please try again.");
             }
         }

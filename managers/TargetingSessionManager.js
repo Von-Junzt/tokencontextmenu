@@ -1,5 +1,6 @@
 import { CleanupManager } from "./CleanupManager.js";
 import { StateManager } from "./StateManager.js";
+import { debug, debugError } from "../utils/debug.js";
 
 /**
  * Manages targeting sessions for the weapon menu system
@@ -12,7 +13,7 @@ import { StateManager } from "./StateManager.js";
  * @example
  * // Start a targeting session
  * targetingSessionManager.startSession('weapon-123', () => {
- *     console.log('Targeting ended, cleanup UI');
+ *     debug('Targeting ended, cleanup UI');
  * });
  * 
  * // Check if targeting is active
@@ -79,7 +80,7 @@ class TargetingSessionManager extends CleanupManager {
             }
         });
         
-        console.debug(`tokencontextmenu | Started targeting session: ${sessionId}`);
+        debug(`Started targeting session: ${sessionId}`);
         return true;
     }
     
@@ -91,14 +92,14 @@ class TargetingSessionManager extends CleanupManager {
         if (!this.state.activeSession) return;
         
         const session = this.state.activeSession;
-        console.debug(`tokencontextmenu | Ending targeting session: ${session.id}`);
+        debug(`Ending targeting session: ${session.id}`);
         
         // Run cleanup callback if requested
         if (executeCleanup && session.cleanup) {
             try {
                 session.cleanup();
             } catch (error) {
-                console.error('tokencontextmenu | Error during targeting cleanup:', error);
+                debugError('Error during targeting cleanup:', error);
             }
         }
         

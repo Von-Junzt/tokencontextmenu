@@ -1,3 +1,5 @@
+import { debugWarn, debugError } from "./debug.js";
+
 /**
  * State machine for weapon menu lifecycle management
  * Ensures valid state transitions and prevents race conditions in menu operations
@@ -57,7 +59,7 @@ export class WeaponMenuStateMachine {
      */
     transition(toState) {
         if (!this.canTransition(toState)) {
-            console.warn(`tokencontextmenu | Invalid weapon menu transition from ${this.state} to ${toState}`);
+            debugWarn(`Invalid weapon menu transition from ${this.state} to ${toState}`);
             return false;
         }
         
@@ -77,7 +79,7 @@ export class WeaponMenuStateMachine {
      * @param {Function} callback - Function called with (fromState, toState) when state changes
      * @example
      * stateMachine.onStateChange((from, to) => {
-     *     console.log(`Menu transitioned from ${from} to ${to}`);
+     *     debug(`Menu transitioned from ${from} to ${to}`);
      * });
      */
     onStateChange(callback) {
@@ -114,7 +116,7 @@ export class WeaponMenuStateMachine {
      * an error or when the menu gets stuck in an invalid state
      */
     reset() {
-        console.warn('tokencontextmenu | Weapon menu state machine reset');
+        debugWarn('Weapon menu state machine reset');
         this.state = 'CLOSED';
     }
 }
@@ -182,7 +184,7 @@ export class OperationQueue {
             const result = await operation();
             resolve(result);
         } catch (error) {
-            console.error(`tokencontextmenu | Weapon menu operation failed: ${debugName}`, error);
+            debugError(`Weapon menu operation failed: ${debugName}`, error);
             reject(error);
         } finally {
             this.currentOperation = null;
@@ -253,7 +255,7 @@ export class ContainerVerification {
                 return true;
             }
         } catch (error) {
-            console.warn('tokencontextmenu | Failed to remove weapon menu container', error);
+            debugWarn('Failed to remove weapon menu container', error);
         }
         return false;
     }
@@ -285,7 +287,7 @@ export class ContainerVerification {
                 container.destroy({ children: true });
             }
         } catch (error) {
-            console.warn('tokencontextmenu | Failed to destroy weapon menu container', error);
+            debugWarn('Failed to destroy weapon menu container', error);
         }
     }
 }

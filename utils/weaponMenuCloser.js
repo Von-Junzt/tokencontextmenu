@@ -5,6 +5,7 @@
 
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { WeaponMenuApplication } from "../applications/weaponMenuApplication.js";
+import { debug, debugWarn } from "./debug.js";
 
 /**
  * Close any open weapon menu using the most appropriate method
@@ -17,7 +18,7 @@ import { WeaponMenuApplication } from "../applications/weaponMenuApplication.js"
 export async function closeWeaponMenu(options = {}) {
     const { force = false, skipHook = false, reason = 'unspecified' } = options;
     
-    console.debug(`Token Context Menu | Closing weapon menu - reason: ${reason}`);
+    debug(`Closing weapon menu - reason: ${reason}`);
     
     let menuClosed = false;
     
@@ -27,7 +28,7 @@ export async function closeWeaponMenu(options = {}) {
         // Check if the menu is already closing or closed
         const menuState = menuApp.stateMachine?.getState();
         if (menuState === 'CLOSING' || menuState === 'CLOSED') {
-            console.debug('Token Context Menu | Menu already closing/closed');
+            debug('Menu already closing/closed');
             return false;
         } else if (force && menuApp._emergencyCleanup) {
             // Force close using emergency cleanup
@@ -54,7 +55,7 @@ export async function closeWeaponMenu(options = {}) {
  * @param {string} reason - Reason for force closing
  */
 export async function forceCloseAllMenus(reason = 'emergency') {
-    console.warn(`Token Context Menu | Force closing all menus - reason: ${reason}`);
+    debugWarn(`Force closing all menus - reason: ${reason}`);
     
     // Close tracked menu through normal means
     const closed = await closeWeaponMenu({ force: true, reason, skipHook: true });

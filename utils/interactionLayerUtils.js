@@ -5,6 +5,7 @@
 
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { targetingSessionManager } from "../managers/TargetingSessionManager.js";
+import { debugWarn } from "./debug.js";
 import { WEAPON_PRIORITY } from "./constants.js";
 
 // Global interaction layer management
@@ -176,7 +177,7 @@ export function getWeaponSortPriority(item) {
  */
 export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort) {
     if (targetingSessionManager.isActive()) {
-        console.warn('Token Context Menu: Targeting already active, aborting previous session');
+        debugWarn('Targeting already active, aborting previous session');
         targetingSessionManager.endSession();
     }
 
@@ -264,7 +265,7 @@ export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort)
 
     function finishTargeting() {
         if (isFinishing) {
-            console.warn('Token Context Menu: Attempted double cleanup, ignoring');
+            debugWarn('Attempted double cleanup, ignoring');
             return;
         }
         isFinishing = true;

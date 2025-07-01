@@ -369,7 +369,7 @@ class WeaponSystemCoordinator extends CleanupManager {
      * Log current state to console for debugging
      */
     logState() {
-        console.debug('Token Context Menu: System State:', this.getStateSnapshot());
+        debug('Token Context Menu: System State:', this.getStateSnapshot());
     }
 
     /**
