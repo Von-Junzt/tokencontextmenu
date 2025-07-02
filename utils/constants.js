@@ -77,7 +77,7 @@ export const COLORS = {
     SEPARATOR_LINE_ALPHA: 0.6,               // Separator line opacity
     SPRITE_MASK: 0xffffff,                   // Sprite mask color
     TEXT_FILL: 0xffffff,                     // Text color
-};;
+};
 
 /**
  * UI positioning and layout constants
@@ -111,6 +111,7 @@ export const WEAPON_PRIORITY = {
     
     // Special weapon type priorities
     SPECIAL: {
+        KNIFE: 97,
         CLAWS: 98,
         UNARMED: 99
     },

@@ -152,6 +152,12 @@ export async function handleWeaponSelection(token, weaponId, hideMenuCallback) {
  * @param {Function} hideMenuCallback - Callback to hide the menu
  */
 export async function handleWeaponEdit(token, weaponId, hideMenuCallback) {
+    // Check permissions
+    if (!token.actor.isOwner) {
+        ui.notifications.warn("You don't have permission to modify this token");
+        return;
+    }
+    
     const weapon = token.actor.items.find(i => i.id === weaponId);
 
     if (weapon) {
@@ -169,6 +175,12 @@ export async function handleWeaponEdit(token, weaponId, hideMenuCallback) {
  * @returns {Promise<void>}
  */
 export async function handleWeaponEquip(actor, weaponId) {
+    // Check permissions
+    if (!actor.isOwner) {
+        ui.notifications.warn("You don't have permission to modify this token");
+        return;
+    }
+    
     const weapon = actor.items.get(weaponId);
     if (!weapon || weapon.type !== "weapon") {
         debugWarn("Invalid weapon for equipping:", weaponId);
@@ -179,12 +191,7 @@ export async function handleWeaponEquip(actor, weaponId) {
     
     // For now, simply equip to main hand (status 4)
     // In the future, could add logic to handle two-handed weapons, off-hand conflicts, etc.
-    try {
-        await weapon.update({ "system.equipStatus": 4 });
-    } catch (error) {
-        debugWarn("Failed to equip weapon:", error);
-        ui.notifications.error("Failed to equip weapon");
-    }
+    await weapon.update({ "system.equipStatus": 4 });
 }
 
 /**
@@ -194,6 +201,12 @@ export async function handleWeaponEquip(actor, weaponId) {
  * @returns {Promise<void>}
  */
 export async function handlePowerFavoriteToggle(actor, powerId) {
+    // Check permissions
+    if (!actor.isOwner) {
+        ui.notifications.warn("You don't have permission to modify this token");
+        return;
+    }
+    
     const power = actor.items.get(powerId);
     if (!power || power.type !== "power") {
         debugWarn("Invalid power for favorite toggle:", powerId);
@@ -203,12 +216,7 @@ export async function handlePowerFavoriteToggle(actor, powerId) {
     const newState = !power.system.favorite;
     debug(`Toggling power favorite: ${power.name} to ${newState}`);
     
-    try {
-        await power.update({ "system.favorite": newState });
-    } catch (error) {
-        debugWarn("Failed to toggle power favorite:", error);
-        ui.notifications.error("Failed to update power");
-    }
+    await power.update({ "system.favorite": newState });
 }
 
 /**
@@ -218,6 +226,12 @@ export async function handlePowerFavoriteToggle(actor, powerId) {
  * @returns {Promise<void>}
  */
 export async function handleWeaponUnequip(actor, weaponId) {
+    // Check permissions
+    if (!actor.isOwner) {
+        ui.notifications.warn("You don't have permission to modify this token");
+        return;
+    }
+    
     const weapon = actor.items.get(weaponId);
     if (!weapon || weapon.type !== "weapon") {
         debugWarn("Invalid weapon for unequipping:", weaponId);
@@ -226,10 +240,5 @@ export async function handleWeaponUnequip(actor, weaponId) {
     
     debug(`Unequipping weapon: ${weapon.name}`);
     
-    try {
-        await weapon.update({ "system.equipStatus": 1 });
-    } catch (error) {
-        debugWarn("Failed to unequip weapon:", error);
-        ui.notifications.error("Failed to unequip weapon");
-    }
+    await weapon.update({ "system.equipStatus": 1 });
 }

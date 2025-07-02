@@ -581,6 +581,12 @@ export class WeaponMenuApplication {
         
         // Check if we're in equipment mode
         if (this.equipmentMode && weapon?.type === "weapon") {
+            // Check permissions before any modifications
+            if (!this.token.actor.isOwner) {
+                ui.notifications.warn("You don't have permission to modify this token");
+                return;
+            }
+            
             const weaponName = weapon.name.toLowerCase();
             const isSpecialWeapon = weaponName.includes('unarmed attack') || weaponName.includes('claws');
             const hasTemplateAOE = weapon.system?.templates &&
