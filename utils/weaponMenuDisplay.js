@@ -29,8 +29,7 @@ export function getMenuItems(token, options = {}) {
         (i.type === "weapon" &&
             (
                 [5, 4, 2].includes(i.system.equipStatus) ||
-                (i.system.equipStatus === 1 && Object.values(i.system.templates).some(v => v === true)) ||
-                i.name.toLowerCase().includes('unarmed attack')
+                (i.system.equipStatus === 1 && Object.values(i.system.templates).some(v => v === true))
             )
             && i.system.equipStatus !== 0
         )
@@ -115,8 +114,7 @@ export function getMenuItems(token, options = {}) {
     const hasWeapons = equippedWeapons.length > 0 || carriedWeapons.length > 0;
     const totalWeapons = token.actor.items.filter(i => 
         i.type === "weapon" && 
-        i.system.equipStatus !== 0 &&
-        !i.name.toLowerCase().includes('unarmed attack')
+        i.system.equipStatus !== 0
     ).length;
 
     // Add powers section

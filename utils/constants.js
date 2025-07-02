@@ -106,15 +106,11 @@ export const WEAPON_PRIORITY = {
     WEAPON_TYPE_GROUP: {
         NORMAL: 0,            // Regular weapons (0-29)
         TEMPLATE: 30,         // Template/AOE weapons (30-59)
-        SPECIAL: 80          // Unarmed, claws (80-99)
+        SPECIAL: 900          // Special weapons - appear at end
     },
     
-    // Special weapon type priorities
-    SPECIAL: {
-        KNIFE: 97,
-        CLAWS: 98,
-        UNARMED: 99
-    },
+    // Special weapon identifiers (checked as substrings in weapon names)
+    SPECIAL_WEAPONS: ['unarmed attack', 'claws', 'knife'],
     
     // Other item type priorities
     POWER: 95,                // Powers

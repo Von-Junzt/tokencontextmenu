@@ -145,9 +145,9 @@ export function getWeaponSortPriority(item) {
     if (item.type === 'weapon') {
         const weaponName = item.name.toLowerCase();
 
-        // Check for special weapon types first
-        if (WEAPON_PRIORITY.SPECIAL[weaponName.toUpperCase()]) {
-            return WEAPON_PRIORITY.SPECIAL[weaponName.toUpperCase()];
+        // Check for special weapon types - they go to the end
+        if (WEAPON_PRIORITY.SPECIAL_WEAPONS.some(special => weaponName.includes(special))) {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.SPECIAL;
         }
 
         // Map equipment status to priority

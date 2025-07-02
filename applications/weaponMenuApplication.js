@@ -1,6 +1,9 @@
 import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, shouldShowDetailedTooltips } from "../settings/settings.js";
 import { handleWeaponSelection, handleWeaponEdit } from "../utils/weaponHandlers.js";
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
+import { equipmentModeHandler } from "../managers/EquipmentModeHandler.js";
+import { weaponMenuTooltipManager } from "../managers/WeaponMenuTooltipManager.js";
+import { WeaponMenuBuilder } from "../utils/WeaponMenuBuilder.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
 import { TIMING, SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
@@ -21,7 +24,10 @@ export class WeaponMenuApplication {
         this.rightClickHandler = null;
         this.keyHandler = null;
         this.contextMenuHandler = null;
-        this._currentTooltipUpdate = null;
+        
+        // Initialize new components
+        this.menuBuilder = new WeaponMenuBuilder();
+        this.tooltipManager = weaponMenuTooltipManager;
         
         // Extract metadata from options
         this.itemMetadata = options.metadata || new Map();
@@ -141,152 +147,36 @@ export class WeaponMenuApplication {
             weapons: this.weapons.filter(w => w.type === "weapon").length,
             powers: this.weapons.filter(w => w.type === "power").length
         });
+        
         this.container = new PIXI.Container();
         this.container.name = "tokencontextmenu-weapon-menu";
-
         this.container.x = this.token.x + (this.token.w / 2);
         this.container.y = this.token.y + this.token.h + UI.MENU_Y_OFFSET;
-
-        const gridSize = canvas.grid.size;
-        const iconScale = getWeaponMenuIconScale();
-        const baseIconSize = gridSize * iconScale;
-        const iconRadius = baseIconSize * SIZES.ICON_RADIUS_RATIO;
-        const spriteSize = baseIconSize * SIZES.SPRITE_SIZE_RATIO;
-        const fontSize = baseIconSize * SIZES.FONT_SIZE_RATIO;
-
-        const background = new PIXI.Graphics();
-        const itemsPerRow = getWeaponMenuItemsPerRow();
-
-        const sections = [];
-        let current = [];
-        const expandButtons = [];
         
-        for (const w of this.weapons) {
-            if (w.type === "separator") {
-                if (current.length > 0) {
-                    sections.push(current);
-                    current = [];
-                }
-            } else if (w.type === "expandButton") {
-                // Store expand buttons separately
-                expandButtons.push(w);
-                // Don't create a new section for expand buttons
-            } else {
-                current.push(w);
+        // Use the menu builder to create the menu
+        const { weaponContainers } = this.menuBuilder.buildMenu(
+            this.container, 
+            this.weapons, 
+            this.expandButtons,
+            {
+                itemMetadata: this.itemMetadata,
+                onWeaponHover: (container, event) => this._setupWeaponEvents(container, container.getChildByName('background'), this.menuBuilder.iconRadius),
+                onExpandClick: (section) => this._handleExpandToggle(section)
             }
-        }
-        if (current.length > 0) {
-            sections.push(current);
-        }
-
-        const rows = sections.map(sec => Math.ceil(sec.length / itemsPerRow));
-        const sepCount = Math.max(0, sections.length - 1);
-        const sepHeight = baseIconSize * SIZES.SEPARATOR_HEIGHT_RATIO;
-        const menuHeight = rows.reduce((sum, r) => sum + (r * baseIconSize), 0) + (sepCount * sepHeight);
-        const widths = sections.map(sec => Math.min(sec.length, itemsPerRow) * baseIconSize);
-        // Add minimal space for expand button on the right if needed
-        const expandButtonSpace = expandButtons.length > 0 ? baseIconSize * 0.3 : 0;
-        const menuWidth = Math.max(...widths, baseIconSize) + expandButtonSpace;
-
-        background.beginFill(COLORS.MENU_BACKGROUND, COLORS.MENU_BACKGROUND_ALPHA);
-        background.lineStyle(1, COLORS.MENU_BORDER);
-        background.drawRoundedRect(-menuWidth/2, 0, menuWidth, menuHeight, UI.MENU_CORNER_RADIUS);
-        background.endFill();
-        this.container.addChild(background);
-
-        let yOffset = 0;
-        let sectionIndex = 0;
-        let expandButtonIndex = 0;
-
-        for (const section of sections) {
-            if (section.length > 0) {
-                for (let i = 0; i < section.length; i++) {
-                    const weapon = section[i];
-                    const weaponContainer = await this._createWeaponIconWithSection(
-                        weapon, i, section.length, itemsPerRow, menuWidth,
-                        baseIconSize, iconRadius, spriteSize, fontSize, yOffset
-                    );
-                    this.container.addChild(weaponContainer);
-                    this.weaponContainers.push(weaponContainer);
-                }
-
-                const sectionRows = Math.ceil(section.length / itemsPerRow);
-                yOffset += sectionRows * baseIconSize;
-
-                // Check if there's an expand button for this section
-                if (expandButtonIndex < expandButtons.length) {
-                    const expandButton = expandButtons[expandButtonIndex];
-                    // Check if this button belongs to the current section
-                    const sectionType = section[0]?.type; // Get type from first item in section
-                    const buttonBelongsToSection = 
-                        (sectionType === "weapon" && expandButton.section === "weapons") ||
-                        (sectionType === "power" && expandButton.section === "powers");
-                    
-                    debug(`Checking expand button for section ${sectionIndex}:`, {
-                        expandButton,
-                        sectionType,
-                        buttonBelongsToSection,
-                        sectionItems: section.length,
-                        expandButtonIndex
-                    });
-                    
-                    if (buttonBelongsToSection) {
-                        const buttonContainer = this._createExpandButton(
-                            expandButton.section,
-                            expandButton.expanded,
-                            menuWidth,
-                            yOffset - baseIconSize / 2,
-                            baseIconSize
-                        );
-                        
-                        // Position on the right side with reduced spacing
-                        buttonContainer.x = menuWidth / 2 - baseIconSize * 0.2;  // Reduced from 0.3 to take less space
-                        // Position on the last row of items
-                        const lastRowIndex = Math.floor((section.length - 1) / itemsPerRow);
-                        const currentSectionYOffset = yOffset - (sectionRows * baseIconSize);
-                        buttonContainer.y = currentSectionYOffset + (lastRowIndex * baseIconSize) + (baseIconSize / 2);
-                        
-                        this.container.addChild(buttonContainer);
-                        this.expandButtons.set(expandButton.section, buttonContainer);
-                        expandButtonIndex++;
-                    }
-                }
-
-                if (sectionIndex < sections.length - 1) {
-                    const separatorContainer = this._createSeparator(
-                        { type: "separator" }, menuWidth, yOffset, sepHeight
-                    );
-                    this.container.addChild(separatorContainer);
-                    yOffset += sepHeight;
-                }
-
-                sectionIndex++;
-            }
-        }
-
-        // Handle any remaining expand buttons (e.g., powers-only case)
-        while (expandButtonIndex < expandButtons.length) {
-            const expandButton = expandButtons[expandButtonIndex];
-            debug(`Processing remaining expand button:`, expandButton);
-            
-            const buttonContainer = this._createExpandButton(
-                expandButton.section,
-                expandButton.expanded,
-                menuWidth,
-                yOffset - baseIconSize / 2,
-                baseIconSize
-            );
-            
-            // Position on the right side
-            buttonContainer.x = menuWidth / 2 - baseIconSize * 0.2;
-            // Position at the current yOffset
-            buttonContainer.y = yOffset - baseIconSize / 2;
-            
-            this.container.addChild(buttonContainer);
-            this.expandButtons.set(expandButton.section, buttonContainer);
-            expandButtonIndex++;
-        }
-
+        );
+        
+        this.weaponContainers = weaponContainers;
+        
+        // Set up events for all weapon containers
+        this.weaponContainers.forEach(container => {
+            this._setupWeaponEvents(container, container.getChildByName('background'), this.menuBuilder.iconRadius);
+        });
+        
+        // Set up events for expand buttons
+        this.expandButtons.forEach((button, section) => {
+            this._setupExpandButtonEvents(button);
+        });
+        
         canvas.tokens.addChild(this.container);
     }
 
@@ -305,118 +195,34 @@ export class WeaponMenuApplication {
      * @returns {Promise<PIXI.Container>} The weapon container
      * @private
      */
-    async _createWeaponIconWithSection(weapon, indexInSection, totalInSection, itemsPerRow, menuWidth, baseIconSize, iconRadius, spriteSize, fontSize, yOffset = 0) {
-        // Add debugging
-        if (!weapon || typeof weapon !== 'object') {
-            debugError(`Invalid weapon object passed to _createWeaponIconWithSection:`, weapon);
-            throw new Error(`Invalid weapon object: ${weapon}`);
-        }
-        
-        const row = Math.floor(indexInSection / itemsPerRow);
-        const col = indexInSection % itemsPerRow;
-
-        const startX = -menuWidth / 2;
-        const x = startX + (col * baseIconSize) + (baseIconSize / 2);
-        const y = (row * baseIconSize) + (baseIconSize / 2) + yOffset;
-
-        const weaponContainer = new PIXI.Container();
-        weaponContainer.x = x;
-        weaponContainer.y = y;
-        weaponContainer.interactive = true;
-        weaponContainer.eventMode = 'static';  // Enable PIXI v7 event mode
-        weaponContainer.cursor = 'pointer';     // Modern cursor property
-        weaponContainer.weapon = weapon;
-
-        const iconBg = new PIXI.Graphics();
-        
-        // Check metadata for carried/unfavorited/stored items
-        const metadata = this.itemMetadata.get(weapon.id);
-        const isCarriedOrUnfavorited = metadata?.isCarried || metadata?.isUnfavorited || metadata?.isStored;
-        
-        // Use desaturated colors for carried/unfavorited/stored items
-        const bgColor = isCarriedOrUnfavorited ? COLORS.CARRIED_BACKGROUND :
-                       (weapon.type === "power" ? COLORS.POWER_BACKGROUND : COLORS.WEAPON_BACKGROUND);
-        const borderColor = isCarriedOrUnfavorited ? COLORS.CARRIED_BORDER : 
-                          (weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER);
-
-        iconBg.beginFill(bgColor);
-        iconBg.lineStyle(1, borderColor);
-        iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, UI.ICON_CORNER_RADIUS);
-        iconBg.endFill();
-        weaponContainer.addChild(iconBg);
-
-        // Check if weapon has a valid image
-        if (!weapon.img) {
-            debugWarn(`No image for weapon: ${weapon.name}`);
-            const fallbackText = new PIXI.Text(weapon.name.charAt(0), {
-                fontSize: fontSize,
-                fill: COLORS.TEXT_FILL,
-                align: 'center'
-            });
-            fallbackText.anchor.set(0.5);
-            weaponContainer.addChild(fallbackText);
-            this._setupWeaponEvents(weaponContainer, iconBg, iconRadius);
-            return weaponContainer;
-        }
-
-        // Load weapon texture using PIXI.Texture.fromURL (Foundry v12)
-        PIXI.Texture.fromURL(weapon.img).then(texture => {
-            const sprite = new PIXI.Sprite(texture);
-            sprite.width = spriteSize;
-            sprite.height = spriteSize;
-            sprite.anchor.set(0.5);
-
-            const spriteMask = new PIXI.Graphics();
-            spriteMask.beginFill(COLORS.SPRITE_MASK);
-            spriteMask.drawRoundedRect(-spriteSize/2, -spriteSize/2, spriteSize, spriteSize, UI.ICON_CORNER_RADIUS);
-            spriteMask.endFill();
-
-            sprite.mask = spriteMask;
-            
-            // Apply transparency for carried/unfavorited items
-            if (isCarriedOrUnfavorited) {
-                sprite.alpha = 0.5;  // More transparent for better distinction
-            }
-
-            weaponContainer.addChild(spriteMask);
-            weaponContainer.addChild(sprite);
-        }).catch(error => {
-            debugWarn(`Failed to load weapon texture for ${weapon.name}:`, error);
-            const fallbackText = new PIXI.Text(weapon.name.charAt(0), {
-                fontSize: fontSize,
-                fill: COLORS.TEXT_FILL,
-                align: 'center'
-            });
-            fallbackText.anchor.set(0.5);
-            weaponContainer.addChild(fallbackText);
-        });
-
-        this._setupWeaponEvents(weaponContainer, iconBg, iconRadius);
-        return weaponContainer;
-    }
-
     /**
-     * Creates a visual separator between weapon and power sections
-     * @param {Object} separator - Separator object
-     * @param {number} menuWidth - Menu width for line drawing
-     * @param {number} yPosition - Vertical position
-     * @param {number} separatorHeight - Height of separator area
-     * @returns {PIXI.Container} The separator container
+     * Sets up events for expand buttons
+     * @param {PIXI.Container} button - The expand button container
      * @private
      */
-    _createSeparator(separator, menuWidth, yPosition, separatorHeight) {
-        const separatorContainer = new PIXI.Container();
-        separatorContainer.x = 0;
-        separatorContainer.y = yPosition;
-
-        const separatorLine = new PIXI.Graphics();
-        separatorLine.lineStyle(1, COLORS.SEPARATOR_LINE, COLORS.SEPARATOR_LINE_ALPHA);
-        separatorLine.moveTo(-menuWidth/2 + UI.SEPARATOR_MARGIN, separatorHeight / 2);
-        separatorLine.lineTo(menuWidth/2 - UI.SEPARATOR_MARGIN, separatorHeight / 2);
-        separatorContainer.addChild(separatorLine);
-
-        return separatorContainer;
+    _setupExpandButtonEvents(button) {
+        const pipe = button.buttonGraphics;
+        const isExpanded = button.isExpanded;
+        
+        button.on('pointerover', () => {
+            pipe.alpha = isExpanded ? 1 : 0.8;
+        });
+        
+        button.on('pointerout', () => {
+            pipe.alpha = isExpanded ? 0.9 : 0.5;
+        });
+        
+        button.on('pointerdown', async (event) => {
+            debug(`Expand button clicked!`, { section: button.buttonSection });
+            event.stopPropagation();
+            if (event.data?.originalEvent) {
+                event.data.originalEvent.stopPropagation();
+            }
+            await this._handleExpandToggle(button.buttonSection);
+        });
     }
+
+
 
     /**
      * Sets up interactive events for weapon icons
@@ -446,77 +252,19 @@ export class WeaponMenuApplication {
             iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, UI.ICON_CORNER_RADIUS);
             iconBg.endFill();
 
-            // Build tooltip content
-            let tooltipContent = weapon.name;
+            // Get equipment tooltip text
+            const equipmentTooltip = equipmentModeHandler.getEquipmentTooltip(metadata);
             
-            // Add status indicators
-            if (metadata?.isCarried) {
-                tooltipContent += " [Carried - Click to equip]";
-            } else if (metadata?.isStored) {
-                // Only stored template weapons are shown
-                tooltipContent += " [Stored Template - Click to carry]";
-            } else if (metadata?.isUnfavorited) {
-                tooltipContent += " [Click to favorite]";
-            }
-            
-            // Add ammo count if applicable
-            if (weapon.type === "weapon" && weapon.system?.currentShots !== undefined && weapon.system?.shots !== undefined &&
-                (weapon.system.currentShots > 0 || weapon.system.shots > 0)) {
-                tooltipContent += ` (${weapon.system.currentShots}/${weapon.system.shots})`;
-            }
-            
-            // Check if detailed tooltips are enabled - read fresh from settings
+            // Check if detailed tooltips are enabled
             const showDetailed = shouldShowDetailedTooltips();
             
-            // Add detailed stats for both weapons and powers if setting is enabled
-            if (showDetailed && weapon.system && (weapon.type === "weapon" || weapon.type === "power")) {
-                // Collect stat lines
-                const statLines = [];
-                
-                // Damage
-                if (weapon.system.damage) {
-                    // add damage modifier if available
-                    const damageMod = (weapon.system.actions.dmgMod !== '0')? weapon.system.actions.dmgMod : '';
-                    statLines.push(`🗲 Damage: ${weapon.system.damage} ${damageMod}`);
-                }
-                
-                // Range
-                if (weapon.system.range) {
-                    statLines.push(`🏹︎ Range: ${weapon.system.range}`);
-                }
-                
-                // AP - show for both weapons and powers
-                if (weapon.system.ap !== undefined && weapon.system.ap !== 0) {
-                    statLines.push(`⛨ AP: ${weapon.system.ap}`);
-                }
-                
-                // Trait Modifier
-                if (weapon.system.actions.traitMod) {
-                    statLines.push(`⊕ Trait Mod: ${weapon.system.actions.traitMod}`);
-                }
-                
-                // Power Points - only for powers
-                if (weapon.type === "power" && weapon.system.pp !== undefined && weapon.system.pp !== 0) {
-                    statLines.push(`◈ PP: ${weapon.system.pp}`);
-                }
-                
-                // Only add stats section if we have stats to show
-                if (statLines.length > 0) {
-                    // Use HTML with proper line separators
-                    tooltipContent = `<div class="tokencontextmenu-weapon-tooltip">
-                        <div class="tooltip-header">${tooltipContent}</div>
-                        <hr class="tooltip-separator">
-                        ${statLines.map(line => `<div class="tooltip-stat">${line}</div>`).join('')}
-                        <hr class="tooltip-separator">
-                    </div>`;
-                } else {
-                    // For non-weapon items, keep it simple
-                    tooltipContent = `<div class="tokencontextmenu-weapon-tooltip">${tooltipContent}</div>`;
-                }
-            } else {
-                // Simple tooltip - just wrap in div for consistent styling
-                tooltipContent = `<div class="tokencontextmenu-weapon-tooltip">${tooltipContent}</div>`;
-            }
+            // Build tooltip content using tooltip manager
+            const tooltipContent = this.tooltipManager.buildTooltipContent(
+                weapon, 
+                metadata, 
+                equipmentTooltip, 
+                showDetailed
+            );
 
             this._showTooltip(tooltipContent, event);
         });
@@ -587,47 +335,28 @@ export class WeaponMenuApplication {
                 return;
             }
             
-            const weaponName = weapon.name.toLowerCase();
-            const isSpecialWeapon = weaponName.includes('unarmed attack') || weaponName.includes('claws');
-            const hasTemplateAOE = weapon.system?.templates &&
-                Object.values(weapon.system.templates).some(v => v === true);
+            // Use equipment mode handler to determine operations
+            const operations = equipmentModeHandler.getWeaponUpdateOperations(weapon);
             
-            if (isSpecialWeapon) {
-                // Special weapons (unarmed, claws) cannot be stored
-                debug(`Special weapon in equipment mode: ${weapon.name}, current status: ${weapon.system.equipStatus}`);
-                if (weapon.system.equipStatus > 1) {
-                    // Equipped -> Carry it
-                    await weapon.update({ "system.equipStatus": 1 });
+            if (operations) {
+                debug(operations.description);
+                
+                if (operations.useHandler) {
+                    // Normal weapons use existing handlers
+                    if (weapon.system.equipStatus > 1) {
+                        const { handleWeaponUnequip } = await import("../utils/weaponHandlers.js");
+                        await handleWeaponUnequip(this.token.actor, weaponId);
+                    } else {
+                        const { handleWeaponEquip } = await import("../utils/weaponHandlers.js");
+                        await handleWeaponEquip(this.token.actor, weaponId);
+                    }
                 } else {
-                    // Carried -> Equip it (status 4)
-                    await weapon.update({ "system.equipStatus": 4 });
+                    // Special and template weapons use direct updates
+                    await weapon.update(operations.update);
                 }
-            } else if (hasTemplateAOE) {
-                // Template weapons toggle between carried (1) and stored (0), never equipped
-                debug(`Template weapon in equipment mode: ${weapon.name}, current status: ${weapon.system.equipStatus}`);
-                if (weapon.system.equipStatus >= 2) {
-                    // Incorrectly equipped -> Move to carried
-                    await weapon.update({ "system.equipStatus": 1 });
-                } else if (weapon.system.equipStatus === 1) {
-                    // Carried -> Store it
-                    await weapon.update({ "system.equipStatus": 0 });
-                } else if (weapon.system.equipStatus === 0) {
-                    // Stored -> Carry it
-                    await weapon.update({ "system.equipStatus": 1 });
-                }
-            } else {
-                // Normal weapons toggle between equipped and carried
-                if (weapon.system.equipStatus > 1) {
-                    // Weapon is equipped, unequip it
-                    const { handleWeaponUnequip } = await import("../utils/weaponHandlers.js");
-                    await handleWeaponUnequip(this.token.actor, weaponId);
-                } else {
-                    // Weapon is carried, equip it
-                    const { handleWeaponEquip } = await import("../utils/weaponHandlers.js");
-                    await handleWeaponEquip(this.token.actor, weaponId);
-                }
+                
+                await this._updateMenuDisplay(); // Refresh the menu
             }
-            await this._updateMenuDisplay(); // Refresh the menu
             return;
         }
         
@@ -745,31 +474,7 @@ export class WeaponMenuApplication {
      * @private
      */
     _showTooltip(content, event) {
-        this._hideTooltip();
-
-        const tooltip = document.createElement('div');
-        tooltip.className = 'tokencontextmenu-immediate-tooltip';
-        tooltip.innerHTML = content;
-        tooltip.id = 'weapon-menu-tooltip';
-        tooltip.style.display = 'block';
-        tooltip.style.zIndex = Z_INDEX.TOOLTIP;
-        document.body.appendChild(tooltip);
-
-        const updateTooltipPosition = (e) => {
-            const tooltip = document.getElementById('weapon-menu-tooltip');
-            if (tooltip) {
-                const rect = canvas.app.view.getBoundingClientRect();
-                const x = e.clientX || (rect.left + event.data.global.x);
-                const y = e.clientY || (rect.top + event.data.global.y);
-
-                tooltip.style.left = (x - tooltip.offsetWidth / 2) + 'px';
-                tooltip.style.top = (y + 25) + 'px';
-            }
-        };
-
-        updateTooltipPosition(event.data.originalEvent);
-        this._currentTooltipUpdate = updateTooltipPosition;
-        document.addEventListener('mousemove', updateTooltipPosition);
+        this.tooltipManager.show(content, event);
     }
 
     /**
@@ -777,14 +482,7 @@ export class WeaponMenuApplication {
      * @private
      */
     _hideTooltip() {
-        const tooltip = document.getElementById('weapon-menu-tooltip');
-        if (tooltip) {
-            tooltip.remove();
-        }
-        if (this._currentTooltipUpdate) {
-            document.removeEventListener('mousemove', this._currentTooltipUpdate);
-            this._currentTooltipUpdate = null;
-        }
+        this.tooltipManager.hide();
     }
 
     /**
@@ -943,72 +641,6 @@ export class WeaponMenuApplication {
 
     
     /**
-     * Creates an expand/collapse button for showing additional items
-     * @param {string} section - The section this button controls (weapons/powers)
-     * @param {boolean} isExpanded - Current expansion state
-     * @param {number} menuWidth - Menu width for positioning
-     * @param {number} yPosition - Vertical position
-     * @param {number} baseIconSize - Base size for scaling
-     * @returns {PIXI.Container} The button container
-     * @private
-     */
-    _createExpandButton(section, isExpanded, menuWidth, yPosition, baseIconSize) {
-        const container = new PIXI.Container();
-        container.name = `expand-button-${section}`;
-        container.interactive = true;
-        container.eventMode = 'static';
-        container.cursor = 'pointer';
-        
-        // Store button metadata
-        container.buttonSection = section;
-        container.isExpanded = isExpanded;
-        
-        // Draw a simple vertical pipe
-        const pipe = new PIXI.Graphics();
-        const pipeHeight = baseIconSize * 0.6;
-        const pipeWidth = 2;
-        
-        // Different opacity based on expanded state
-        const pipeAlpha = isExpanded ? 0.9 : 0.5;
-        
-        pipe.beginFill(COLORS.EXPAND_BUTTON_TEXT, pipeAlpha);
-        pipe.drawRect(-pipeWidth/2, -pipeHeight/2, pipeWidth, pipeHeight);
-        pipe.endFill();
-        
-        container.addChild(pipe);
-        
-        // Store reference for updates
-        container.buttonGraphics = pipe;
-        
-        // Add a larger invisible hit area for easier clicking
-        const hitArea = new PIXI.Graphics();
-        hitArea.beginFill(0xFFFFFF, 0.01);  // Nearly invisible
-        hitArea.drawRect(-baseIconSize/4, -baseIconSize/4, baseIconSize/2, baseIconSize/2);
-        hitArea.endFill();
-        container.addChild(hitArea);
-        
-        // Simple hover effects - brighten on hover
-        container.on('pointerover', () => {
-            pipe.alpha = isExpanded ? 1 : 0.8;
-        });
-        
-        container.on('pointerout', () => {
-            pipe.alpha = isExpanded ? 0.9 : 0.5;
-        });
-        
-        container.on('pointerdown', async (event) => {
-            debug(`Expand button clicked!`, { section, event });
-            event.stopPropagation();
-            if (event.data?.originalEvent) {
-                event.data.originalEvent.stopPropagation();
-            }
-            await this._handleExpandToggle(section);
-        });
-        
-        return container;
-    }
-    
-    /**
      * Handle expand/collapse toggle for a section
      * @param {string} section - The section to toggle (weapons/powers)
      * @private
@@ -1117,144 +749,32 @@ export class WeaponMenuApplication {
             debugWarn('Canvas grid not available for menu rebuild');
             return;
         }
-        const gridSize = canvas.grid.size;
-        const iconScale = getWeaponMenuIconScale();
-        const baseIconSize = gridSize * iconScale;
-        const iconRadius = baseIconSize * SIZES.ICON_RADIUS_RATIO;
-        const spriteSize = baseIconSize * SIZES.SPRITE_SIZE_RATIO;
-        const fontSize = baseIconSize * SIZES.FONT_SIZE_RATIO;
-
-        const background = new PIXI.Graphics();
-        const itemsPerRow = getWeaponMenuItemsPerRow();
-
-        const sections = [];
-        let current = [];
-        const expandButtons = [];
         
-        for (const w of this.weapons) {
-            if (w.type === "separator") {
-                if (current.length > 0) {
-                    sections.push(current);
-                    current = [];
-                }
-            } else if (w.type === "expandButton") {
-                // Store expand buttons separately
-                expandButtons.push(w);
-                // Don't create a new section for expand buttons
-            } else {
-                current.push(w);
-            }
-        }
-        if (current.length > 0) {
-            sections.push(current);
-        }
-
-        const rows = sections.map(sec => Math.ceil(sec.length / itemsPerRow));
-        const sepCount = Math.max(0, sections.length - 1);
-        const sepHeight = baseIconSize * SIZES.SEPARATOR_HEIGHT_RATIO;
-        const menuHeight = rows.reduce((sum, r) => sum + (r * baseIconSize), 0) + (sepCount * sepHeight);
-        const widths = sections.map(sec => Math.min(sec.length, itemsPerRow) * baseIconSize);
-        // Add minimal space for expand button on the right if needed
-        const expandButtonSpace = expandButtons.length > 0 ? baseIconSize * 0.3 : 0;
-        const menuWidth = Math.max(...widths, baseIconSize) + expandButtonSpace;
-
-        background.beginFill(COLORS.MENU_BACKGROUND, COLORS.MENU_BACKGROUND_ALPHA);
-        background.lineStyle(1, COLORS.MENU_BORDER);
-        background.drawRoundedRect(-menuWidth/2, 0, menuWidth, menuHeight, UI.MENU_CORNER_RADIUS);
-        background.endFill();
-        this.container.addChild(background);
-
-        let yOffset = 0;
-        let sectionIndex = 0;
-        let expandButtonIndex = 0;
-
-        for (const section of sections) {
-            if (section.length > 0) {
-                for (let i = 0; i < section.length; i++) {
-                    const weapon = section[i];
-                    const weaponContainer = await this._createWeaponIconWithSection(
-                        weapon, i, section.length, itemsPerRow, menuWidth,
-                        baseIconSize, iconRadius, spriteSize, fontSize, yOffset
-                    );
-                    this.container.addChild(weaponContainer);
-                    this.weaponContainers.push(weaponContainer);
-                }
-
-                const sectionRows = Math.ceil(section.length / itemsPerRow);
-                yOffset += sectionRows * baseIconSize;
-
-                // Check if there's an expand button for this section
-                if (expandButtonIndex < expandButtons.length) {
-                    const expandButton = expandButtons[expandButtonIndex];
-                    // Check if this button belongs to the current section
-                    const sectionType = section[0]?.type; // Get type from first item in section
-                    const buttonBelongsToSection = 
-                        (sectionType === "weapon" && expandButton.section === "weapons") ||
-                        (sectionType === "power" && expandButton.section === "powers");
-                    
-                    debug(`Checking expand button for section ${sectionIndex}:`, {
-                        expandButton,
-                        sectionType,
-                        buttonBelongsToSection,
-                        sectionItems: section.length,
-                        expandButtonIndex
-                    });
-                    
-                    if (buttonBelongsToSection) {
-                        const buttonContainer = this._createExpandButton(
-                            expandButton.section,
-                            expandButton.expanded,
-                            menuWidth,
-                            yOffset - baseIconSize / 2,
-                            baseIconSize
-                        );
-                        
-                        // Position on the right side with reduced spacing
-                        buttonContainer.x = menuWidth / 2 - baseIconSize * 0.2;  // Reduced from 0.3 to take less space
-                        // Position on the last row of items
-                        const lastRowIndex = Math.floor((section.length - 1) / itemsPerRow);
-                        const currentSectionYOffset = yOffset - (sectionRows * baseIconSize);
-                        buttonContainer.y = currentSectionYOffset + (lastRowIndex * baseIconSize) + (baseIconSize / 2);
-                        
-                        this.container.addChild(buttonContainer);
-                        this.expandButtons.set(expandButton.section, buttonContainer);
-                        expandButtonIndex++;
-                    }
-                }
-
-                if (sectionIndex < sections.length - 1) {
-                    const separatorContainer = this._createSeparator(
-                        { type: "separator" }, menuWidth, yOffset, sepHeight
-                    );
-                    this.container.addChild(separatorContainer);
-                    yOffset += sepHeight;
-                }
-
-                sectionIndex++;
-            }
-        }
+        // Clear expand buttons before rebuild
+        this.expandButtons.clear();
         
-        // Handle any remaining expand buttons (e.g., powers-only case)
-        while (expandButtonIndex < expandButtons.length) {
-            const expandButton = expandButtons[expandButtonIndex];
-            debug(`Processing remaining expand button in update:`, expandButton);
-            
-            const buttonContainer = this._createExpandButton(
-                expandButton.section,
-                expandButton.expanded,
-                menuWidth,
-                yOffset - baseIconSize / 2,
-                baseIconSize
-            );
-            
-            // Position on the right side
-            buttonContainer.x = menuWidth / 2 - baseIconSize * 0.2;
-            // Position at the current yOffset
-            buttonContainer.y = yOffset - baseIconSize / 2;
-            
-            this.container.addChild(buttonContainer);
-            this.expandButtons.set(expandButton.section, buttonContainer);
-            expandButtonIndex++;
-        }
+        // Use the menu builder to rebuild the menu
+        const { weaponContainers } = this.menuBuilder.buildMenu(
+            this.container, 
+            this.weapons, 
+            this.expandButtons,
+            {
+                itemMetadata: this.itemMetadata,
+                onWeaponHover: (container, event) => this._setupWeaponEvents(container, container.getChildByName('background'), this.menuBuilder.iconRadius),
+                onExpandClick: (section) => this._handleExpandToggle(section)
+            }
+        );
+        
+        this.weaponContainers = weaponContainers;
+        
+        // Set up events for all weapon containers
+        this.weaponContainers.forEach(container => {
+            this._setupWeaponEvents(container, container.getChildByName('background'), this.menuBuilder.iconRadius);
+        });
+        
+        // Set up events for expand buttons
+        this.expandButtons.forEach((button, section) => {
+            this._setupExpandButtonEvents(button);
+        });
     }
 }
