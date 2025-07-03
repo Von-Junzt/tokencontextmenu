@@ -398,9 +398,9 @@ export class WeaponMenuBuilder {
         const badge = new PIXI.Container();
         const badgeRadius = iconRadius * EQUIP_STATUS.BADGE.SIZE_RATIO;
         
-        // Position badge at top-right corner (moved inward to avoid menu overlap)
-        badge.x = iconRadius - badgeRadius * 1.2;  // Moved more toward center
-        badge.y = -iconRadius + badgeRadius * 1.2;
+        // Position badge at top-right corner (overlapping icon edge)
+        badge.x = iconRadius - badgeRadius * 0.8;  // Closer to edge, but not overlapping menu
+        badge.y = -iconRadius + badgeRadius * 0.8;
         
         // Load icon as sprite (no background)
         const iconPath = EQUIP_STATUS.ICON_PATHS[equipStatus];
@@ -443,9 +443,9 @@ export class WeaponMenuBuilder {
         const badge = new PIXI.Container();
         const badgeRadius = iconRadius * POWER_STATUS.BADGE.SIZE_RATIO;
         
-        // Position badge at top-right corner (moved inward to avoid menu overlap)
-        badge.x = iconRadius - badgeRadius * 1.2;  // Moved more toward center
-        badge.y = -iconRadius + badgeRadius * 1.2;
+        // Position badge at top-right corner (overlapping icon edge)
+        badge.x = iconRadius - badgeRadius * 0.8;  // Closer to edge, but not overlapping menu
+        badge.y = -iconRadius + badgeRadius * 0.8;
         
         // Load star icon as sprite
         const iconPath = isFavorited ? 
