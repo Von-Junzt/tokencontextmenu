@@ -4,7 +4,7 @@
  */
 
 import { debug, debugWarn } from "../utils/debug.js";
-import { WEAPON_PRIORITY } from "../utils/constants.js";
+import { WEAPON_PRIORITY, EQUIP_STATUS } from "../utils/constants.js";
 
 /**
  * Handles equipment mode operations and business logic
@@ -109,12 +109,18 @@ class EquipmentModeHandler {
      * @returns {string}
      */
     getEquipmentTooltip(metadata) {
-        if (metadata?.isCarried) {
+        // In equipment mode with badges, no tooltip needed - badges are self-explanatory
+        if (metadata?.showBadge && metadata?.equipStatus !== undefined) {
+            return "";
+        }
+        // Legacy tooltips for non-equipment mode
+        else if (metadata?.isCarried) {
             return " [Carried - Click to equip]";
         } else if (metadata?.isStored) {
             return " [Stored Template - Click to carry]";
         } else if (metadata?.isUnfavorited) {
-            return " [Click to favorite]";
+            // No tooltip for unfavorited powers - visual styling is enough
+            return "";
         }
         return "";
     }
@@ -138,6 +144,31 @@ class EquipmentModeHandler {
         if (!actor) return false;
         const state = this.actorStates.get(actor);
         return state?.enabled || false;
+    }
+
+    /**
+     * Cycles through valid equipment statuses for a weapon
+     * @param {Item} weapon - The weapon item
+     * @returns {number} The next equipment status in the cycle
+     */
+    cycleEquipmentStatus(weapon) {
+        if (!weapon?.system) {
+            debugWarn("Invalid weapon for cycling equipment status", weapon);
+            return 0;
+        }
+
+        const current = weapon.system.equipStatus;
+        const hasTemplateAOE = this.hasTemplateAOE(weapon);
+        
+        if (hasTemplateAOE) {
+            // Template weapons: toggle between stored (0) and carried (1) only
+            return current === 0 ? 1 : 0;
+        }
+        
+        // Normal weapons: cycle through all valid states
+        const currentIndex = EQUIP_STATUS.CYCLE_ORDER.indexOf(current);
+        const nextIndex = (currentIndex + 1) % EQUIP_STATUS.CYCLE_ORDER.length;
+        return EQUIP_STATUS.CYCLE_ORDER[nextIndex];
     }
 }
 

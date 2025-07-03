@@ -177,6 +177,41 @@ export function getWeaponSortPriority(item) {
 }
 
 /**
+ * Gets the sort priority for items in equipment mode
+ * Ignores equipment/favorite status to maintain consistent positioning
+ * @param {Item} item - The item to get priority for
+ * @returns {number} Sort priority value
+ */
+export function getItemSortPriorityEquipmentMode(item) {
+    if (item.type === 'power') {
+        // All powers get same priority, will be sorted alphabetically
+        return WEAPON_PRIORITY.POWER;
+    }
+
+    if (item.type === 'weapon') {
+        const weaponName = item.name.toLowerCase();
+
+        // Check for special weapon types - they go to the end
+        if (WEAPON_PRIORITY.SPECIAL_WEAPONS.some(special => weaponName.includes(special))) {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.SPECIAL;
+        }
+
+        // Check if it's a template weapon
+        const hasTemplateAOE = item.system?.templates &&
+            Object.values(item.system.templates).some(v => v === true);
+
+        // Return type group only, no equipment status consideration
+        if (hasTemplateAOE) {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.TEMPLATE;
+        } else {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.NORMAL;
+        }
+    }
+
+    return WEAPON_PRIORITY.OTHER;
+}
+
+/**
  * Sets up click handlers for target selection with enhanced state coordination
  * @param {Object} pendingData - The pending weapon roll data
  * @param {Function} onTargetSelected - Callback when target is selected

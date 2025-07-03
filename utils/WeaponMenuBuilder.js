@@ -4,7 +4,7 @@
  */
 
 import { debug, debugWarn } from "./debug.js";
-import { COLORS, SIZES, UI } from "./constants.js";
+import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS } from "./constants.js";
 import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow } from "../settings/settings.js";
 
 /**
@@ -243,6 +243,29 @@ export class WeaponMenuBuilder {
 
         // Load sprite or create fallback
         this._loadWeaponSprite(weapon, weaponContainer, options.itemMetadata);
+        
+        // Add equipment status badge if in equipment mode and it's a weapon
+        // Store badge info for later addition after sprite loads
+        if (options.itemMetadata) {
+            const metadata = options.itemMetadata.get(weapon.id);
+            
+            // Handle weapon badges
+            if (weapon.type === "weapon" && metadata?.showBadge && metadata?.equipStatus !== undefined) {
+                weaponContainer._badgeInfo = {
+                    type: 'weapon',
+                    equipStatus: metadata.equipStatus,
+                    iconRadius: this.iconRadius
+                };
+            }
+            // Handle power badges
+            else if (weapon.type === "power" && metadata?.showPowerBadge) {
+                weaponContainer._badgeInfo = {
+                    type: 'power',
+                    isFavorited: metadata.isFavorited,
+                    iconRadius: this.iconRadius
+                };
+            }
+        }
 
         return weaponContainer;
     }
@@ -287,6 +310,21 @@ export class WeaponMenuBuilder {
     _loadWeaponSprite(weapon, container, itemMetadata) {
         if (!weapon.img) {
             this._createFallbackText(weapon, container);
+            
+            // Add badge for items with no image
+            if (container._badgeInfo) {
+                const badge = container._badgeInfo.type === 'power' ?
+                    this._createPowerStatusBadge(
+                        container._badgeInfo.isFavorited,
+                        container._badgeInfo.iconRadius
+                    ) :
+                    this._createEquipStatusBadge(
+                        container._badgeInfo.equipStatus, 
+                        container._badgeInfo.iconRadius
+                    );
+                container.addChild(badge);
+                delete container._badgeInfo;  // Clean up
+            }
             return;
         }
 
@@ -313,18 +351,133 @@ export class WeaponMenuBuilder {
 
             container.addChild(spriteMask);
             container.addChild(sprite);
+            
+            // Add badge after sprite is loaded (if needed)
+            if (container._badgeInfo) {
+                const badge = container._badgeInfo.type === 'power' ?
+                    this._createPowerStatusBadge(
+                        container._badgeInfo.isFavorited,
+                        container._badgeInfo.iconRadius
+                    ) :
+                    this._createEquipStatusBadge(
+                        container._badgeInfo.equipStatus, 
+                        container._badgeInfo.iconRadius
+                    );
+                container.addChild(badge);
+                delete container._badgeInfo;  // Clean up
+            }
         }).catch(error => {
             debugWarn(`Failed to load weapon texture for ${weapon.name}:`, error);
             this._createFallbackText(weapon, container);
+            
+            // Add badge even on fallback
+            if (container._badgeInfo) {
+                const badge = container._badgeInfo.type === 'power' ?
+                    this._createPowerStatusBadge(
+                        container._badgeInfo.isFavorited,
+                        container._badgeInfo.iconRadius
+                    ) :
+                    this._createEquipStatusBadge(
+                        container._badgeInfo.equipStatus, 
+                        container._badgeInfo.iconRadius
+                    );
+                container.addChild(badge);
+                delete container._badgeInfo;  // Clean up
+            }
         });
     }
 
     /**
-     * Creates fallback text when sprite can't load
-     * @param {Object} weapon
-     * @param {PIXI.Container} container
+     * Creates an equipment status badge for weapons
+     * @param {number} equipStatus - The equipment status value
+     * @param {number} iconRadius - The icon radius for sizing
+     * @returns {PIXI.Container} The badge container
      * @private
      */
+    _createEquipStatusBadge(equipStatus, iconRadius) {
+        const badge = new PIXI.Container();
+        const badgeRadius = iconRadius * EQUIP_STATUS.BADGE.SIZE_RATIO;
+        
+        // Position badge at top-right corner (moved inward to avoid menu overlap)
+        badge.x = iconRadius - badgeRadius * 1.2;  // Moved more toward center
+        badge.y = -iconRadius + badgeRadius * 1.2;
+        
+        // Load icon as sprite (no background)
+        const iconPath = EQUIP_STATUS.ICON_PATHS[equipStatus];
+        if (iconPath) {
+            const iconTexture = PIXI.Texture.from(iconPath);
+            const icon = new PIXI.Sprite(iconTexture);
+            
+            // Make icon larger without background
+            const iconSize = badgeRadius * 3.0;  // Increased size for better visibility
+            icon.width = iconSize;
+            icon.height = iconSize;
+            icon.anchor.set(0.5);
+            
+            // No tint - use icon's original colors
+            // icon.tint = EQUIP_STATUS.BADGE.ICON_COLOR;  // Commented out
+            
+            badge.addChild(icon);
+        } else {
+            // Fallback to text if no icon available
+            const fallback = new PIXI.Text('?', {
+                fontFamily: 'Arial',
+                fontSize: badgeRadius * 1.5,
+                fill: EQUIP_STATUS.BADGE.ICON_COLOR,
+                fontWeight: 'bold'
+            });
+            fallback.anchor.set(0.5);
+            badge.addChild(fallback);
+        }
+        
+        return badge;
+    }
+
+    /**
+     * Creates a favorite status badge for powers
+     * @param {boolean} isFavorited - Whether the power is favorited
+     * @param {number} iconRadius - Radius of the weapon icon for positioning
+     * @returns {PIXI.Container} The badge container
+     */
+    _createPowerStatusBadge(isFavorited, iconRadius) {
+        const badge = new PIXI.Container();
+        const badgeRadius = iconRadius * POWER_STATUS.BADGE.SIZE_RATIO;
+        
+        // Position badge at top-right corner (moved inward to avoid menu overlap)
+        badge.x = iconRadius - badgeRadius * 1.2;  // Moved more toward center
+        badge.y = -iconRadius + badgeRadius * 1.2;
+        
+        // Load star icon as sprite
+        const iconPath = isFavorited ? 
+            POWER_STATUS.ICON_PATHS.FAVORITED : 
+            POWER_STATUS.ICON_PATHS.UNFAVORITED;
+            
+        if (iconPath) {
+            const iconTexture = PIXI.Texture.from(iconPath);
+            const icon = new PIXI.Sprite(iconTexture);
+            
+            // Make icon larger without background (same as equipment badges)
+            const iconSize = badgeRadius * 3.0;  // Increased size for better visibility
+            icon.width = iconSize;
+            icon.height = iconSize;
+            icon.anchor.set(0.5);
+            
+            badge.addChild(icon);
+        } else {
+            // Fallback to text if no icon available
+            const fallback = new PIXI.Text(isFavorited ? '★' : '☆', {
+                fontFamily: 'Arial',
+                fontSize: badgeRadius * 1.5,
+                fill: POWER_STATUS.BADGE.ICON_COLOR,
+                fontWeight: 'bold'
+            });
+            fallback.anchor.set(0.5);
+            badge.addChild(fallback);
+        }
+        
+        return badge;
+    }
+
     _createFallbackText(weapon, container) {
         const fallbackText = new PIXI.Text(weapon.name.charAt(0), {
             fontSize: this.fontSize,

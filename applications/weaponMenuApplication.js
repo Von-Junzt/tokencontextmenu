@@ -335,28 +335,12 @@ export class WeaponMenuApplication {
                 return;
             }
             
-            // Use equipment mode handler to determine operations
-            const operations = equipmentModeHandler.getWeaponUpdateOperations(weapon);
+            // Use cycling logic for equipment mode
+            const newStatus = equipmentModeHandler.cycleEquipmentStatus(weapon);
+            debug(`Cycling weapon ${weapon.name} from status ${weapon.system.equipStatus} to ${newStatus}`);
             
-            if (operations) {
-                debug(operations.description);
-                
-                if (operations.useHandler) {
-                    // Normal weapons use existing handlers
-                    if (weapon.system.equipStatus > 1) {
-                        const { handleWeaponUnequip } = await import("../utils/weaponHandlers.js");
-                        await handleWeaponUnequip(this.token.actor, weaponId);
-                    } else {
-                        const { handleWeaponEquip } = await import("../utils/weaponHandlers.js");
-                        await handleWeaponEquip(this.token.actor, weaponId);
-                    }
-                } else {
-                    // Special and template weapons use direct updates
-                    await weapon.update(operations.update);
-                }
-                
-                await this._updateMenuDisplay(); // Refresh the menu
-            }
+            await weapon.update({ "system.equipStatus": newStatus });
+            await this._updateMenuDisplay(); // Refresh the menu
             return;
         }
         

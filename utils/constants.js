@@ -117,3 +117,73 @@ export const WEAPON_PRIORITY = {
     DEFAULT: 50,              // Default priority
     OTHER: 100                // Other items
 };
+
+/**
+ * Power favorite status constants
+ */
+export const POWER_STATUS = {
+    // Icon file paths for power badges
+    ICON_PATHS: {
+        FAVORITED: 'modules/tokencontextmenu/icons/equipment/star-solid.png',
+        UNFAVORITED: 'modules/tokencontextmenu/icons/equipment/star-regular.png'
+    },
+    
+    // Badge styling (uses same as EQUIP_STATUS for consistency)
+    BADGE: {
+        SIZE_RATIO: 0.3,          // Badge size relative to icon radius
+        BG_COLOR: 0x000000,       // Badge background color
+        BG_ALPHA: 0.7,            // Badge background opacity
+        ICON_COLOR: 0xFFFFFF      // Badge icon color
+    }
+};
+
+/**
+ * Equipment status constants for SWADE system
+ */
+export const EQUIP_STATUS = {
+    // Status values (reuse from WEAPON_PRIORITY)
+    STORED: 0,
+    CARRIED: 1,
+    OFF_HAND: 2,
+    MAIN_HAND: 4,
+    TWO_HANDED: 5,
+    
+    // Font Awesome icons for each status
+    ICONS: {
+        0: 'fas fa-archive',      // Stored in backpack/storage
+        1: 'fas fa-toolbox',      // Carried but not equipped
+        2: 'fas fa-hand-paper',   // Equipped in off-hand
+        4: 'fas fa-fist-raised',  // Equipped in main hand
+        5: 'fas fa-hands'         // Equipped with both hands
+    },
+    
+    // Font Awesome Unicode characters for PIXI rendering (kept for reference)
+    FA_UNICODE: {
+        0: '\uf187',  // fa-archive
+        1: '\uf552',  // fa-toolbox
+        2: '\uf256',  // fa-hand-paper
+        4: '\uf6de',  // fa-fist-raised
+        5: '\uf2b5'   // fa-hands
+    },
+    
+    // Icon file paths for equipment status badges
+    ICON_PATHS: {
+        0: 'modules/tokencontextmenu/icons/equipment/stored.png',
+        1: 'modules/tokencontextmenu/icons/equipment/carried.png',
+        2: 'modules/tokencontextmenu/icons/equipment/offhand.png',
+        4: 'modules/tokencontextmenu/icons/equipment/mainhand.png',
+        5: 'modules/tokencontextmenu/icons/equipment/twohanded.png'
+    },
+    
+    // Valid cycle order for equipment status
+    CYCLE_ORDER: [0, 1, 2, 4, 5],
+    
+    // Badge styling
+    BADGE: {
+        SIZE_RATIO: 0.3,          // Badge size relative to icon radius
+        BG_COLOR: 0x000000,       // Badge background color
+        BG_ALPHA: 0.7,            // Badge background opacity
+        ICON_COLOR: 0xFFFFFF,     // Badge icon color
+        FONT_SIZE_RATIO: 0.4      // Font size relative to icon radius
+    }
+};

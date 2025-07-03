@@ -3,7 +3,7 @@
  * @description Handles the creation and display of the weapon menu UI
  */
 
-import {getWeaponSortPriority, emergencyCleanupTargeting} from "./interactionLayerUtils.js";
+import {getWeaponSortPriority, getItemSortPriorityEquipmentMode, emergencyCleanupTargeting} from "./interactionLayerUtils.js";
 import {WeaponMenuApplication} from "../applications/weaponMenuApplication.js";
 import {weaponSystemCoordinator} from "../managers/WeaponSystemCoordinator.js";
 import {targetingSessionManager} from "../managers/TargetingSessionManager.js";
@@ -24,69 +24,87 @@ export function getMenuItems(token, options = {}) {
     const { expandWeapons = false, expandPowers = false } = options;
     const metadata = new Map();
 
-    // Filter for equipped weapons
-    const equippedWeapons = token.actor.items.filter(i =>
-        (i.type === "weapon" &&
-            (
-                [5, 4, 2].includes(i.system.equipStatus) ||
-                (i.system.equipStatus === 1 && Object.values(i.system.templates).some(v => v === true))
-            )
-            && i.system.equipStatus !== 0
-        )
-    );
-
-    // Get carried and stored weapons if expanded
-    const carriedWeapons = expandWeapons ? 
-        token.actor.items.filter(i => {
-            if (i.type !== "weapon") return false;
+    // Get weapons based on equipment mode
+    let weapons;
+    if (expandWeapons) {
+        // Equipment mode: Show ALL weapons
+        weapons = token.actor.items.filter(i => i.type === "weapon");
+        
+        // Mark equipment status in metadata for badges and coloring
+        weapons.forEach(w => {
+            const metadataObj = { 
+                equipStatus: w.system.equipStatus,
+                showBadge: true  // Show badge in equipment mode
+            };
             
-            // Exclude any weapon that's already in the equipped weapons list
-            if (equippedWeapons.some(eq => eq.id === i.id)) return false;
+            // Determine if this weapon would be visible in normal mode
+            const isEquipped = [2, 4, 5].includes(w.system.equipStatus);
+            const hasTemplate = w.system.templates && 
+                Object.values(w.system.templates).some(v => v === true);
+            const isCarriedTemplate = w.system.equipStatus === 1 && hasTemplate;
             
-            // Include carried weapons (status 1)
-            if (i.system.equipStatus === 1) {
-                return true;
+            // Mark items that would NOT be visible in normal mode for grey coloring
+            if (!isEquipped && !isCarriedTemplate) {
+                // This includes: stored items (0), carried non-templates (1)
+                metadataObj.isStored = true;  // Using isStored for grey coloring
             }
             
-            // Include stored template weapons (status 0 with templates)
-            if (i.system.equipStatus === 0 && 
-                i.system.templates && 
-                Object.values(i.system.templates).some(v => v === true)) {
-                return true;
+            metadata.set(w.id, metadataObj);
+        });
+    } else {
+        // Normal mode: Show equipped weapons and carried template weapons
+        weapons = token.actor.items.filter(i => {
+            if (i.type !== "weapon") return false;
+            
+            // Always show equipped weapons
+            if ([5, 4, 2].includes(i.system.equipStatus)) return true;
+            
+            // Show carried (status 1) template weapons only
+            if (i.system.equipStatus === 1) {
+                const hasTemplate = i.system.templates && 
+                    Object.values(i.system.templates).some(v => v === true);
+                return hasTemplate;
             }
             
             return false;
-        }) : [];
+        });
+    }
 
-    // Mark carried/stored weapons in metadata
-    carriedWeapons.forEach(w => {
-        if (w.system.equipStatus === 1) {
-            metadata.set(w.id, { isCarried: true });
-        } else if (w.system.equipStatus === 0) {
-            metadata.set(w.id, { isStored: true });
-        }
-    });
-
-    // Get favorited powers
-    const favoritedPowers = token.actor.items.filter(i =>
-        i.type === "power" && i.system.favorite === true
-    );
-
-    // Get unfavorited powers if expanded
-    const unfavoritedPowers = expandPowers ?
-        token.actor.items.filter(i => 
-            i.type === "power" && 
-            i.system.favorite !== true
-        ) : [];
-
-    // Mark unfavorited powers in metadata
-    unfavoritedPowers.forEach(p => metadata.set(p.id, { isUnfavorited: true }));
+    // Get powers based on expansion state
+    let powers;
+    if (expandPowers) {
+        // Equipment mode: Get ALL powers
+        powers = token.actor.items.filter(i => i.type === "power");
+        
+        // Mark powers with metadata for badges and grey coloring
+        powers.forEach(p => {
+            const metadataObj = {};
+            if (p.system.favorite !== true) {
+                metadataObj.isUnfavorited = true;
+            }
+            // Add badge info for equipment mode
+            if (expandPowers) {
+                metadataObj.showPowerBadge = true;
+                metadataObj.isFavorited = p.system.favorite === true;
+            }
+            if (Object.keys(metadataObj).length > 0) {
+                metadata.set(p.id, metadataObj);
+            }
+        });
+    } else {
+        // Normal mode: Only favorited powers
+        powers = token.actor.items.filter(i =>
+            i.type === "power" && i.system.favorite === true
+        );
+    }
 
     // Sort all item arrays
-    const sortItems = (items) => {
+    const sortItems = (items, useEquipmentModeSort = false) => {
         items.sort((a, b) => {
-            const priorityA = getWeaponSortPriority(a);
-            const priorityB = getWeaponSortPriority(b);
+            const priorityA = useEquipmentModeSort ? 
+                getItemSortPriorityEquipmentMode(a) : getWeaponSortPriority(a);
+            const priorityB = useEquipmentModeSort ? 
+                getItemSortPriorityEquipmentMode(b) : getWeaponSortPriority(b);
             if (priorityA !== priorityB) {
                 return priorityA - priorityB;
             }
@@ -94,31 +112,24 @@ export function getMenuItems(token, options = {}) {
         });
     };
 
-    sortItems(equippedWeapons);
-    sortItems(carriedWeapons);
-    favoritedPowers.sort((a, b) => a.name.localeCompare(b.name));
-    unfavoritedPowers.sort((a, b) => a.name.localeCompare(b.name));
+    // Use equipment mode sorting when in equipment mode
+    sortItems(weapons, expandWeapons);
+    
+    // Powers always sort alphabetically
+    powers.sort((a, b) => a.name.localeCompare(b.name));
 
     // Build result array
     const result = [];
 
-    // Add equipped weapons
-    result.push(...equippedWeapons);
+    // Add weapons
+    result.push(...weapons);
 
-    // Add carried weapons section if expanded
-    if (expandWeapons && carriedWeapons.length > 0) {
-        result.push(...carriedWeapons);
-    }
-
-    // Track if we have any expandable items
-    const hasWeapons = equippedWeapons.length > 0 || carriedWeapons.length > 0;
-    const totalWeapons = token.actor.items.filter(i => 
-        i.type === "weapon" && 
-        i.system.equipStatus !== 0
-    ).length;
+    // Track if we have any items
+    const hasWeapons = weapons.length > 0;
+    const totalWeapons = token.actor.items.filter(i => i.type === "weapon").length;
 
     // Add powers section
-    const hasPowers = favoritedPowers.length > 0 || unfavoritedPowers.length > 0;
+    const hasPowers = powers.length > 0;
     const totalPowers = token.actor.items.filter(i => i.type === "power").length;
     
     if (hasPowers) {
@@ -130,12 +141,7 @@ export function getMenuItems(token, options = {}) {
             });
         }
         
-        result.push(...favoritedPowers);
-        
-        // Add unfavorited powers if expanded
-        if (expandPowers && unfavoritedPowers.length > 0) {
-            result.push(...unfavoritedPowers);
-        }
+        result.push(...powers);
     }
     
     // Add single equipment mode toggle button if there are any items
