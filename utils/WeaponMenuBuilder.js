@@ -5,7 +5,7 @@
 
 import { debug, debugWarn } from "./debug.js";
 import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS } from "./constants.js";
-import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow } from "../settings/settings.js";
+import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, getEquipmentBadgeColor } from "../settings/settings.js";
 
 /**
  * Builds PIXI menu structures for weapon menus
@@ -414,8 +414,13 @@ export class WeaponMenuBuilder {
             icon.height = iconSize;
             icon.anchor.set(0.5);
             
-            // No tint - use icon's original colors
-            // icon.tint = EQUIP_STATUS.BADGE.ICON_COLOR;  // Commented out
+            // Apply user-selected color tint
+            const badgeColor = getEquipmentBadgeColor();
+            if (badgeColor) {
+                const tintValue = parseInt(badgeColor.replace("#", ""), 16);
+                icon.tint = tintValue;
+                debug("Applied equipment badge tint", { color: badgeColor, tint: tintValue });
+            }
             
             badge.addChild(icon);
         } else {
@@ -461,6 +466,14 @@ export class WeaponMenuBuilder {
             icon.width = iconSize;
             icon.height = iconSize;
             icon.anchor.set(0.5);
+            
+            // Apply user-selected color tint
+            const badgeColor = getEquipmentBadgeColor();
+            if (badgeColor) {
+                const tintValue = parseInt(badgeColor.replace("#", ""), 16);
+                icon.tint = tintValue;
+                debug("Applied power badge tint", { color: badgeColor, tint: tintValue });
+            }
             
             badge.addChild(icon);
         } else {

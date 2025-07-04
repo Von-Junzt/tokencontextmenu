@@ -18,7 +18,9 @@
             "ExpandWeaponsByDefault": "Expand Weapons by Default",
             "ExpandWeaponsByDefaultHint": "Show carried (unequipped) weapons by default when the weapon menu opens.",
             "ExpandPowersByDefault": "Expand Powers by Default", 
-            "ExpandPowersByDefaultHint": "Show unfavorited powers by default when the weapon menu opens."
+            "ExpandPowersByDefaultHint": "Show unfavorited powers by default when the weapon menu opens.",
+            "EquipmentBadgeColor": "Equipment Badge Color",
+            "EquipmentBadgeColorHint": "Color for the equipment status and power favorite badges. Click to open color picker."
         }
     }
 }

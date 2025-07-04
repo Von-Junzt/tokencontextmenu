@@ -5,7 +5,7 @@
 
 import { CleanupManager } from "./CleanupManager.js";
 import { debug, debugWarn } from "../utils/debug.js";
-import { Z_INDEX } from "../utils/constants.js";
+import { Z_INDEX, EQUIP_STATUS } from "../utils/constants.js";
 
 /**
  * Manages tooltips for the weapon menu
@@ -122,24 +122,39 @@ class WeaponMenuTooltipManager extends CleanupManager {
             content += ` (${weapon.system.currentShots}/${weapon.system.shots})`;
         }
 
+        // Build tooltip HTML
+        let tooltipHtml = '';
+        
         // Add detailed stats if enabled
         if (showDetailed && weapon.system && (weapon.type === "weapon" || weapon.type === "power")) {
             const statLines = this._buildStatLines(weapon);
             
             if (statLines.length > 0) {
-                content = `<div class="tokencontextmenu-weapon-tooltip">
+                tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
                     <div class="tooltip-header">${content}</div>
                     <hr class="tooltip-separator">
-                    ${statLines.map(line => `<div class="tooltip-stat">${line}</div>`).join('')}
-                    <hr class="tooltip-separator">
-                </div>`;
+                    ${statLines.map(line => `<div class="tooltip-stat">${line}</div>`).join('')}`;
             } else {
-                content = `<div class="tokencontextmenu-weapon-tooltip">${content}</div>`;
+                tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
+                    <div class="tooltip-header">${content}</div>`;
             }
         } else {
             // Simple tooltip
-            content = `<div class="tokencontextmenu-weapon-tooltip">${content}</div>`;
+            tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
+                <div class="tooltip-header">${content}</div>`;
         }
+        
+        // Add equipment status for weapons
+        if (weapon.type === "weapon" && metadata?.equipStatus !== undefined) {
+            const statusLabel = EQUIP_STATUS.LABELS[metadata.equipStatus] || 'Unknown';
+            tooltipHtml += `
+                <hr class="tooltip-separator">
+                <div class="tooltip-stat">Equipment Status: ${statusLabel}</div>`;
+        }
+        
+        // Close the tooltip div
+        tooltipHtml += '</div>';
+        content = tooltipHtml;
 
         return content;
     }

@@ -16,6 +16,16 @@ All notable changes to this project will be documented in this file.
   - Menu no longer opens when clicking and immediately dragging an unselected token
   - Added 150ms delay to distinguish between clicks and drags
   - Preserves existing toggle behavior for already-selected tokens
+- **Equipment Badge Color Customization** - Added color picker setting for equipment badges
+  - New module setting allows players to customize badge colors
+  - Native HTML5 color picker integration
+  - Live preview - badges update immediately when color changes
+  - Applies to both equipment status badges and power favorite stars
+- **Equipment Status in Tooltips** - Added textual equipment status to weapon tooltips
+  - Shows current equipment status (Stored, Carried, Off-Hand, Main Hand, Two-Handed)
+  - Appears below separator line in tooltip for better readability
+  - Provides accessibility for color-blind users
+  - Complements visual badge indicators
 
 ### Changed
 - **Foundry Compatibility** - Updated to v12.331 (stable)

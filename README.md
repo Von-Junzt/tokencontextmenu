@@ -26,6 +26,10 @@ A Foundry VTT module that adds a quick-access context menu for weapons and power
 - **Hover Effects**: Visual feedback when hovering over weapons
 - **Detailed Tooltips**: Optional detailed weapon stats on hover (damage, range, AP, etc.)
 - **Ammo Display**: Shows current/max ammunition for ranged weapons
+- **Equipment Mode**: Expand button shows all weapons/powers with visual badges
+- **Status Badges**: Visual indicators for equipment status and power favorites
+- **Customizable Colors**: Player-configurable badge colors with color picker
+- **Accessibility**: Equipment status shown in tooltips for color-blind users
 
 ### ⚡ Smart Workflow
 - **Intelligent Targeting**: 
@@ -112,11 +116,14 @@ Access module settings through Foundry's module configuration:
 |---------|---------|--------------------------------------------|
 | Show on Selection | On | Auto-show menu when selecting owned tokens |
 | Reopen After Drag | On | Reopen menu after dragging tokens          |
-| Items Per Row | 8 | Number of weapons per row (1-8)            |
+| Items Per Row | 4 | Number of weapons per row (2-8)            |
 | Icon Scale | 0.5 | Icon size relative to grid (0.3-1.2)       |
 | Detailed Tooltips | On | Show weapon stats in tooltips              |
-| Auto-Remove Targets | Off | Clear targets when selecting weapons       |
-| Hide Target Button | Off | Remove target button from token HUD        |
+| Auto-Remove Targets | On | Clear targets when selecting weapons       |
+| Expand Weapons by Default | Off | Show carried weapons when menu opens |
+| Expand Powers by Default | Off | Show unfavorited powers when menu opens |
+| Equipment Badge Color | #00C4FF | Color for equipment and power badges |
+| Debug Mode | Off | Enable diagnostic logging |
 
 ## Troubleshooting
 

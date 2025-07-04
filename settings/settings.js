@@ -3,6 +3,8 @@
  * @description Defines all user-configurable settings for the token context menu.
  * Settings are client-scoped (per-user) to allow individual preferences.
  */
+import { debug } from "../utils/debug.js";
+
 export function registerSettings() {
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
         name: game.i18n.localize("tokencontextmenu.Settings.AutoRemoveTargets"),
@@ -110,6 +112,29 @@ export function registerSettings() {
         default: false,
         requiresReload: false
     });
+    
+    // Equipment badge color setting
+    game.settings.register("tokencontextmenu", "equipmentBadgeColor", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeColor"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeColorHint"),
+        scope: "client",     // Per-client setting
+        config: true,        // Shows in configuration menu
+        type: String,
+        default: "#00c4ff",  // default color
+        requiresReload: false,
+        onChange: (value) => {
+            debug("Equipment badge color changed", { newColor: value });
+            
+            // Get the coordinator instance properly
+            if (window.tokencontextmenu?.weaponSystemCoordinator) {
+                const menuApp = window.tokencontextmenu.weaponSystemCoordinator.getMenuApp();
+                if (menuApp?.rendered) {
+                    debug("Refreshing menu display for color change");
+                    menuApp._updateMenuDisplay();
+                }
+            }
+        }
+    });
 }
 
 /**
@@ -184,3 +209,48 @@ export function isDebugEnabled() {
     
     return game.settings.get("tokencontextmenu", "debugMode");
 }
+
+/**
+ * Get the equipment badge color
+ * @returns {string} Hex color string for badge tinting
+ */
+export function getEquipmentBadgeColor() {
+    if (typeof game === 'undefined' || !game.ready) return "#FFA500";
+    return game.settings.get("tokencontextmenu", "equipmentBadgeColor");
+}
+
+/**
+ * Hook to add color picker UI to settings
+ * Uses Foundry's native HTML5 color input
+ */
+Hooks.on("renderSettingsConfig", (app, html, data) => {
+    // Find our color setting input
+    const colorInput = html.find('input[name="tokencontextmenu.equipmentBadgeColor"]');
+    if (colorInput.length) {
+        // Get the current value
+        const currentValue = colorInput.val();
+        
+        // Create a color input element using HTML5 native color picker
+        const colorPicker = $(`<input type="color" value="${currentValue}" style="height: 28px; width: 50px; margin-left: 10px; cursor: pointer;">`);
+        
+        // Insert the color picker after the text input
+        colorInput.after(colorPicker);
+        
+        // Update both when color picker changes
+        colorPicker.on("change input", function() {
+            colorInput.val(this.value).trigger("change");
+        });
+        
+        // Update color picker when text input changes
+        colorInput.on("change input", function() {
+            const value = $(this).val();
+            // Validate hex color format
+            if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                colorPicker.val(value);
+            }
+        });
+        
+        // Make the text input wider to accommodate the color picker
+        colorInput.css("width", "calc(100% - 60px)");
+    }
+});

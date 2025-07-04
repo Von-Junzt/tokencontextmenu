@@ -178,6 +178,15 @@ export const EQUIP_STATUS = {
     // Valid cycle order for equipment status
     CYCLE_ORDER: [0, 1, 2, 4, 5],
     
+    // Human-readable labels for equipment status
+    LABELS: {
+        0: 'Stored',
+        1: 'Carried',
+        2: 'Off-Hand',
+        4: 'Main Hand',
+        5: 'Two-Handed'
+    },
+    
     // Badge styling
     BADGE: {
         SIZE_RATIO: 0.3,          // Badge size relative to icon radius
