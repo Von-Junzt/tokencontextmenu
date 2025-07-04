@@ -128,13 +128,7 @@ export const POWER_STATUS = {
         UNFAVORITED: 'modules/tokencontextmenu/icons/equipment/star-regular.png'
     },
     
-    // Badge styling (uses same as EQUIP_STATUS for consistency)
-    BADGE: {
-        SIZE_RATIO: 0.3,          // Badge size relative to icon radius
-        BG_COLOR: 0x000000,       // Badge background color
-        BG_ALPHA: 0.7,            // Badge background opacity
-        ICON_COLOR: 0xFFFFFF      // Badge icon color
-    }
+    // Note: Badge styling uses the shared BADGE constants below
 };
 
 /**
@@ -187,14 +181,7 @@ export const EQUIP_STATUS = {
         5: 'Two-Handed'
     },
     
-    // Badge styling
-    BADGE: {
-        SIZE_RATIO: 0.3,          // Badge size relative to icon radius
-        BG_COLOR: 0x000000,       // Badge background color
-        BG_ALPHA: 0.7,            // Badge background opacity
-        ICON_COLOR: 0xFFFFFF,     // Badge icon color
-        FONT_SIZE_RATIO: 0.4      // Font size relative to icon radius
-    }
+    // Note: Badge styling uses the shared BADGE constants below
 };
 
 /**
@@ -218,15 +205,23 @@ export const UI_ANIMATION = {
 };
 
 /**
- * Badge positioning and sizing constants
+ * Badge positioning and sizing constants (shared by equipment and power badges)
  */
 export const BADGE = {
     // Positioning
     POSITION_OFFSET_RATIO: 0.8,   // How far from edge (ratio of badge radius)
     
     // Sizing
+    SIZE_RATIO: 0.3,              // Badge size relative to icon radius
+    CIRCLE_SIZE_MULTIPLIER: 1.5,  // Circle size multiplier (1.0 = same as badge, 1.2 = 20% bigger)
     ICON_SIZE_MULTIPLIER: 3.0,    // Badge icon size relative to badge radius
     TEXT_SIZE_MULTIPLIER: 1.5,    // Fallback text size relative to badge radius
+    
+    // Styling
+    BG_COLOR: 0x000000,           // Badge background color (now unused - using user setting)
+    BG_ALPHA: 0.7,                // Badge background opacity
+    ICON_COLOR: 0xFFFFFF,         // Badge icon color (fallback text)
+    FONT_SIZE_RATIO: 0.4          // Font size relative to icon radius (fallback text)
 };
 
 /**

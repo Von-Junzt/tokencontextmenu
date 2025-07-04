@@ -5,7 +5,7 @@
 
 import { debug, debugWarn } from "./debug.js";
 import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS, UI_ANIMATION, BADGE, EXPAND_BUTTON, GRAPHICS, MATH, CONTAINER, HEX_COLOR } from "./constants.js";
-import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, getEquipmentBadgeColor } from "../settings/settings.js";
+import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, getEquipmentBadgeColor, getEquipmentBadgeBgColor } from "../settings/settings.js";
 
 /**
  * Builds PIXI menu structures for weapon menus
@@ -396,13 +396,25 @@ export class WeaponMenuBuilder {
      */
     _createEquipStatusBadge(equipStatus, iconRadius) {
         const badge = new PIXI.Container();
-        const badgeRadius = iconRadius * EQUIP_STATUS.BADGE.SIZE_RATIO;
+        const badgeRadius = iconRadius * BADGE.SIZE_RATIO;
         
         // Position badge at top-right corner (overlapping icon edge)
         badge.x = iconRadius - badgeRadius * BADGE.POSITION_OFFSET_RATIO;  // Closer to edge, but not overlapping menu
         badge.y = -iconRadius + badgeRadius * BADGE.POSITION_OFFSET_RATIO;
         
-        // Load icon as sprite (no background)
+        // Get user-selected background color
+        const bgColor = getEquipmentBadgeBgColor();
+        const bgTint = parseInt(bgColor.replace("#", ""), MATH.HEX_PARSE_BASE);
+        
+        // Create circular background
+        const bg = new PIXI.Graphics();
+        bg.beginFill(bgTint, BADGE.BG_ALPHA);
+        const circleRadius = badgeRadius * BADGE.CIRCLE_SIZE_MULTIPLIER;
+        bg.drawCircle(0, 0, circleRadius);
+        bg.endFill();
+        badge.addChild(bg);
+        
+        // Load icon as sprite
         const iconPath = EQUIP_STATUS.ICON_PATHS[equipStatus];
         if (iconPath) {
             const iconTexture = PIXI.Texture.from(iconPath);
@@ -446,11 +458,23 @@ export class WeaponMenuBuilder {
      */
     _createPowerStatusBadge(isFavorited, iconRadius) {
         const badge = new PIXI.Container();
-        const badgeRadius = iconRadius * POWER_STATUS.BADGE.SIZE_RATIO;
+        const badgeRadius = iconRadius * BADGE.SIZE_RATIO;
         
         // Position badge at top-right corner (overlapping icon edge)
         badge.x = iconRadius - badgeRadius * BADGE.POSITION_OFFSET_RATIO;  // Closer to edge, but not overlapping menu
         badge.y = -iconRadius + badgeRadius * BADGE.POSITION_OFFSET_RATIO;
+        
+        // Get user-selected background color
+        const bgColor = getEquipmentBadgeBgColor();
+        const bgTint = parseInt(bgColor.replace("#", ""), MATH.HEX_PARSE_BASE);
+        
+        // Create circular background
+        const bg = new PIXI.Graphics();
+        bg.beginFill(bgTint, BADGE.BG_ALPHA);
+        const circleRadius = badgeRadius * BADGE.CIRCLE_SIZE_MULTIPLIER;
+        bg.drawCircle(0, 0, circleRadius);
+        bg.endFill();
+        badge.addChild(bg);
         
         // Load star icon as sprite
         const iconPath = isFavorited ? 

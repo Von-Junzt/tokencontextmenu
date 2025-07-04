@@ -81,17 +81,7 @@ export function registerSettings() {
         },
         requiresReload: false
     });
-    
-    // Debug setting
-    game.settings.register("tokencontextmenu", "debugMode", {
-        name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
-        hint: game.i18n.localize("tokencontextmenu.Settings.DebugModeHint"),
-        scope: "client",
-        config: true,
-        type: Boolean,
-        default: false,
-        requiresReload: false
-    });
+
     // Equipment badge color setting
     game.settings.register("tokencontextmenu", "equipmentBadgeColor", {
         name: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeColor"),
@@ -99,7 +89,7 @@ export function registerSettings() {
         scope: "client",     // Per-client setting
         config: true,        // Shows in configuration menu
         type: String,
-        default: "#00c4ff",  // default color
+        default: "#000000",  // default color
         requiresReload: false,
         onChange: (value) => {
             debug("Equipment badge color changed", { newColor: value });
@@ -113,6 +103,40 @@ export function registerSettings() {
                 }
             }
         }
+    });
+    
+    // Equipment badge background color setting
+    game.settings.register("tokencontextmenu", "equipmentBadgeBgColor", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeBgColor"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeBgColorHint"),
+        scope: "client",     // Per-client setting
+        config: true,        // Shows in configuration menu
+        type: String,
+        default: "#70c8ff",  // Black default
+        requiresReload: false,
+        onChange: (value) => {
+            debug("Equipment badge background color changed", { newColor: value });
+            
+            // Get the coordinator instance properly
+            if (window.tokencontextmenu?.weaponSystemCoordinator) {
+                const menuApp = window.tokencontextmenu.weaponSystemCoordinator.getMenuApp();
+                if (menuApp?.rendered) {
+                    debug("Refreshing menu display for background color change");
+                    menuApp._updateMenuDisplay();
+                }
+            }
+        }
+    });
+
+    // Debug setting
+    game.settings.register("tokencontextmenu", "debugMode", {
+        name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.DebugModeHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        requiresReload: false
     });
 }
 
@@ -199,37 +223,52 @@ export function getEquipmentBadgeColor() {
 }
 
 /**
+ * Get the equipment badge background color
+ * @returns {string} Hex color string for badge background
+ */
+export function getEquipmentBadgeBgColor() {
+    if (typeof game === 'undefined' || !game.ready) return "#000000";
+    return game.settings.get("tokencontextmenu", "equipmentBadgeBgColor");
+}
+
+/**
  * Hook to add color picker UI to settings
  * Uses Foundry's native HTML5 color input
  */
 Hooks.on("renderSettingsConfig", (app, html, data) => {
-    // Find our color setting input
-    const colorInput = html.find('input[name="tokencontextmenu.equipmentBadgeColor"]');
-    if (colorInput.length) {
-        // Get the current value
-        const currentValue = colorInput.val();
-        
-        // Create a color input element using HTML5 native color picker
-        const colorPicker = $(`<input type="color" value="${currentValue}" style="height: ${COLOR_PICKER_UI.HEIGHT}px; width: ${COLOR_PICKER_UI.WIDTH}px; margin-left: ${COLOR_PICKER_UI.MARGIN_LEFT}px; cursor: pointer;">`);
-        
-        // Insert the color picker after the text input
-        colorInput.after(colorPicker);
-        
-        // Update both when color picker changes
-        colorPicker.on("change input", function() {
-            colorInput.val(this.value).trigger("change");
-        });
-        
-        // Update color picker when text input changes
-        colorInput.on("change input", function() {
-            const value = $(this).val();
-            // Validate hex color format
-            if (new RegExp(`^#[0-9A-Fa-f]{${HEX_COLOR.VALIDATION_LENGTH}}$`).test(value)) {
-                colorPicker.val(value);
-            }
-        });
-        
-        // Make the text input wider to accommodate the color picker
-        colorInput.css("width", `calc(100% - ${COLOR_PICKER_UI.INPUT_WIDTH_OFFSET}px)`);
-    }
+    // Helper function to add color picker to any color setting
+    const addColorPicker = (settingName) => {
+        const colorInput = html.find(`input[name="tokencontextmenu.${settingName}"]`);
+        if (colorInput.length) {
+            // Get the current value
+            const currentValue = colorInput.val();
+            
+            // Create a color input element using HTML5 native color picker
+            const colorPicker = $(`<input type="color" value="${currentValue}" style="height: ${COLOR_PICKER_UI.HEIGHT}px; width: ${COLOR_PICKER_UI.WIDTH}px; margin-left: ${COLOR_PICKER_UI.MARGIN_LEFT}px; cursor: pointer;">`);
+            
+            // Insert the color picker after the text input
+            colorInput.after(colorPicker);
+            
+            // Update both when color picker changes
+            colorPicker.on("change input", function() {
+                colorInput.val(this.value).trigger("change");
+            });
+            
+            // Update color picker when text input changes
+            colorInput.on("change input", function() {
+                const value = $(this).val();
+                // Validate hex color format
+                if (new RegExp(`^#[0-9A-Fa-f]{${HEX_COLOR.VALIDATION_LENGTH}}$`).test(value)) {
+                    colorPicker.val(value);
+                }
+            });
+            
+            // Make the text input wider to accommodate the color picker
+            colorInput.css("width", `calc(100% - ${COLOR_PICKER_UI.INPUT_WIDTH_OFFSET}px)`);
+        }
+    };
+    
+    // Add color pickers for both color settings
+    addColorPicker("equipmentBadgeColor");
+    addColorPicker("equipmentBadgeBgColor");
 });

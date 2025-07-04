@@ -16,7 +16,9 @@
             "DebugMode": "Debug Mode",
             "DebugModeHint": "Enable debug logging for troubleshooting weapon menu issues",
             "EquipmentBadgeColor": "Equipment Badge Color",
-            "EquipmentBadgeColorHint": "Color for the equipment status and power favorite badges. Click to open color picker."
+            "EquipmentBadgeColorHint": "Color for the equipment status and power favorite badges. Click to open color picker.",
+            "EquipmentBadgeBgColor": "Equipment Badge Background Color",
+            "EquipmentBadgeBgColorHint": "Background color for the equipment status and power favorite badges. Click to open color picker."
         }
     }
 }
