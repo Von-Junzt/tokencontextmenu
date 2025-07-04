@@ -4,6 +4,7 @@
  * Settings are client-scoped (per-user) to allow individual preferences.
  */
 import { debug } from "../utils/debug.js";
+import { COLOR_PICKER_UI, HEX_COLOR } from "../utils/constants.js";
 
 export function registerSettings() {
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
@@ -231,7 +232,7 @@ Hooks.on("renderSettingsConfig", (app, html, data) => {
         const currentValue = colorInput.val();
         
         // Create a color input element using HTML5 native color picker
-        const colorPicker = $(`<input type="color" value="${currentValue}" style="height: 28px; width: 50px; margin-left: 10px; cursor: pointer;">`);
+        const colorPicker = $(`<input type="color" value="${currentValue}" style="height: ${COLOR_PICKER_UI.HEIGHT}px; width: ${COLOR_PICKER_UI.WIDTH}px; margin-left: ${COLOR_PICKER_UI.MARGIN_LEFT}px; cursor: pointer;">`);
         
         // Insert the color picker after the text input
         colorInput.after(colorPicker);
@@ -245,12 +246,12 @@ Hooks.on("renderSettingsConfig", (app, html, data) => {
         colorInput.on("change input", function() {
             const value = $(this).val();
             // Validate hex color format
-            if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+            if (new RegExp(`^#[0-9A-Fa-f]{${HEX_COLOR.VALIDATION_LENGTH}}$`).test(value)) {
                 colorPicker.val(value);
             }
         });
         
         // Make the text input wider to accommodate the color picker
-        colorInput.css("width", "calc(100% - 60px)");
+        colorInput.css("width", `calc(100% - ${COLOR_PICKER_UI.INPUT_WIDTH_OFFSET}px)`);
     }
 });

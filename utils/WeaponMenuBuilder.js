@@ -4,7 +4,7 @@
  */
 
 import { debug, debugWarn } from "./debug.js";
-import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS } from "./constants.js";
+import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS, UI_ANIMATION, BADGE, EXPAND_BUTTON, GRAPHICS, MATH, CONTAINER, HEX_COLOR } from "./constants.js";
 import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, getEquipmentBadgeColor } from "../settings/settings.js";
 
 /**
@@ -117,7 +117,7 @@ export class WeaponMenuBuilder {
      */
     _clearContainer(container) {
         while (container.children.length > 0) {
-            const child = container.children[0];
+            const child = container.children[CONTAINER.FIRST_CHILD_INDEX];
             if (child && !child.destroyed) {
                 if (child.removeAllListeners) {
                     child.removeAllListeners();
@@ -189,7 +189,7 @@ export class WeaponMenuBuilder {
         const menuHeight = rows.reduce((sum, r) => sum + (r * this.baseIconSize), 0) + (sepCount * sepHeight);
         
         const widths = sections.map(sec => Math.min(sec.length, this.itemsPerRow) * this.baseIconSize);
-        const expandButtonSpace = expandButtonItems.length > 0 ? this.baseIconSize * 0.3 : 0;
+        const expandButtonSpace = expandButtonItems.length > 0 ? this.baseIconSize * EXPAND_BUTTON.SPACE_RATIO : 0;
         const menuWidth = Math.max(...widths, this.baseIconSize) + expandButtonSpace;
 
         return { width: menuWidth, height: menuHeight };
@@ -205,8 +205,8 @@ export class WeaponMenuBuilder {
     _createBackground(width, height) {
         const background = new PIXI.Graphics();
         background.beginFill(COLORS.MENU_BACKGROUND, COLORS.MENU_BACKGROUND_ALPHA);
-        background.lineStyle(1, COLORS.MENU_BORDER);
-        background.drawRoundedRect(-width/2, 0, width, height, UI.MENU_CORNER_RADIUS);
+        background.lineStyle(GRAPHICS.DEFAULT_LINE_WIDTH, COLORS.MENU_BORDER);
+        background.drawRoundedRect(-width/MATH.CENTER_DIVISOR, 0, width, height, UI.MENU_CORNER_RADIUS);
         background.endFill();
         return background;
     }
@@ -225,9 +225,9 @@ export class WeaponMenuBuilder {
     _createWeaponIcon(weapon, indexInSection, totalInSection, menuWidth, yOffset, options) {
         const row = Math.floor(indexInSection / this.itemsPerRow);
         const col = indexInSection % this.itemsPerRow;
-        const startX = -menuWidth / 2;
-        const x = startX + (col * this.baseIconSize) + (this.baseIconSize / 2);
-        const y = (row * this.baseIconSize) + (this.baseIconSize / 2) + yOffset;
+        const startX = -menuWidth / MATH.CENTER_DIVISOR;
+        const x = startX + (col * this.baseIconSize) + (this.baseIconSize / MATH.CENTER_DIVISOR);
+        const y = (row * this.baseIconSize) + (this.baseIconSize / MATH.CENTER_DIVISOR) + yOffset;
 
         const weaponContainer = new PIXI.Container();
         weaponContainer.x = x;
@@ -288,9 +288,9 @@ export class WeaponMenuBuilder {
                           (weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER);
 
         iconBg.beginFill(bgColor);
-        iconBg.lineStyle(1, borderColor);
+        iconBg.lineStyle(GRAPHICS.DEFAULT_LINE_WIDTH, borderColor);
         iconBg.drawRoundedRect(-this.iconRadius, -this.iconRadius, 
-                               this.iconRadius * 2, this.iconRadius * 2, 
+                               this.iconRadius * MATH.DIMENSION_MULTIPLIER, this.iconRadius * MATH.DIMENSION_MULTIPLIER, 
                                UI.ICON_CORNER_RADIUS);
         iconBg.endFill();
 
@@ -332,12 +332,12 @@ export class WeaponMenuBuilder {
             const sprite = new PIXI.Sprite(texture);
             sprite.width = this.spriteSize;
             sprite.height = this.spriteSize;
-            sprite.anchor.set(0.5);
+            sprite.anchor.set(GRAPHICS.CENTER_ANCHOR);
 
             // Create mask
             const spriteMask = new PIXI.Graphics();
             spriteMask.beginFill(COLORS.SPRITE_MASK);
-            spriteMask.drawRoundedRect(-this.spriteSize/2, -this.spriteSize/2, 
+            spriteMask.drawRoundedRect(-this.spriteSize/MATH.CENTER_DIVISOR, -this.spriteSize/MATH.CENTER_DIVISOR, 
                                        this.spriteSize, this.spriteSize, 
                                        UI.ICON_CORNER_RADIUS);
             spriteMask.endFill();
@@ -346,7 +346,7 @@ export class WeaponMenuBuilder {
             // Apply transparency for carried/unfavorited items
             const metadata = itemMetadata?.get(weapon.id);
             if (metadata?.isCarried || metadata?.isUnfavorited || metadata?.isStored) {
-                sprite.alpha = 0.5;
+                sprite.alpha = UI_ANIMATION.CARRIED_SPRITE_ALPHA;
             }
 
             container.addChild(spriteMask);
@@ -399,8 +399,8 @@ export class WeaponMenuBuilder {
         const badgeRadius = iconRadius * EQUIP_STATUS.BADGE.SIZE_RATIO;
         
         // Position badge at top-right corner (overlapping icon edge)
-        badge.x = iconRadius - badgeRadius * 0.8;  // Closer to edge, but not overlapping menu
-        badge.y = -iconRadius + badgeRadius * 0.8;
+        badge.x = iconRadius - badgeRadius * BADGE.POSITION_OFFSET_RATIO;  // Closer to edge, but not overlapping menu
+        badge.y = -iconRadius + badgeRadius * BADGE.POSITION_OFFSET_RATIO;
         
         // Load icon as sprite (no background)
         const iconPath = EQUIP_STATUS.ICON_PATHS[equipStatus];
@@ -409,15 +409,15 @@ export class WeaponMenuBuilder {
             const icon = new PIXI.Sprite(iconTexture);
             
             // Make icon larger without background
-            const iconSize = badgeRadius * 3.0;  // Increased size for better visibility
+            const iconSize = badgeRadius * BADGE.ICON_SIZE_MULTIPLIER;  // Increased size for better visibility
             icon.width = iconSize;
             icon.height = iconSize;
-            icon.anchor.set(0.5);
+            icon.anchor.set(GRAPHICS.CENTER_ANCHOR);
             
             // Apply user-selected color tint
             const badgeColor = getEquipmentBadgeColor();
             if (badgeColor) {
-                const tintValue = parseInt(badgeColor.replace("#", ""), 16);
+                const tintValue = parseInt(badgeColor.replace("#", ""), MATH.HEX_PARSE_BASE);
                 icon.tint = tintValue;
                 debug("Applied equipment badge tint", { color: badgeColor, tint: tintValue });
             }
@@ -427,11 +427,11 @@ export class WeaponMenuBuilder {
             // Fallback to text if no icon available
             const fallback = new PIXI.Text('?', {
                 fontFamily: 'Arial',
-                fontSize: badgeRadius * 1.5,
+                fontSize: badgeRadius * BADGE.TEXT_SIZE_MULTIPLIER,
                 fill: EQUIP_STATUS.BADGE.ICON_COLOR,
                 fontWeight: 'bold'
             });
-            fallback.anchor.set(0.5);
+            fallback.anchor.set(GRAPHICS.CENTER_ANCHOR);
             badge.addChild(fallback);
         }
         
@@ -449,8 +449,8 @@ export class WeaponMenuBuilder {
         const badgeRadius = iconRadius * POWER_STATUS.BADGE.SIZE_RATIO;
         
         // Position badge at top-right corner (overlapping icon edge)
-        badge.x = iconRadius - badgeRadius * 0.8;  // Closer to edge, but not overlapping menu
-        badge.y = -iconRadius + badgeRadius * 0.8;
+        badge.x = iconRadius - badgeRadius * BADGE.POSITION_OFFSET_RATIO;  // Closer to edge, but not overlapping menu
+        badge.y = -iconRadius + badgeRadius * BADGE.POSITION_OFFSET_RATIO;
         
         // Load star icon as sprite
         const iconPath = isFavorited ? 
@@ -462,15 +462,15 @@ export class WeaponMenuBuilder {
             const icon = new PIXI.Sprite(iconTexture);
             
             // Make icon larger without background (same as equipment badges)
-            const iconSize = badgeRadius * 3.0;  // Increased size for better visibility
+            const iconSize = badgeRadius * BADGE.ICON_SIZE_MULTIPLIER;  // Increased size for better visibility
             icon.width = iconSize;
             icon.height = iconSize;
-            icon.anchor.set(0.5);
+            icon.anchor.set(GRAPHICS.CENTER_ANCHOR);
             
             // Apply user-selected color tint
             const badgeColor = getEquipmentBadgeColor();
             if (badgeColor) {
-                const tintValue = parseInt(badgeColor.replace("#", ""), 16);
+                const tintValue = parseInt(badgeColor.replace("#", ""), MATH.HEX_PARSE_BASE);
                 icon.tint = tintValue;
                 debug("Applied power badge tint", { color: badgeColor, tint: tintValue });
             }
@@ -480,11 +480,11 @@ export class WeaponMenuBuilder {
             // Fallback to text if no icon available
             const fallback = new PIXI.Text(isFavorited ? '★' : '☆', {
                 fontFamily: 'Arial',
-                fontSize: badgeRadius * 1.5,
+                fontSize: badgeRadius * BADGE.TEXT_SIZE_MULTIPLIER,
                 fill: POWER_STATUS.BADGE.ICON_COLOR,
                 fontWeight: 'bold'
             });
-            fallback.anchor.set(0.5);
+            fallback.anchor.set(GRAPHICS.CENTER_ANCHOR);
             badge.addChild(fallback);
         }
         
@@ -497,7 +497,7 @@ export class WeaponMenuBuilder {
             fill: COLORS.TEXT_FILL,
             align: 'center'
         });
-        fallbackText.anchor.set(0.5);
+        fallbackText.anchor.set(GRAPHICS.CENTER_ANCHOR);
         container.addChild(fallbackText);
     }
 
@@ -535,10 +535,10 @@ export class WeaponMenuBuilder {
         const container = this._createExpandButtonBase(expandButton);
         
         // Position on the right side
-        container.x = menuWidth / 2 - this.baseIconSize * 0.2;
+        container.x = menuWidth / MATH.CENTER_DIVISOR - this.baseIconSize * EXPAND_BUTTON.X_OFFSET_RATIO;
         const lastRowIndex = sectionRows - 1;
         const currentSectionYOffset = yOffset - (sectionRows * this.baseIconSize);
-        container.y = currentSectionYOffset + (lastRowIndex * this.baseIconSize) + (this.baseIconSize / 2);
+        container.y = currentSectionYOffset + (lastRowIndex * this.baseIconSize) + (this.baseIconSize / MATH.CENTER_DIVISOR);
 
         return container;
     }
@@ -554,8 +554,8 @@ export class WeaponMenuBuilder {
      */
     _createRemainingExpandButton(expandButton, menuWidth, yOffset, options) {
         const container = this._createExpandButtonBase(expandButton);
-        container.x = menuWidth / 2 - this.baseIconSize * 0.2;
-        container.y = yOffset - this.baseIconSize / 2;
+        container.x = menuWidth / MATH.CENTER_DIVISOR - this.baseIconSize * EXPAND_BUTTON.X_OFFSET_RATIO;
+        container.y = yOffset - this.baseIconSize / MATH.CENTER_DIVISOR;
         return container;
     }
 
@@ -576,21 +576,21 @@ export class WeaponMenuBuilder {
 
         // Draw pipe
         const pipe = new PIXI.Graphics();
-        const pipeHeight = this.baseIconSize * 0.6;
-        const pipeWidth = 2;
-        const pipeAlpha = expandButton.expanded ? 0.9 : 0.5;
+        const pipeHeight = this.baseIconSize * EXPAND_BUTTON.HEIGHT_RATIO;
+        const pipeWidth = EXPAND_BUTTON.PIPE_WIDTH;
+        const pipeAlpha = expandButton.expanded ? UI_ANIMATION.EXPAND_BUTTON.NORMAL_ALPHA_EXPANDED : UI_ANIMATION.EXPAND_BUTTON.NORMAL_ALPHA_COLLAPSED;
 
         pipe.beginFill(COLORS.EXPAND_BUTTON_TEXT, pipeAlpha);
-        pipe.drawRect(-pipeWidth/2, -pipeHeight/2, pipeWidth, pipeHeight);
+        pipe.drawRect(-pipeWidth/MATH.CENTER_DIVISOR, -pipeHeight/MATH.CENTER_DIVISOR, pipeWidth, pipeHeight);
         pipe.endFill();
         container.addChild(pipe);
         container.buttonGraphics = pipe;
 
         // Add hit area
         const hitArea = new PIXI.Graphics();
-        hitArea.beginFill(0xFFFFFF, 0.01);
-        hitArea.drawRect(-this.baseIconSize/4, -this.baseIconSize/4, 
-                         this.baseIconSize/2, this.baseIconSize/2);
+        hitArea.beginFill(HEX_COLOR.WHITE, EXPAND_BUTTON.HIT_AREA_ALPHA);
+        hitArea.drawRect(-this.baseIconSize * EXPAND_BUTTON.HIT_AREA_SIZE_RATIO, -this.baseIconSize * EXPAND_BUTTON.HIT_AREA_SIZE_RATIO, 
+                         this.baseIconSize * EXPAND_BUTTON.HIT_AREA_SIZE_RATIO * MATH.DIMENSION_MULTIPLIER, this.baseIconSize * EXPAND_BUTTON.HIT_AREA_SIZE_RATIO * MATH.DIMENSION_MULTIPLIER);
         hitArea.endFill();
         container.addChild(hitArea);
 
@@ -612,9 +612,9 @@ export class WeaponMenuBuilder {
         const separatorLine = new PIXI.Graphics();
         const separatorHeight = this.baseIconSize * SIZES.SEPARATOR_HEIGHT_RATIO;
         
-        separatorLine.lineStyle(1, COLORS.SEPARATOR_LINE, COLORS.SEPARATOR_LINE_ALPHA);
-        separatorLine.moveTo(-menuWidth/2 + UI.SEPARATOR_MARGIN, separatorHeight / 2);
-        separatorLine.lineTo(menuWidth/2 - UI.SEPARATOR_MARGIN, separatorHeight / 2);
+        separatorLine.lineStyle(GRAPHICS.DEFAULT_LINE_WIDTH, COLORS.SEPARATOR_LINE, COLORS.SEPARATOR_LINE_ALPHA);
+        separatorLine.moveTo(-menuWidth/MATH.CENTER_DIVISOR + UI.SEPARATOR_MARGIN, separatorHeight / MATH.CENTER_DIVISOR);
+        separatorLine.lineTo(menuWidth/MATH.CENTER_DIVISOR - UI.SEPARATOR_MARGIN, separatorHeight / MATH.CENTER_DIVISOR);
         separatorContainer.addChild(separatorLine);
 
         return separatorContainer;

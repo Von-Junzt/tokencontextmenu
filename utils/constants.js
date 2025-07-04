@@ -196,3 +196,110 @@ export const EQUIP_STATUS = {
         FONT_SIZE_RATIO: 0.4      // Font size relative to icon radius
     }
 };
+
+/**
+ * UI Animation constants for hover effects and transitions
+ */
+export const UI_ANIMATION = {
+    // Scale factors
+    HOVER_SCALE: 1.1,           // Scale when hovering
+    NORMAL_SCALE: 1.0,          // Normal scale
+    
+    // Alpha values for expand buttons
+    EXPAND_BUTTON: {
+        HOVER_ALPHA_EXPANDED: 1.0,
+        HOVER_ALPHA_COLLAPSED: 0.8,
+        NORMAL_ALPHA_EXPANDED: 0.9,
+        NORMAL_ALPHA_COLLAPSED: 0.5,
+    },
+    
+    // Sprite transparency
+    CARRIED_SPRITE_ALPHA: 0.5,   // Transparency for carried/unfavorited items
+};
+
+/**
+ * Badge positioning and sizing constants
+ */
+export const BADGE = {
+    // Positioning
+    POSITION_OFFSET_RATIO: 0.8,   // How far from edge (ratio of badge radius)
+    
+    // Sizing
+    ICON_SIZE_MULTIPLIER: 3.0,    // Badge icon size relative to badge radius
+    TEXT_SIZE_MULTIPLIER: 1.5,    // Fallback text size relative to badge radius
+};
+
+/**
+ * Expand button dimensions and styling
+ */
+export const EXPAND_BUTTON = {
+    // Dimensions
+    HEIGHT_RATIO: 0.6,            // Height as ratio of base icon size
+    PIPE_WIDTH: 2,                // Width of the pipe graphic
+    X_OFFSET_RATIO: 0.2,          // X position offset ratio
+    SPACE_RATIO: 0.3,             // Space allocation ratio for expand button
+    
+    // Hit area
+    HIT_AREA_ALPHA: 0.01,         // Nearly invisible hit area
+    HIT_AREA_SIZE_RATIO: 0.25     // Hit area size as ratio of base size
+};
+
+/**
+ * Graphics rendering constants
+ */
+export const GRAPHICS = {
+    // Line styles
+    DEFAULT_LINE_WIDTH: 1,        // Standard border width
+    
+    // Anchor points
+    CENTER_ANCHOR: 0.5,           // Center anchor for sprites
+};
+
+/**
+ * Mouse button constants
+ */
+export const MOUSE_BUTTON = {
+    LEFT: 0,                      // Left mouse button
+    RIGHT: 2,                     // Right mouse button
+};
+
+/**
+ * Mathematical constants for UI calculations
+ */
+export const MATH = {
+    CENTER_DIVISOR: 2,            // Divisor for centering calculations
+    DIMENSION_MULTIPLIER: 2,      // Multiplier for converting radius to diameter
+    HEX_PARSE_BASE: 16,           // Base for parsing hexadecimal colors
+};
+
+/**
+ * Container and array constants
+ */
+export const CONTAINER = {
+    FIRST_CHILD_INDEX: 0,         // Index of first child in container
+};
+
+/**
+ * Hex color constants
+ */
+export const HEX_COLOR = {
+    WHITE: 0xFFFFFF,              // White color in PIXI hex format
+    VALIDATION_LENGTH: 6,         // Length of hex color string (without #)
+};
+
+/**
+ * Color picker UI dimensions
+ */
+export const COLOR_PICKER_UI = {
+    HEIGHT: 28,                   // Height in pixels
+    WIDTH: 50,                    // Width in pixels
+    MARGIN_LEFT: 10,              // Left margin in pixels
+    INPUT_WIDTH_OFFSET: 60,       // Offset for text input width calculation
+};
+
+/**
+ * Drag detection constants
+ */
+export const DRAG = {
+    DEFAULT_THRESHOLD: 3,         // Default drag threshold in pixels (for TokenDragManager)
+};

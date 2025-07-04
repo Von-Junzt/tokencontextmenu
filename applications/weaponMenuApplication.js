@@ -5,7 +5,7 @@ import { equipmentModeHandler } from "../managers/EquipmentModeHandler.js";
 import { weaponMenuTooltipManager } from "../managers/WeaponMenuTooltipManager.js";
 import { WeaponMenuBuilder } from "../utils/WeaponMenuBuilder.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
-import { TIMING, SIZES, COLORS, UI, Z_INDEX } from "../utils/constants.js";
+import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
 import { debug, debugWarn, debugError } from "../utils/debug.js";
 
@@ -150,7 +150,7 @@ export class WeaponMenuApplication {
         
         this.container = new PIXI.Container();
         this.container.name = "tokencontextmenu-weapon-menu";
-        this.container.x = this.token.x + (this.token.w / 2);
+        this.container.x = this.token.x + (this.token.w / MATH.CENTER_DIVISOR);
         this.container.y = this.token.y + this.token.h + UI.MENU_Y_OFFSET;
         
         // Use the menu builder to create the menu
@@ -205,11 +205,11 @@ export class WeaponMenuApplication {
         const isExpanded = button.isExpanded;
         
         button.on('pointerover', () => {
-            pipe.alpha = isExpanded ? 1 : 0.8;
+            pipe.alpha = isExpanded ? UI_ANIMATION.EXPAND_BUTTON.HOVER_ALPHA_EXPANDED : UI_ANIMATION.EXPAND_BUTTON.HOVER_ALPHA_COLLAPSED;
         });
         
         button.on('pointerout', () => {
-            pipe.alpha = isExpanded ? 0.9 : 0.5;
+            pipe.alpha = isExpanded ? UI_ANIMATION.EXPAND_BUTTON.NORMAL_ALPHA_EXPANDED : UI_ANIMATION.EXPAND_BUTTON.NORMAL_ALPHA_COLLAPSED;
         });
         
         button.on('pointerdown', async (event) => {
@@ -234,7 +234,7 @@ export class WeaponMenuApplication {
      */
     _setupWeaponEvents(weaponContainer, iconBg, iconRadius) {
         weaponContainer.on('pointerover', (event) => {
-            weaponContainer.scale.set(1.1);
+            weaponContainer.scale.set(UI_ANIMATION.HOVER_SCALE);
             iconBg.clear();
 
             const weapon = weaponContainer.weapon;
@@ -248,8 +248,8 @@ export class WeaponMenuApplication {
                               (weapon.type === "power" ? COLORS.POWER_HOVER_BORDER : COLORS.WEAPON_HOVER_BORDER);
 
             iconBg.beginFill(hoverColor);
-            iconBg.lineStyle(1, hoverBorder);
-            iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, UI.ICON_CORNER_RADIUS);
+            iconBg.lineStyle(GRAPHICS.DEFAULT_LINE_WIDTH, hoverBorder);
+            iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * MATH.DIMENSION_MULTIPLIER, iconRadius * MATH.DIMENSION_MULTIPLIER, UI.ICON_CORNER_RADIUS);
             iconBg.endFill();
 
             // Get equipment tooltip text
@@ -270,7 +270,7 @@ export class WeaponMenuApplication {
         });
 
         weaponContainer.on('pointerout', () => {
-            weaponContainer.scale.set(1.0);
+            weaponContainer.scale.set(UI_ANIMATION.NORMAL_SCALE);
             iconBg.clear();
 
             const weapon = weaponContainer.weapon;
@@ -284,8 +284,8 @@ export class WeaponMenuApplication {
                               (weapon.type === "power" ? COLORS.POWER_BORDER : COLORS.WEAPON_BORDER);
 
             iconBg.beginFill(bgColor);
-            iconBg.lineStyle(1, borderColor);
-            iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * 2, iconRadius * 2, UI.ICON_CORNER_RADIUS);
+            iconBg.lineStyle(GRAPHICS.DEFAULT_LINE_WIDTH, borderColor);
+            iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * MATH.DIMENSION_MULTIPLIER, iconRadius * MATH.DIMENSION_MULTIPLIER, UI.ICON_CORNER_RADIUS);
             iconBg.endFill();
 
             this._hideTooltip();
@@ -299,9 +299,9 @@ export class WeaponMenuApplication {
 
             this._hideTooltip();
 
-            if (event.data.button === 0) {
+            if (event.data.button === MOUSE_BUTTON.LEFT) {
                 await this._handleWeaponSelection(weaponContainer.weapon.id);
-            } else if (event.data.button === 2) {
+            } else if (event.data.button === MOUSE_BUTTON.RIGHT) {
                 await this._handleWeaponEdit(weaponContainer.weapon.id);
             }
         });
@@ -695,7 +695,7 @@ export class WeaponMenuApplication {
         if (ContainerVerification.isValid(this.container)) {
             // Clear existing content
             while (this.container.children.length > 0) {
-                const child = this.container.children[0];
+                const child = this.container.children[CONTAINER.FIRST_CHILD_INDEX];
                 if (child && !child.destroyed) {
                     if (child.removeAllListeners) {
                         child.removeAllListeners();

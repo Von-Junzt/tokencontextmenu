@@ -1,4 +1,5 @@
 import { CleanupManager } from "./CleanupManager.js";
+import { DRAG } from "../utils/constants.js";
 
 /**
  * Manages token drag states for the weapon menu system
@@ -110,7 +111,7 @@ class TokenDragManager extends CleanupManager {
      * @param {number} threshold 
      * @returns {boolean} Whether token has moved beyond threshold
      */
-    updateDragMovement(token, currentCoords, threshold = 3) {
+    updateDragMovement(token, currentCoords, threshold = DRAG.DEFAULT_THRESHOLD) {
         const state = this.dragStates.get(token);
         if (!state || !state.isDragging || !state.startCoords) return false;
         
