@@ -201,13 +201,25 @@ The module uses an **optimized hybrid approach** based on what works best:
 
 ### Foundry-Specific Guidelines
 
-**NEVER use try/catch statements in Foundry modules.** Instead:
-- Check if objects exist before accessing them (e.g., `if (game.settings?.settings?.has("module.setting"))`)
-- Use Foundry's hooks system to ensure code runs at the appropriate time
-- Always use Foundry's native functions wherever possible
-- Always keep Foundry VTT best conding practice in mind
-- For settings access before init, check if the settings store exists first
-- Foundry provides its own error handling and try/catch blocks can interfere with debugging
+**Error Handling Best Practices:**
+- **Minimize try/catch usage** - Use only when absolutely necessary for critical error handling
+- **Prefer existence checks** - Use optional chaining and null checks (e.g., `if (game.settings?.settings?.has("module.setting"))`)
+- **Acceptable try/catch scenarios:**
+  - Emergency cleanup that must not fail (e.g., `_emergencyCleanup()`)
+  - PIXI operations that may fail if containers are destroyed
+  - Critical error paths that need state management and proper cleanup
+  - Operations on external modules that might not be installed
+- **When using try/catch:**
+  - Always use debug functions for error logging (never console.log)
+  - Document why try/catch is necessary with a comment
+  - Avoid empty catch blocks unless the intent is to suppress errors (document why)
+  - Consider re-throwing errors after cleanup if the error should propagate
+- **General guidelines:**
+  - Use Foundry's hooks system to ensure code runs at the appropriate time
+  - Always use Foundry's native functions wherever possible
+  - Always keep Foundry VTT best coding practice in mind
+  - For settings access before init, check if the settings store exists first
+  - Excessive try/catch can mask real issues and interfere with debugging
 
 **Foundry v13 Compatibility**:
 - Always use `eventMode` instead of deprecated `interactive` property

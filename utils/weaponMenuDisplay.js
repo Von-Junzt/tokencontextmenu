@@ -68,6 +68,14 @@ export function getMenuItems(token, options = {}) {
             
             return false;
         });
+        
+        // Add equipment status metadata for weapons in normal mode
+        weapons.forEach(w => {
+            metadata.set(w.id, { 
+                equipStatus: w.system.equipStatus,
+                showBadge: false  // Don't show badge in normal mode
+            });
+        });
     }
 
     // Get powers based on expansion state
@@ -180,14 +188,9 @@ export async function showWeaponMenuUnderToken(token) {
     const { closeWeaponMenu } = await import("./weaponMenuCloser.js");
     await closeWeaponMenu({ reason: 'opening-new-menu' });
 
-    // Get menu items with default expansion state from settings
-    let expandWeapons = false;
-    let expandPowers = false;
-    
-    if (game?.ready) {
-        expandWeapons = game.settings.get("tokencontextmenu", "expandWeaponsByDefault") ?? false;
-        expandPowers = game.settings.get("tokencontextmenu", "expandPowersByDefault") ?? false;
-    }
+    // Get menu items with default expansion state (always false now)
+    const expandWeapons = false;
+    const expandPowers = false;
     
     const { items, metadata } = getMenuItems(token, { expandWeapons, expandPowers });
 

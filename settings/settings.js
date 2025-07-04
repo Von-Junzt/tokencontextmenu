@@ -92,28 +92,6 @@ export function registerSettings() {
         default: false,
         requiresReload: false
     });
-    
-    // Settings for expanding sections by default
-    game.settings.register("tokencontextmenu", "expandWeaponsByDefault", {
-        name: game.i18n.localize("tokencontextmenu.Settings.ExpandWeaponsByDefault"),
-        hint: game.i18n.localize("tokencontextmenu.Settings.ExpandWeaponsByDefaultHint"),
-        scope: "client",
-        config: true,
-        type: Boolean,
-        default: false,
-        requiresReload: false
-    });
-    
-    game.settings.register("tokencontextmenu", "expandPowersByDefault", {
-        name: game.i18n.localize("tokencontextmenu.Settings.ExpandPowersByDefault"),
-        hint: game.i18n.localize("tokencontextmenu.Settings.ExpandPowersByDefaultHint"),
-        scope: "client",
-        config: true,
-        type: Boolean,
-        default: false,
-        requiresReload: false
-    });
-    
     // Equipment badge color setting
     game.settings.register("tokencontextmenu", "equipmentBadgeColor", {
         name: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeColor"),

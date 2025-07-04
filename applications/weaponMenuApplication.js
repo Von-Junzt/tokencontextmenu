@@ -41,12 +41,6 @@ export class WeaponMenuApplication {
         // Equipment mode state
         this.equipmentMode = false;
         
-        // Load settings if available
-        if (game?.ready) {
-            this.expandedSections.weapons = game.settings.get("tokencontextmenu", "expandWeaponsByDefault") ?? false;
-            this.expandedSections.powers = game.settings.get("tokencontextmenu", "expandPowersByDefault") ?? false;
-        }
-        
         // Store expand button references
         this.expandButtons = new Map();
         

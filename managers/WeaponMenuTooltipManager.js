@@ -112,14 +112,22 @@ class WeaponMenuTooltipManager extends CleanupManager {
      * @returns {string} HTML content for tooltip
      */
     buildTooltipContent(weapon, metadata, equipmentTooltip = "", showDetailed = false) {
-        let content = weapon.name;
-
-        // Add equipment status
-        content += equipmentTooltip;
+        // Build the header with weapon name
+        let headerContent = weapon.name;
+        
+        // Add equipment mode tooltip if provided
+        headerContent += equipmentTooltip;
 
         // Add ammo count if applicable
         if (this._hasAmmo(weapon)) {
-            content += ` (${weapon.system.currentShots}/${weapon.system.shots})`;
+            headerContent += ` (${weapon.system.currentShots}/${weapon.system.shots})`;
+        }
+        
+        // Add equipment status as subtitle for weapons
+        let equipmentStatusHtml = '';
+        if (weapon.type === "weapon" && metadata?.equipStatus !== undefined) {
+            const statusLabel = EQUIP_STATUS.LABELS[metadata.equipStatus] || 'Unknown';
+            equipmentStatusHtml = `<div class="tooltip-equipment-status">${statusLabel}</div>`;
         }
 
         // Build tooltip HTML
@@ -131,32 +139,32 @@ class WeaponMenuTooltipManager extends CleanupManager {
             
             if (statLines.length > 0) {
                 tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                    <div class="tooltip-header">${content}</div>
+                    <div class="tooltip-header">
+                        ${headerContent}
+                        ${equipmentStatusHtml}
+                    </div>
                     <hr class="tooltip-separator">
                     ${statLines.map(line => `<div class="tooltip-stat">${line}</div>`).join('')}`;
             } else {
                 tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                    <div class="tooltip-header">${content}</div>`;
+                    <div class="tooltip-header">
+                        ${headerContent}
+                        ${equipmentStatusHtml}
+                    </div>`;
             }
         } else {
             // Simple tooltip
             tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                <div class="tooltip-header">${content}</div>`;
-        }
-        
-        // Add equipment status for weapons
-        if (weapon.type === "weapon" && metadata?.equipStatus !== undefined) {
-            const statusLabel = EQUIP_STATUS.LABELS[metadata.equipStatus] || 'Unknown';
-            tooltipHtml += `
-                <hr class="tooltip-separator">
-                <div class="tooltip-stat">Equipment Status: ${statusLabel}</div>`;
+                <div class="tooltip-header">
+                    ${headerContent}
+                    ${equipmentStatusHtml}
+                </div>`;
         }
         
         // Close the tooltip div
         tooltipHtml += '</div>';
-        content = tooltipHtml;
 
-        return content;
+        return tooltipHtml;
     }
 
     /**
