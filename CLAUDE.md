@@ -229,4 +229,25 @@ The module uses an **optimized hybrid approach** based on what works best:
 
 ### Development Guidelines
 
-**NEVER create test scripts unless explicitly requested by the User.** The module should be tested directly in Foundry VTT.
+**Code Organization Guidelines:**
+
+**Constants and Magic Numbers:**
+- **All constants must be defined in `utils/constants.js`** - No magic numbers in code
+- **Group related constants** - Use clear object structures (e.g., COLORS, SIZES, TIMING)
+- **Use descriptive names** - Constants should be self-documenting
+- **No inline numeric literals** except for:
+  - Array indices when accessing specific positions (e.g., `array[0]` for first element)
+  - Mathematical constants in formulas (e.g., `Math.pow(x, 2)` for squaring)
+  - String operations like `charAt(0)` for first character
+  - Base conversions like `toString(36)` for ID generation
+- **Examples of constants to extract:**
+  - UI dimensions and spacing
+  - Colors (use PIXI hex format: `0xRRGGBB`)
+  - Timing values (delays, durations)
+  - Ratios and multipliers
+  - State values and status codes
+  - Threshold values (e.g., drag detection pixels)
+- **Import only what you need** - Use specific imports rather than importing all constants
+
+**Testing:**
+- **NEVER create test scripts unless explicitly requested by the User.** The module should be tested directly in Foundry VTT.
