@@ -674,12 +674,12 @@ export class WeaponMenuApplication {
                         // Zoom to token
                         const zoomLevel = getEquipmentModeZoomLevel();
                         const duration = getEquipmentModeZoomDuration();
-                        await canvas.animatePan({
+                        canvas.animatePan({
                             x: this.token.center.x,
                             y: this.token.center.y,
                             scale: zoomLevel,
                             duration: duration
-                        });
+                        }); // Don't await - let zoom happen in background so menu opens immediately
                         
                         debug("Zoomed to token for equipment mode", {
                             token: this.token.name,
