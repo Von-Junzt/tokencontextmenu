@@ -82,6 +82,17 @@ export function registerSettings() {
         requiresReload: false
     });
 
+    // Equipment badges display setting
+    game.settings.register("tokencontextmenu", "showEquipmentBadges", {
+        name: game.i18n.localize("tokencontextmenu.Settings.ShowEquipmentBadges"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ShowEquipmentBadgesHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        requiresReload: false
+    });
+
     // Equipment badge color setting
     game.settings.register("tokencontextmenu", "equipmentBadgeColor", {
         name: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeColor"),
@@ -185,7 +196,7 @@ export function registerSettings() {
         }
     });
 
-    // Debug setting
+    // Debug setting - this should show up as last entry in the settings window
     game.settings.register("tokencontextmenu", "debugMode", {
         name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
         hint: game.i18n.localize("tokencontextmenu.Settings.DebugModeHint"),
@@ -268,6 +279,15 @@ export function isDebugEnabled() {
     }
     
     return game.settings.get("tokencontextmenu", "debugMode");
+}
+
+/**
+ * Check if equipment badges should be shown
+ * @returns {boolean} True if badges are enabled
+ */
+export function shouldShowEquipmentBadges() {
+    if (typeof game === 'undefined' || !game.ready) return true;
+    return game.settings.get("tokencontextmenu", "showEquipmentBadges");
 }
 
 /**

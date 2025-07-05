@@ -220,6 +220,7 @@ The module uses an **optimized hybrid approach** based on what works best:
   - Always keep Foundry VTT best coding practice in mind
   - For settings access before init, check if the settings store exists first
   - Excessive try/catch can mask real issues and interfere with debugging
+  - **NEVER use setTimeout, setInterval, or timing-based solutions** - Use event-driven patterns, Foundry hooks, or immediate execution instead
 
 **Foundry v13 Compatibility**:
 - Always use `eventMode` instead of deprecated `interactive` property

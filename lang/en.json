@@ -15,6 +15,8 @@
             "DetailedWeaponTooltipsHint": "Show detailed weapon information (damage, range, AP, trait modifier) in tooltips. When disabled, only shows weapon name and ammo count.",
             "DebugMode": "Debug Mode",
             "DebugModeHint": "Enable debug logging for troubleshooting weapon menu issues",
+            "ShowEquipmentBadges": "Show Equipment Badges",
+            "ShowEquipmentBadgesHint": "Display status badges on items in equipment mode (equipment status for weapons, favorite status for powers).",
             "EquipmentBadgeColor": "Equipment Badge Color",
             "EquipmentBadgeColorHint": "Color for the equipment status and power favorite badges. Click to open color picker.",
             "EquipmentBadgeBgColor": "Equipment Badge Background Color",

@@ -8,6 +8,7 @@ import {WeaponMenuApplication} from "../applications/weaponMenuApplication.js";
 import {weaponSystemCoordinator} from "../managers/WeaponSystemCoordinator.js";
 import {targetingSessionManager} from "../managers/TargetingSessionManager.js";
 import {debugWarn} from "./debug.js";
+import {shouldShowEquipmentBadges} from "../settings/settings.js";
 
 /**
  * Gets menu items (weapons and powers) for a token with optional expansion
@@ -34,7 +35,7 @@ export function getMenuItems(token, options = {}) {
         weapons.forEach(w => {
             const metadataObj = { 
                 equipStatus: w.system.equipStatus,
-                showBadge: true  // Show badge in equipment mode
+                showBadge: expandWeapons && shouldShowEquipmentBadges()  // Show badge if enabled
             };
             
             // Determine if this weapon would be visible in normal mode
@@ -92,7 +93,7 @@ export function getMenuItems(token, options = {}) {
             }
             // Add badge info for equipment mode
             if (expandPowers) {
-                metadataObj.showPowerBadge = true;
+                metadataObj.showPowerBadge = expandPowers && shouldShowEquipmentBadges();
                 metadataObj.isFavorited = p.system.favorite === true;
             }
             if (Object.keys(metadataObj).length > 0) {
