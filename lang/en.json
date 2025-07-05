@@ -18,7 +18,13 @@
             "EquipmentBadgeColor": "Equipment Badge Color",
             "EquipmentBadgeColorHint": "Color for the equipment status and power favorite badges. Click to open color picker.",
             "EquipmentBadgeBgColor": "Equipment Badge Background Color",
-            "EquipmentBadgeBgColorHint": "Background color for the equipment status and power favorite badges. Click to open color picker."
+            "EquipmentBadgeBgColorHint": "Background color for the equipment status and power favorite badges. Click to open color picker.",
+            "UseEquipmentStateColors": "Use Equipment State Colors",
+            "UseEquipmentStateColorsHint": "When enabled, badge colors will change based on equipment state (green for active/equipped, yellow for carried, default for stored).",
+            "EquipmentColorActive": "Active Equipment Color",
+            "EquipmentColorActiveHint": "Color for active items (equipped weapons, carried templates, favorited powers). Click to open color picker.",
+            "EquipmentColorCarried": "Carried Equipment Color",
+            "EquipmentColorCarriedHint": "Color for carried but not equipped weapons. Click to open color picker."
         }
     }
 }

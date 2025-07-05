@@ -298,3 +298,19 @@ export const COLOR_PICKER_UI = {
 export const DRAG = {
     DEFAULT_THRESHOLD: 3,         // Default drag threshold in pixels (for TokenDragManager)
 };
+
+/**
+ * Equipment state color constants
+ */
+export const EQUIPMENT_STATE_COLORS = {
+    // PIXI hex format colors for state-based coloring
+    ACTIVE: 0x00FF00,    // Green - shows in menu (equipped/carried template/favorited)
+    CARRIED: 0xFFFF00,   // Yellow - carried but not equipped
+    DEFAULT: 0xFFFFFF,   // White - use existing color setting
+    
+    // Hex string versions for settings defaults
+    HEX: {
+        ACTIVE: "#00FF00",
+        CARRIED: "#FFFF00"
+    }
+};

@@ -231,6 +231,22 @@ The module uses an **optimized hybrid approach** based on what works best:
 
 **Code Organization Guidelines:**
 
+**Code Reuse and Redundancy Prevention:**
+- **ALWAYS check for existing functions before implementing new ones** - Search the codebase for similar functionality
+- **Reuse existing utility functions** - Look for helpers in managers, utils, and other modules
+- **Examples of commonly reusable functions:**
+  - `hasTemplateAOE()` in EquipmentModeHandler for checking template weapons
+  - `isSpecialWeapon()` in EquipmentModeHandler for checking special weapon types
+  - Equipment status checking logic in `getMenuItems()` 
+  - Sort priority functions in `interactionLayerUtils.js`
+  - Settings getter functions in `settings.js`
+- **Before implementing new logic:**
+  - Search for similar patterns using grep/search tools
+  - Check manager classes for existing business logic
+  - Review utility modules for helper functions
+  - Consider if existing functions can be extended rather than duplicated
+- **If similar code exists in multiple places**, refactor it into a shared utility function
+
 **Constants and Magic Numbers:**
 - **All constants must be defined in `utils/constants.js`** - No magic numbers in code
 - **Group related constants** - Use clear object structures (e.g., COLORS, SIZES, TIMING)

@@ -203,3 +203,44 @@ export async function showWeaponMenuUnderToken(token) {
     const weaponMenu = new WeaponMenuApplication(token, items, { metadata });
     await weaponMenu.render(true);
 }
+
+/**
+ * Get the equipment state color for an item based on its state
+ * @param {Item} item - The item to check
+ * @returns {string|null} Hex color string or null to use default
+ */
+export function getEquipmentStateColor(item) {
+    // Check if game settings are available
+    if (typeof game === 'undefined' || !game.ready) {
+        return null;
+    }
+    
+    // Use game.settings directly instead of imported functions
+    if (!game.settings.get("tokencontextmenu", "useEquipmentStateColors")) {
+        return null; // Use default coloring
+    }
+    
+    // Weapon logic
+    if (item.type === "weapon") {
+        const equipStatus = item.system.equipStatus;
+        const hasTemplate = item.system.templates && 
+            Object.values(item.system.templates).some(v => v === true);
+        
+        // Equipped or carried template = active (green)
+        if ([2, 4, 5].includes(equipStatus) || (equipStatus === 1 && hasTemplate)) {
+            return game.settings.get("tokencontextmenu", "equipmentColorActive");
+        }
+        // Carried non-template = carried (yellow)
+        else if (equipStatus === 1) {
+            return game.settings.get("tokencontextmenu", "equipmentColorCarried");
+        }
+    }
+    // Power logic
+    else if (item.type === "power") {
+        if (item.system.favorite === true) {
+            return game.settings.get("tokencontextmenu", "equipmentColorActive");
+        }
+    }
+    
+    return null; // Use default color
+}

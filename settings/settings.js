@@ -4,7 +4,7 @@
  * Settings are client-scoped (per-user) to allow individual preferences.
  */
 import { debug } from "../utils/debug.js";
-import { COLOR_PICKER_UI, HEX_COLOR } from "../utils/constants.js";
+import { COLOR_PICKER_UI, HEX_COLOR, EQUIPMENT_STATE_COLORS } from "../utils/constants.js";
 
 export function registerSettings() {
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
@@ -128,6 +128,63 @@ export function registerSettings() {
         }
     });
 
+    // Equipment state color toggle setting
+    game.settings.register("tokencontextmenu", "useEquipmentStateColors", {
+        name: game.i18n.localize("tokencontextmenu.Settings.UseEquipmentStateColors"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.UseEquipmentStateColorsHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        requiresReload: false
+    });
+
+    // Equipment active state color setting
+    game.settings.register("tokencontextmenu", "equipmentColorActive", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentColorActive"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentColorActiveHint"),
+        scope: "client",
+        config: true,
+        type: String,
+        default: EQUIPMENT_STATE_COLORS.HEX.ACTIVE,
+        requiresReload: false,
+        onChange: (value) => {
+            debug("Equipment active color changed", { newColor: value });
+            
+            // Get the coordinator instance properly
+            if (window.tokencontextmenu?.weaponSystemCoordinator) {
+                const menuApp = window.tokencontextmenu.weaponSystemCoordinator.getMenuApp();
+                if (menuApp?.rendered) {
+                    debug("Refreshing menu display for active color change");
+                    menuApp._updateMenuDisplay();
+                }
+            }
+        }
+    });
+
+    // Equipment carried state color setting
+    game.settings.register("tokencontextmenu", "equipmentColorCarried", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentColorCarried"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentColorCarriedHint"),
+        scope: "client",
+        config: true,
+        type: String,
+        default: EQUIPMENT_STATE_COLORS.HEX.CARRIED,
+        requiresReload: false,
+        onChange: (value) => {
+            debug("Equipment carried color changed", { newColor: value });
+            
+            // Get the coordinator instance properly
+            if (window.tokencontextmenu?.weaponSystemCoordinator) {
+                const menuApp = window.tokencontextmenu.weaponSystemCoordinator.getMenuApp();
+                if (menuApp?.rendered) {
+                    debug("Refreshing menu display for carried color change");
+                    menuApp._updateMenuDisplay();
+                }
+            }
+        }
+    });
+
     // Debug setting
     game.settings.register("tokencontextmenu", "debugMode", {
         name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
@@ -232,6 +289,33 @@ export function getEquipmentBadgeBgColor() {
 }
 
 /**
+ * Check if equipment state colors are enabled
+ * @returns {boolean} True if state-based coloring is enabled
+ */
+export function shouldUseEquipmentStateColors() {
+    if (typeof game === 'undefined' || !game.ready) return false;
+    return game.settings.get("tokencontextmenu", "useEquipmentStateColors");
+}
+
+/**
+ * Get the equipment active state color
+ * @returns {string} Hex color string for active equipment state
+ */
+export function getEquipmentColorActive() {
+    if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_STATE_COLORS.HEX.ACTIVE;
+    return game.settings.get("tokencontextmenu", "equipmentColorActive");
+}
+
+/**
+ * Get the equipment carried state color
+ * @returns {string} Hex color string for carried equipment state
+ */
+export function getEquipmentColorCarried() {
+    if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_STATE_COLORS.HEX.CARRIED;
+    return game.settings.get("tokencontextmenu", "equipmentColorCarried");
+}
+
+/**
  * Hook to add color picker UI to settings
  * Uses Foundry's native HTML5 color input
  */
@@ -268,7 +352,9 @@ Hooks.on("renderSettingsConfig", (app, html, data) => {
         }
     };
     
-    // Add color pickers for both color settings
+    // Add color pickers for all color settings
     addColorPicker("equipmentBadgeColor");
     addColorPicker("equipmentBadgeBgColor");
+    addColorPicker("equipmentColorActive");
+    addColorPicker("equipmentColorCarried");
 });

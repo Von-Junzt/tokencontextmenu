@@ -6,6 +6,7 @@
 import { debug, debugWarn } from "./debug.js";
 import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS, UI_ANIMATION, BADGE, EXPAND_BUTTON, GRAPHICS, MATH, CONTAINER, HEX_COLOR } from "./constants.js";
 import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, getEquipmentBadgeColor, getEquipmentBadgeBgColor } from "../settings/settings.js";
+import { getEquipmentStateColor } from "./weaponMenuDisplay.js";
 
 /**
  * Builds PIXI menu structures for weapon menus
@@ -253,6 +254,7 @@ export class WeaponMenuBuilder {
             if (weapon.type === "weapon" && metadata?.showBadge && metadata?.equipStatus !== undefined) {
                 weaponContainer._badgeInfo = {
                     type: 'weapon',
+                    weapon: weapon,
                     equipStatus: metadata.equipStatus,
                     iconRadius: this.iconRadius
                 };
@@ -261,6 +263,7 @@ export class WeaponMenuBuilder {
             else if (weapon.type === "power" && metadata?.showPowerBadge) {
                 weaponContainer._badgeInfo = {
                     type: 'power',
+                    power: weapon,
                     isFavorited: metadata.isFavorited,
                     iconRadius: this.iconRadius
                 };
@@ -316,11 +319,13 @@ export class WeaponMenuBuilder {
                 const badge = container._badgeInfo.type === 'power' ?
                     this._createPowerStatusBadge(
                         container._badgeInfo.isFavorited,
-                        container._badgeInfo.iconRadius
+                        container._badgeInfo.iconRadius,
+                        container._badgeInfo.power
                     ) :
                     this._createEquipStatusBadge(
                         container._badgeInfo.equipStatus, 
-                        container._badgeInfo.iconRadius
+                        container._badgeInfo.iconRadius,
+                        container._badgeInfo.weapon
                     );
                 container.addChild(badge);
                 delete container._badgeInfo;  // Clean up
@@ -357,11 +362,13 @@ export class WeaponMenuBuilder {
                 const badge = container._badgeInfo.type === 'power' ?
                     this._createPowerStatusBadge(
                         container._badgeInfo.isFavorited,
-                        container._badgeInfo.iconRadius
+                        container._badgeInfo.iconRadius,
+                        container._badgeInfo.power
                     ) :
                     this._createEquipStatusBadge(
                         container._badgeInfo.equipStatus, 
-                        container._badgeInfo.iconRadius
+                        container._badgeInfo.iconRadius,
+                        container._badgeInfo.weapon
                     );
                 container.addChild(badge);
                 delete container._badgeInfo;  // Clean up
@@ -375,11 +382,13 @@ export class WeaponMenuBuilder {
                 const badge = container._badgeInfo.type === 'power' ?
                     this._createPowerStatusBadge(
                         container._badgeInfo.isFavorited,
-                        container._badgeInfo.iconRadius
+                        container._badgeInfo.iconRadius,
+                        container._badgeInfo.power
                     ) :
                     this._createEquipStatusBadge(
                         container._badgeInfo.equipStatus, 
-                        container._badgeInfo.iconRadius
+                        container._badgeInfo.iconRadius,
+                        container._badgeInfo.weapon
                     );
                 container.addChild(badge);
                 delete container._badgeInfo;  // Clean up
@@ -391,10 +400,11 @@ export class WeaponMenuBuilder {
      * Creates an equipment status badge for weapons
      * @param {number} equipStatus - The equipment status value
      * @param {number} iconRadius - The icon radius for sizing
+     * @param {Object} weapon - The weapon item
      * @returns {PIXI.Container} The badge container
      * @private
      */
-    _createEquipStatusBadge(equipStatus, iconRadius) {
+    _createEquipStatusBadge(equipStatus, iconRadius, weapon) {
         const badge = new PIXI.Container();
         const badgeRadius = iconRadius * BADGE.SIZE_RATIO;
         
@@ -426,12 +436,22 @@ export class WeaponMenuBuilder {
             icon.height = iconSize;
             icon.anchor.set(GRAPHICS.CENTER_ANCHOR);
             
-            // Apply user-selected color tint
-            const badgeColor = getEquipmentBadgeColor();
+            // Check for state-based coloring first
+            let badgeColor = null;
+            if (weapon) {
+                badgeColor = getEquipmentStateColor(weapon);
+            }
+            
+            // Fall back to default badge color if no state color
+            if (!badgeColor) {
+                badgeColor = getEquipmentBadgeColor();
+            }
+            
+            // Apply color tint
             if (badgeColor) {
                 const tintValue = parseInt(badgeColor.replace("#", ""), MATH.HEX_PARSE_BASE);
                 icon.tint = tintValue;
-                debug("Applied equipment badge tint", { color: badgeColor, tint: tintValue });
+                debug("Applied equipment badge tint", { color: badgeColor, tint: tintValue, isStateColor: !!weapon });
             }
             
             badge.addChild(icon);
@@ -454,9 +474,10 @@ export class WeaponMenuBuilder {
      * Creates a favorite status badge for powers
      * @param {boolean} isFavorited - Whether the power is favorited
      * @param {number} iconRadius - Radius of the weapon icon for positioning
+     * @param {Object} power - The power item
      * @returns {PIXI.Container} The badge container
      */
-    _createPowerStatusBadge(isFavorited, iconRadius) {
+    _createPowerStatusBadge(isFavorited, iconRadius, power) {
         const badge = new PIXI.Container();
         const badgeRadius = iconRadius * BADGE.SIZE_RATIO;
         
@@ -491,12 +512,22 @@ export class WeaponMenuBuilder {
             icon.height = iconSize;
             icon.anchor.set(GRAPHICS.CENTER_ANCHOR);
             
-            // Apply user-selected color tint
-            const badgeColor = getEquipmentBadgeColor();
+            // Check for state-based coloring first
+            let badgeColor = null;
+            if (power) {
+                badgeColor = getEquipmentStateColor(power);
+            }
+            
+            // Fall back to default badge color if no state color
+            if (!badgeColor) {
+                badgeColor = getEquipmentBadgeColor();
+            }
+            
+            // Apply color tint
             if (badgeColor) {
                 const tintValue = parseInt(badgeColor.replace("#", ""), MATH.HEX_PARSE_BASE);
                 icon.tint = tintValue;
-                debug("Applied power badge tint", { color: badgeColor, tint: tintValue });
+                debug("Applied power badge tint", { color: badgeColor, tint: tintValue, isStateColor: !!power });
             }
             
             badge.addChild(icon);
