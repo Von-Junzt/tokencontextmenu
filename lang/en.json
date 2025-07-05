@@ -27,6 +27,10 @@
             "EquipmentColorActiveHint": "Color for active items (equipped weapons, carried templates, favorited powers). Click to open color picker.",
             "EquipmentColorCarried": "Carried Equipment Color",
             "EquipmentColorCarriedHint": "Color for carried but not equipped weapons. Click to open color picker."
+        },
+        "PowerStatus": {
+            "Favorited": "Favorited",
+            "Unfavorited": "Unfavorited"
         }
     }
 }

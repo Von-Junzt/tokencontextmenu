@@ -119,6 +119,19 @@ class WeaponMenuTooltipManager extends CleanupManager {
             headerContent += ` (${weapon.system.currentShots}/${weapon.system.shots})`;
         }
         
+        // Add equipment status as subtitle for weapons
+        let equipmentStatusHtml = '';
+        if (weapon.type === "weapon" && metadata?.equipStatus !== undefined) {
+            const statusLabel = EQUIP_STATUS.LABELS[metadata.equipStatus] || 'Unknown';
+            equipmentStatusHtml = `<div class="tooltip-equipment-status">${statusLabel}</div>`;
+        }
+        // Add favorite status as subtitle for powers
+        else if (weapon.type === "power") {
+            const favoriteKey = weapon.system.favorite === true ? 'Favorited' : 'Unfavorited';
+            const favoriteStatus = game.i18n.localize(`tokencontextmenu.PowerStatus.${favoriteKey}`);
+            equipmentStatusHtml = `<div class="tooltip-equipment-status">${favoriteStatus}</div>`;
+        }
+
         // Build tooltip HTML
         let tooltipHtml = '';
         
@@ -128,17 +141,26 @@ class WeaponMenuTooltipManager extends CleanupManager {
             
             if (statLines.length > 0) {
                 tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                    <div class="tooltip-header">${headerContent}</div>
+                    <div class="tooltip-header">
+                        ${headerContent}
+                        ${equipmentStatusHtml}
+                    </div>
                     <hr class="tooltip-separator">
                     ${statLines.map(line => `<div class="tooltip-stat">${line}</div>`).join('')}`;
             } else {
                 tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                    <div class="tooltip-header">${headerContent}</div>`;
+                    <div class="tooltip-header">
+                        ${headerContent}
+                        ${equipmentStatusHtml}
+                    </div>`;
             }
         } else {
             // Simple tooltip
             tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                <div class="tooltip-header">${headerContent}</div>`;
+                <div class="tooltip-header">
+                    ${headerContent}
+                    ${equipmentStatusHtml}
+                </div>`;
         }
         
         // Close the tooltip div
