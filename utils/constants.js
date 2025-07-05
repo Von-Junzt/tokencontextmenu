@@ -323,8 +323,8 @@ export const EQUIPMENT_ZOOM = {
     MIN_SCALE: 1.0,          // Minimum zoom (100% - no zoom)
     MAX_SCALE: 3.0,          // Maximum zoom (300%)
     STEP: 0.1,               // Step for range input
-    ANIMATION_DURATION: 750, // Default animation duration in ms
+    ANIMATION_DURATION: 800, // Default animation duration in ms
     MIN_DURATION: 0,         // Minimum animation duration (instant)
-    MAX_DURATION: 1000,      // Maximum animation duration (1 second)
+    MAX_DURATION: 2000,      // Maximum animation duration (1 second)
     DURATION_STEP: 50        // Step for duration range input
 };
