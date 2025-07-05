@@ -353,9 +353,11 @@ Hooks.on("renderSettingsConfig", (app, html, data) => {
             // Insert the color picker after the text input
             colorInput.after(colorPicker);
             
-            // Update both when color picker changes
+            // Update text input when color picker changes
             colorPicker.on("change input", function() {
-                colorInput.val(this.value).trigger("change");
+                // Set value directly without triggering change event
+                // Triggering change can interfere with other numeric settings causing them to reset to min values
+                colorInput.val(this.value);
             });
             
             // Update color picker when text input changes
