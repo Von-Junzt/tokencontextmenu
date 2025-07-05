@@ -246,9 +246,6 @@ export class WeaponMenuApplication {
             iconBg.drawRoundedRect(-iconRadius, -iconRadius, iconRadius * MATH.DIMENSION_MULTIPLIER, iconRadius * MATH.DIMENSION_MULTIPLIER, UI.ICON_CORNER_RADIUS);
             iconBg.endFill();
 
-            // Get equipment tooltip text
-            const equipmentTooltip = equipmentModeHandler.getEquipmentTooltip(metadata);
-            
             // Check if detailed tooltips are enabled
             const showDetailed = shouldShowDetailedTooltips();
             
@@ -256,7 +253,6 @@ export class WeaponMenuApplication {
             const tooltipContent = this.tooltipManager.buildTooltipContent(
                 weapon, 
                 metadata, 
-                equipmentTooltip, 
                 showDetailed
             );
 

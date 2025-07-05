@@ -107,29 +107,18 @@ class WeaponMenuTooltipManager extends CleanupManager {
      * Builds tooltip content for a weapon/power item
      * @param {Object} weapon - The weapon or power item
      * @param {Object} metadata - Item metadata
-     * @param {string} equipmentTooltip - Additional equipment mode tooltip text
      * @param {boolean} showDetailed - Whether to show detailed stats
      * @returns {string} HTML content for tooltip
      */
-    buildTooltipContent(weapon, metadata, equipmentTooltip = "", showDetailed = false) {
+    buildTooltipContent(weapon, metadata, showDetailed = false) {
         // Build the header with weapon name
         let headerContent = weapon.name;
-        
-        // Add equipment mode tooltip if provided
-        headerContent += equipmentTooltip;
 
         // Add ammo count if applicable
         if (this._hasAmmo(weapon)) {
             headerContent += ` (${weapon.system.currentShots}/${weapon.system.shots})`;
         }
         
-        // Add equipment status as subtitle for weapons
-        let equipmentStatusHtml = '';
-        if (weapon.type === "weapon" && metadata?.equipStatus !== undefined) {
-            const statusLabel = EQUIP_STATUS.LABELS[metadata.equipStatus] || 'Unknown';
-            equipmentStatusHtml = `<div class="tooltip-equipment-status">${statusLabel}</div>`;
-        }
-
         // Build tooltip HTML
         let tooltipHtml = '';
         
@@ -139,26 +128,17 @@ class WeaponMenuTooltipManager extends CleanupManager {
             
             if (statLines.length > 0) {
                 tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                    <div class="tooltip-header">
-                        ${headerContent}
-                        ${equipmentStatusHtml}
-                    </div>
+                    <div class="tooltip-header">${headerContent}</div>
                     <hr class="tooltip-separator">
                     ${statLines.map(line => `<div class="tooltip-stat">${line}</div>`).join('')}`;
             } else {
                 tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                    <div class="tooltip-header">
-                        ${headerContent}
-                        ${equipmentStatusHtml}
-                    </div>`;
+                    <div class="tooltip-header">${headerContent}</div>`;
             }
         } else {
             // Simple tooltip
             tooltipHtml = `<div class="tokencontextmenu-weapon-tooltip">
-                <div class="tooltip-header">
-                    ${headerContent}
-                    ${equipmentStatusHtml}
-                </div>`;
+                <div class="tooltip-header">${headerContent}</div>`;
         }
         
         // Close the tooltip div

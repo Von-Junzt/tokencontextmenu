@@ -104,28 +104,6 @@ class EquipmentModeHandler {
     }
 
     /**
-     * Gets the appropriate tooltip text for an item in equipment mode
-     * @param {Object} metadata - Item metadata
-     * @returns {string}
-     */
-    getEquipmentTooltip(metadata) {
-        // In equipment mode with badges, no tooltip needed - badges are self-explanatory
-        if (metadata?.showBadge && metadata?.equipStatus !== undefined) {
-            return "";
-        }
-        // Legacy tooltips for non-equipment mode
-        else if (metadata?.isCarried) {
-            return " [Carried - Click to equip]";
-        } else if (metadata?.isStored) {
-            return " [Stored Template - Click to carry]";
-        } else if (metadata?.isUnfavorited) {
-            // No tooltip for unfavorited powers - visual styling is enough
-            return "";
-        }
-        return "";
-    }
-
-    /**
      * Tracks equipment mode state for an actor
      * @param {Actor} actor - The actor
      * @param {boolean} enabled - Equipment mode state
