@@ -137,7 +137,7 @@ export function registerSettings() {
         type: Boolean,
         default: false,
         requiresReload: false
-    });
+});
 }
 
 /**
