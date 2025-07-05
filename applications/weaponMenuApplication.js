@@ -1,11 +1,11 @@
-import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, shouldShowDetailedTooltips } from "../settings/settings.js";
+import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, shouldShowDetailedTooltips, shouldZoomOnEquipmentMode, getEquipmentModeZoomLevel, getEquipmentModeZoomDuration } from "../settings/settings.js";
 import { handleWeaponSelection, handleWeaponEdit } from "../utils/weaponHandlers.js";
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { equipmentModeHandler } from "../managers/EquipmentModeHandler.js";
 import { weaponMenuTooltipManager } from "../managers/WeaponMenuTooltipManager.js";
 import { WeaponMenuBuilder } from "../utils/WeaponMenuBuilder.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
-import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION } from "../utils/constants.js";
+import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION, EQUIPMENT_ZOOM } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
 import { debug, debugWarn, debugError } from "../utils/debug.js";
 
@@ -43,6 +43,9 @@ export class WeaponMenuApplication {
         
         // Store expand button references
         this.expandButtons = new Map();
+        
+        // Canvas zoom state for equipment mode
+        this.originalCanvasState = null;
         
         // State management
         this.stateMachine = new WeaponMenuStateMachine();
@@ -483,6 +486,11 @@ export class WeaponMenuApplication {
                 }
             }
             
+            // Restore zoom if in equipment mode
+            if (this.equipmentMode && this.originalCanvasState) {
+                this._restoreCanvasZoom(); // Don't await - let zoom out happen in background
+            }
+            
             // Transition to CLOSING
             this.stateMachine.transition('CLOSING');
             
@@ -590,6 +598,17 @@ export class WeaponMenuApplication {
         this.contextMenuHandler = null;
         this._currentTooltipUpdate = null;
         
+        // Restore canvas zoom without animation
+        if (this.originalCanvasState && canvas?.ready) {
+            // Use immediate pan without animation in emergency
+            canvas.pan({
+                x: this.originalCanvasState.x,
+                y: this.originalCanvasState.y,
+                scale: this.originalCanvasState.scale
+            });
+        }
+        this.originalCanvasState = null;
+        
         // Reset state machine
         this.stateMachine.reset();
         
@@ -641,6 +660,36 @@ export class WeaponMenuApplication {
                     powers: this.expandedSections.powers,
                     equipmentMode: this.equipmentMode
                 });
+                
+                // Handle zoom if enabled
+                if (shouldZoomOnEquipmentMode() && canvas?.ready) {
+                    if (newState && !this.originalCanvasState) {
+                        // Store current canvas state
+                        this.originalCanvasState = {
+                            x: canvas.stage.pivot.x,
+                            y: canvas.stage.pivot.y,
+                            scale: canvas.stage.scale.x
+                        };
+                        
+                        // Zoom to token
+                        const zoomLevel = getEquipmentModeZoomLevel();
+                        const duration = getEquipmentModeZoomDuration();
+                        await canvas.animatePan({
+                            x: this.token.center.x,
+                            y: this.token.center.y,
+                            scale: zoomLevel,
+                            duration: duration
+                        });
+                        
+                        debug("Zoomed to token for equipment mode", {
+                            token: this.token.name,
+                            zoomLevel
+                        });
+                    } else if (!newState && this.originalCanvasState) {
+                        // Restore original view
+                        this._restoreCanvasZoom(); // Don't await - let zoom out happen in background
+                    }
+                }
             }
             
             // Update display
@@ -750,5 +799,25 @@ export class WeaponMenuApplication {
         this.expandButtons.forEach((button, section) => {
             this._setupExpandButtonEvents(button);
         });
+    }
+    
+    /**
+     * Restore the canvas to its original zoom state
+     * @private
+     */
+    _restoreCanvasZoom() {
+        if (!this.originalCanvasState || !canvas?.ready) return;
+        
+        debug("Restoring original canvas zoom");
+        
+        const duration = getEquipmentModeZoomDuration();
+        canvas.animatePan({
+            x: this.originalCanvasState.x,
+            y: this.originalCanvasState.y,
+            scale: this.originalCanvasState.scale,
+            duration: duration
+        });
+        
+        this.originalCanvasState = null;
     }
 }

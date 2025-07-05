@@ -26,7 +26,13 @@
             "EquipmentColorActive": "Active Equipment Color",
             "EquipmentColorActiveHint": "Color for active items (equipped weapons, carried templates, favorited powers). Click to open color picker.",
             "EquipmentColorCarried": "Carried Equipment Color",
-            "EquipmentColorCarriedHint": "Color for carried but not equipped weapons. Click to open color picker."
+            "EquipmentColorCarriedHint": "Color for carried but not equipped weapons. Click to open color picker.",
+            "EquipmentModeZoom": "Zoom on Equipment Mode",
+            "EquipmentModeZoomHint": "Automatically zoom in on the token when entering equipment mode.",
+            "EquipmentModeZoomLevel": "Equipment Mode Zoom Level",
+            "EquipmentModeZoomLevelHint": "Zoom level when entering equipment mode (1.0 = 100%, 2.0 = 200%).",
+            "EquipmentModeZoomDuration": "Equipment Mode Zoom Speed",
+            "EquipmentModeZoomDurationHint": "Animation duration in milliseconds (0 = instant, 1000 = 1 second)."
         },
         "PowerStatus": {
             "Favorited": "Favorited",

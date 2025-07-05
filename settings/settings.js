@@ -4,7 +4,7 @@
  * Settings are client-scoped (per-user) to allow individual preferences.
  */
 import { debug } from "../utils/debug.js";
-import { COLOR_PICKER_UI, HEX_COLOR, EQUIPMENT_STATE_COLORS } from "../utils/constants.js";
+import { COLOR_PICKER_UI, HEX_COLOR, EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM } from "../utils/constants.js";
 
 export function registerSettings() {
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
@@ -13,11 +13,7 @@ export function registerSettings() {
         scope: "client",     // This makes it a per-client setting
         config: true,        // This makes it show up in the configuration menu
         type: Boolean,
-        default: true,      // Default to automatically removing targets
-        onChange: () => {
-            // Force re-render any open token HUDs when the setting changes
-            if (canvas.tokens.hud.rendered) canvas.tokens.hud.render(true);
-        }
+        default: true       // Default to automatically removing targets
     });
 
     // Add the new setting for weapon menu on token selection
@@ -101,19 +97,7 @@ export function registerSettings() {
         config: true,        // Shows in configuration menu
         type: String,
         default: "#000000",  // default color
-        requiresReload: false,
-        onChange: (value) => {
-            debug("Equipment badge color changed", { newColor: value });
-            
-            // Get the coordinator instance properly
-            if (window.tokencontextmenu?.weaponSystemCoordinator) {
-                const menuApp = window.tokencontextmenu.weaponSystemCoordinator.getMenuApp();
-                if (menuApp?.rendered) {
-                    debug("Refreshing menu display for color change");
-                    menuApp._updateMenuDisplay();
-                }
-            }
-        }
+        requiresReload: false
     });
     
     // Equipment badge background color setting
@@ -124,19 +108,7 @@ export function registerSettings() {
         config: true,        // Shows in configuration menu
         type: String,
         default: "#70c8ff",  // Black default
-        requiresReload: false,
-        onChange: (value) => {
-            debug("Equipment badge background color changed", { newColor: value });
-            
-            // Get the coordinator instance properly
-            if (window.tokencontextmenu?.weaponSystemCoordinator) {
-                const menuApp = window.tokencontextmenu.weaponSystemCoordinator.getMenuApp();
-                if (menuApp?.rendered) {
-                    debug("Refreshing menu display for background color change");
-                    menuApp._updateMenuDisplay();
-                }
-            }
-        }
+        requiresReload: false
     });
 
     // Equipment state color toggle setting
@@ -158,19 +130,7 @@ export function registerSettings() {
         config: true,
         type: String,
         default: EQUIPMENT_STATE_COLORS.HEX.ACTIVE,
-        requiresReload: false,
-        onChange: (value) => {
-            debug("Equipment active color changed", { newColor: value });
-            
-            // Get the coordinator instance properly
-            if (window.tokencontextmenu?.weaponSystemCoordinator) {
-                const menuApp = window.tokencontextmenu.weaponSystemCoordinator.getMenuApp();
-                if (menuApp?.rendered) {
-                    debug("Refreshing menu display for active color change");
-                    menuApp._updateMenuDisplay();
-                }
-            }
-        }
+        requiresReload: false
     });
 
     // Equipment carried state color setting
@@ -181,19 +141,48 @@ export function registerSettings() {
         config: true,
         type: String,
         default: EQUIPMENT_STATE_COLORS.HEX.CARRIED,
-        requiresReload: false,
-        onChange: (value) => {
-            debug("Equipment carried color changed", { newColor: value });
-            
-            // Get the coordinator instance properly
-            if (window.tokencontextmenu?.weaponSystemCoordinator) {
-                const menuApp = window.tokencontextmenu.weaponSystemCoordinator.getMenuApp();
-                if (menuApp?.rendered) {
-                    debug("Refreshing menu display for carried color change");
-                    menuApp._updateMenuDisplay();
-                }
-            }
-        }
+        requiresReload: false
+    });
+
+    // Equipment mode zoom settings
+    game.settings.register("tokencontextmenu", "equipmentModeZoom", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeZoom"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeZoomHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        requiresReload: false
+    });
+
+    game.settings.register("tokencontextmenu", "equipmentModeZoomLevel", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeZoomLevel"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeZoomLevelHint"),
+        scope: "client",
+        config: true,
+        type: Number,
+        default: EQUIPMENT_ZOOM.DEFAULT_SCALE,
+        range: {
+            min: EQUIPMENT_ZOOM.MIN_SCALE,
+            max: EQUIPMENT_ZOOM.MAX_SCALE,
+            step: EQUIPMENT_ZOOM.STEP
+        },
+        requiresReload: false
+    });
+
+    game.settings.register("tokencontextmenu", "equipmentModeZoomDuration", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeZoomDuration"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeZoomDurationHint"),
+        scope: "client",
+        config: true,
+        type: Number,
+        default: EQUIPMENT_ZOOM.ANIMATION_DURATION,
+        range: {
+            min: EQUIPMENT_ZOOM.MIN_DURATION,
+            max: EQUIPMENT_ZOOM.MAX_DURATION,
+            step: EQUIPMENT_ZOOM.DURATION_STEP
+        },
+        requiresReload: false
     });
 
     // Debug setting - this should show up as last entry in the settings window
@@ -336,6 +325,33 @@ export function getEquipmentColorCarried() {
 }
 
 /**
+ * Check if zoom should be enabled for equipment mode
+ * @returns {boolean} True if equipment mode zoom is enabled
+ */
+export function shouldZoomOnEquipmentMode() {
+    if (typeof game === 'undefined' || !game.ready) return false;
+    return game.settings.get("tokencontextmenu", "equipmentModeZoom");
+}
+
+/**
+ * Get the equipment mode zoom level
+ * @returns {number} Zoom scale factor
+ */
+export function getEquipmentModeZoomLevel() {
+    if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_ZOOM.DEFAULT_SCALE;
+    return game.settings.get("tokencontextmenu", "equipmentModeZoomLevel");
+}
+
+/**
+ * Get the equipment mode zoom animation duration
+ * @returns {number} Animation duration in milliseconds
+ */
+export function getEquipmentModeZoomDuration() {
+    if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_ZOOM.ANIMATION_DURATION;
+    return game.settings.get("tokencontextmenu", "equipmentModeZoomDuration");
+}
+
+/**
  * Hook to add color picker UI to settings
  * Uses Foundry's native HTML5 color input
  */
@@ -355,18 +371,7 @@ Hooks.on("renderSettingsConfig", (app, html, data) => {
             
             // Update text input when color picker changes
             colorPicker.on("change", function() {
-                // Set value directly without triggering change event
-                // Triggering change can interfere with other numeric settings causing them to reset to min values
                 colorInput.val(this.value);
-            });
-            
-            // Update color picker when text input changes
-            colorInput.on("change input", function() {
-                const value = $(this).val();
-                // Validate hex color format
-                if (new RegExp(`^#[0-9A-Fa-f]{${HEX_COLOR.VALIDATION_LENGTH}}$`).test(value)) {
-                    colorPicker.val(value);
-                }
             });
             
             // Make the text input wider to accommodate the color picker

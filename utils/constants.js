@@ -314,3 +314,17 @@ export const EQUIPMENT_STATE_COLORS = {
         CARRIED: "#FFFF00"
     }
 };
+
+/**
+ * Equipment mode zoom constants
+ */
+export const EQUIPMENT_ZOOM = {
+    DEFAULT_SCALE: 2.5,      // Default zoom level (150%)
+    MIN_SCALE: 1.0,          // Minimum zoom (100% - no zoom)
+    MAX_SCALE: 3.0,          // Maximum zoom (300%)
+    STEP: 0.1,               // Step for range input
+    ANIMATION_DURATION: 750, // Default animation duration in ms
+    MIN_DURATION: 0,         // Minimum animation duration (instant)
+    MAX_DURATION: 1000,      // Maximum animation duration (1 second)
+    DURATION_STEP: 50        // Step for duration range input
+};
