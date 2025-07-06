@@ -84,6 +84,10 @@ A Foundry VTT module that adds a quick-access context menu for weapons and power
 - **lib-wrapper**: v1.8.0 or higher
 - **Better Rolls for SWADE 2**: v2.0.0 or higher (required for dice rolling)
 
+### Optional Dependencies
+
+- **lib - ColorSettings**: Provides enhanced color picker interface for equipment badge colors. Without this module, color settings will use standard text inputs.
+
 ## Usage
 
 ### Basic Usage

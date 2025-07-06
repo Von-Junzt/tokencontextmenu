@@ -77,6 +77,12 @@ export const COLORS = {
     SEPARATOR_LINE_ALPHA: 0.6,               // Separator line opacity
     SPRITE_MASK: 0xffffff,                   // Sprite mask color
     TEXT_FILL: 0xffffff,                     // Text color
+    
+    // Equipment badge colors
+    EQUIPMENT_BADGE_DEFAULT: 0x000000,       // Default equipment badge color (black)
+    EQUIPMENT_BADGE_BG_DEFAULT: 0xff2929,    // Default equipment badge background (red)
+    EQUIPMENT_BADGE_FALLBACK: 0xffa500,      // Fallback badge color when game not ready (orange)
+    EQUIPMENT_BADGE_BG_FALLBACK: 0x000000,   // Fallback badge background when game not ready (black)
 };
 
 /**
@@ -281,15 +287,15 @@ export const HEX_COLOR = {
     WHITE: 0xFFFFFF,              // White color in PIXI hex format
     VALIDATION_LENGTH: 6,         // Length of hex color string (without #)
 };
-
 /**
- * Color picker UI dimensions
+ * Color picker dialog constants
  */
-export const COLOR_PICKER_UI = {
-    HEIGHT: 28,                   // Height in pixels
-    WIDTH: 50,                    // Width in pixels
-    MARGIN_LEFT: 10,              // Left margin in pixels
-    INPUT_WIDTH_OFFSET: 60,       // Offset for text input width calculation
+export const COLOR_PICKER_DIALOG = {
+    WIDTH: 200,                    // Color input width in pixels
+    HEIGHT: 50,                    // Color input height in pixels
+    PADDING: 10,                   // Dialog padding in pixels
+    BUTTON_MARGIN_LEFT: 5,         // Button left margin in pixels
+    BUTTON_PADDING: '2px 8px',     // Button padding
 };
 
 /**

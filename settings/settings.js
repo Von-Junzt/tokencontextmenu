@@ -4,7 +4,7 @@
  * Settings are client-scoped (per-user) to allow individual preferences.
  */
 import { debug } from "../utils/debug.js";
-import { COLOR_PICKER_UI, HEX_COLOR, EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM, EQUIPMENT_BLUR } from "../utils/constants.js";
+import { EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM, EQUIPMENT_BLUR, COLORS, COLOR_PICKER_DIALOG } from "../utils/constants.js";
 
 export function registerSettings() {
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
@@ -93,10 +93,10 @@ export function registerSettings() {
     game.settings.register("tokencontextmenu", "equipmentBadgeColor", {
         name: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeColor"),
         hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeColorHint"),
-        scope: "client",     // Per-client setting
-        config: true,        // Shows in configuration menu
+        scope: "client",
+        config: true,
         type: String,
-        default: "#000000",  // default color
+        default: `#${COLORS.EQUIPMENT_BADGE_DEFAULT.toString(16).padStart(6, '0')}`,
         requiresReload: false
     });
     
@@ -104,10 +104,10 @@ export function registerSettings() {
     game.settings.register("tokencontextmenu", "equipmentBadgeBgColor", {
         name: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeBgColor"),
         hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentBadgeBgColorHint"),
-        scope: "client",     // Per-client setting
-        config: true,        // Shows in configuration menu
+        scope: "client",
+        config: true,
         type: String,
-        default: "#70c8ff",  // Black default
+        default: `#${COLORS.EQUIPMENT_BADGE_BG_DEFAULT.toString(16).padStart(6, '0')}`,
         requiresReload: false
     });
 
@@ -239,6 +239,84 @@ export function registerSettings() {
 }
 
 /**
+ * Opens a color picker dialog for a setting
+ * @param {string} settingName - The setting key  
+ * @param {string} currentColor - Current color value
+ */
+function openColorPickerDialog(settingName, currentColor) {
+    const nameKey = settingName.charAt(0).toUpperCase() + settingName.slice(1);
+    
+    new Dialog({
+        title: game.i18n.localize(`tokencontextmenu.Settings.${nameKey}`),
+        content: `
+            <div style="text-align: center; padding: ${COLOR_PICKER_DIALOG.PADDING}px;">
+                <input type="color" id="color-picker" value="${currentColor}" 
+                       style="width: ${COLOR_PICKER_DIALOG.WIDTH}px; height: ${COLOR_PICKER_DIALOG.HEIGHT}px; cursor: pointer;">
+                <p style="margin-top: ${COLOR_PICKER_DIALOG.PADDING}px;">
+                    Current: <span id="color-value">${currentColor}</span>
+                </p>
+            </div>
+        `,
+        buttons: {
+            apply: {
+                label: "Apply",
+                callback: (html) => {
+                    const newColor = html.find('#color-picker').val();
+                    const input = $(`input[name="tokencontextmenu.${settingName}"]`);
+                    if (input.length) {
+                        input.val(newColor);
+                        debug("Color picker value applied", { setting: settingName, color: newColor });
+                    }
+                }
+            },
+            cancel: {
+                label: "Cancel"
+            }
+        },
+        default: "apply",
+        render: (html) => {
+            // Update preview on change (immediate execution, no timing)
+            html.find('#color-picker').on('input', function() {
+                html.find('#color-value').text(this.value);
+            });
+        }
+    }).render(true);
+}
+
+/**
+ * Hook to add color picker buttons to settings
+ */
+Hooks.on("renderSettingsConfig", (app, html, data) => {
+    const colorSettings = ["equipmentBadgeColor", "equipmentBadgeBgColor", 
+                          "equipmentColorActive", "equipmentColorCarried"];
+    
+    colorSettings.forEach(settingName => {
+        const input = html.find(`input[name="tokencontextmenu.${settingName}"]`);
+        if (input.length) {
+            const currentValue = input.val() || '#000000';
+            
+            // Create button with type="button" to prevent form submission
+            const button = $(`<button type="button" 
+                style="margin-left: ${COLOR_PICKER_DIALOG.BUTTON_MARGIN_LEFT}px; 
+                       padding: ${COLOR_PICKER_DIALOG.BUTTON_PADDING};">
+                <i class="fas fa-palette"></i>
+            </button>`);
+            
+            // Proper event handling to prevent form interference
+            button.on('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                openColorPickerDialog(settingName, currentValue);
+                return false; // Extra safety
+            });
+            
+            // Insert after input without modifying any properties
+            input.after(button);
+        }
+    });
+});
+
+/**
  * Check if targets should be automatically removed when selecting weapons
  * @returns {boolean} True if auto-remove is enabled
  */
@@ -325,7 +403,8 @@ export function shouldShowEquipmentBadges() {
  * @returns {string} Hex color string for badge tinting
  */
 export function getEquipmentBadgeColor() {
-    if (typeof game === 'undefined' || !game.ready) return "#FFA500";
+    if (typeof game === 'undefined' || !game.ready) 
+        return `#${COLORS.EQUIPMENT_BADGE_FALLBACK.toString(16).padStart(6, '0')}`;
     return game.settings.get("tokencontextmenu", "equipmentBadgeColor");
 }
 
@@ -334,7 +413,8 @@ export function getEquipmentBadgeColor() {
  * @returns {string} Hex color string for badge background
  */
 export function getEquipmentBadgeBgColor() {
-    if (typeof game === 'undefined' || !game.ready) return "#000000";
+    if (typeof game === 'undefined' || !game.ready) 
+        return `#${COLORS.EQUIPMENT_BADGE_BG_FALLBACK.toString(16).padStart(6, '0')}`;
     return game.settings.get("tokencontextmenu", "equipmentBadgeBgColor");
 }
 
@@ -418,38 +498,3 @@ export function getEquipmentModeBlurQuality() {
     if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_BLUR.DEFAULT_QUALITY;
     return game.settings.get("tokencontextmenu", "equipmentModeBlurQuality");
 }
-
-/**
- * Hook to add color picker UI to settings
- * Uses Foundry's native HTML5 color input
- */
-Hooks.on("renderSettingsConfig", (app, html, data) => {
-    // Helper function to add color picker to any color setting
-    const addColorPicker = (settingName) => {
-        const colorInput = html.find(`input[name="tokencontextmenu.${settingName}"]`);
-        if (colorInput.length) {
-            // Get the current value
-            const currentValue = colorInput.val();
-            
-            // Create a color input element using HTML5 native color picker
-            const colorPicker = $(`<input type="color" value="${currentValue}" style="height: ${COLOR_PICKER_UI.HEIGHT}px; width: ${COLOR_PICKER_UI.WIDTH}px; margin-left: ${COLOR_PICKER_UI.MARGIN_LEFT}px; cursor: pointer;">`);
-            
-            // Insert the color picker after the text input
-            colorInput.after(colorPicker);
-            
-            // Update text input when color picker changes
-            colorPicker.on("change", function() {
-                colorInput.val(this.value);
-            });
-            
-            // Make the text input wider to accommodate the color picker
-            colorInput.css("width", `calc(100% - ${COLOR_PICKER_UI.INPUT_WIDTH_OFFSET}px)`);
-        }
-    };
-    
-    // Add color pickers for all color settings
-    addColorPicker("equipmentBadgeColor");
-    addColorPicker("equipmentBadgeBgColor");
-    addColorPicker("equipmentColorActive");
-    addColorPicker("equipmentColorCarried");
-});
