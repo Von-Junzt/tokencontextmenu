@@ -332,7 +332,10 @@ export const EQUIPMENT_ZOOM = {
     ANIMATION_DURATION: 750, // Default animation duration in ms
     MIN_DURATION: 0,         // Minimum animation duration (instant)
     MAX_DURATION: 2000,      // Maximum animation duration (1 second)
-    DURATION_STEP: 50        // Step for duration range input
+    DURATION_STEP: 50,       // Step for duration range input
+    REFERENCE_GRID_SIZE: 64, // Reference grid size in pixels for consistent zoom
+    MIN_VISIBLE_SQUARES: 3,  // Minimum grid squares visible when zoomed
+    MAX_VISIBLE_SQUARES: 5   // Maximum grid squares visible when zoomed
 };
 
 /**

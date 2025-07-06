@@ -684,19 +684,31 @@ export class WeaponMenuApplication {
                             scale: canvas.stage.scale.x
                         };
                         
-                        // Zoom to token
-                        const zoomLevel = getEquipmentModeZoomLevel();
+                        // Calculate grid-aware zoom
+                        const gridSize = canvas.grid.size || EQUIPMENT_ZOOM.REFERENCE_GRID_SIZE;
+                        const userZoomLevel = getEquipmentModeZoomLevel();
+                        const gridScale = EQUIPMENT_ZOOM.REFERENCE_GRID_SIZE / gridSize;
+                        const adjustedZoom = userZoomLevel * gridScale;
+                        
+                        // Ensure zoom stays within reasonable bounds
+                        const finalZoom = Math.max(EQUIPMENT_ZOOM.MIN_SCALE, 
+                                                  Math.min(adjustedZoom, EQUIPMENT_ZOOM.MAX_SCALE));
+                        
                         const duration = getEquipmentModeZoomDuration();
                         canvas.animatePan({
                             x: this.token.center.x,
                             y: this.token.center.y,
-                            scale: zoomLevel,
+                            scale: finalZoom,
                             duration: duration
                         }); // Don't await - let zoom happen in background so menu opens immediately
                         
                         debug("Zoomed to token for equipment mode", {
                             token: this.token.name,
-                            zoomLevel
+                            gridSize: gridSize,
+                            userZoomLevel: userZoomLevel,
+                            gridScale: gridScale,
+                            adjustedZoom: adjustedZoom,
+                            finalZoom: finalZoom
                         });
                     } else if (!newState && this.originalCanvasState) {
                         // Restore original view
