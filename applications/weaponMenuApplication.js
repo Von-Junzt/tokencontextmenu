@@ -1,8 +1,9 @@
-import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, shouldShowDetailedTooltips, shouldZoomOnEquipmentMode, getEquipmentModeZoomLevel, getEquipmentModeZoomDuration } from "../settings/settings.js";
+import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, shouldShowDetailedTooltips, shouldZoomOnEquipmentMode, getEquipmentModeZoomLevel, getEquipmentModeZoomDuration, shouldBlurOnEquipmentMode } from "../settings/settings.js";
 import { handleWeaponSelection, handleWeaponEdit } from "../utils/weaponHandlers.js";
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { equipmentModeHandler } from "../managers/EquipmentModeHandler.js";
 import { weaponMenuTooltipManager } from "../managers/WeaponMenuTooltipManager.js";
+import { blurFilterManager } from "../managers/BlurFilterManager.js";
 import { WeaponMenuBuilder } from "../utils/WeaponMenuBuilder.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
 import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION, EQUIPMENT_ZOOM } from "../utils/constants.js";
@@ -491,6 +492,11 @@ export class WeaponMenuApplication {
                 this._restoreCanvasZoom(); // Don't await - let zoom out happen in background
             }
             
+            // Clear blur if in equipment mode
+            if (this.equipmentMode && shouldBlurOnEquipmentMode()) {
+                blurFilterManager.clearEquipmentModeBlur();
+            }
+            
             // Transition to CLOSING
             this.stateMachine.transition('CLOSING');
             
@@ -609,6 +615,13 @@ export class WeaponMenuApplication {
         }
         this.originalCanvasState = null;
         
+        // Force clear blur filters
+        try {
+            blurFilterManager.clearEquipmentModeBlur();
+        } catch (e) {
+            debugWarn('Failed to clear blur filters during emergency cleanup', e);
+        }
+        
         // Reset state machine
         this.stateMachine.reset();
         
@@ -688,6 +701,19 @@ export class WeaponMenuApplication {
                     } else if (!newState && this.originalCanvasState) {
                         // Restore original view
                         this._restoreCanvasZoom(); // Don't await - let zoom out happen in background
+                    }
+                }
+                
+                // Handle blur if enabled
+                if (shouldBlurOnEquipmentMode() && canvas?.ready) {
+                    if (newState) {
+                        // Apply blur to canvas elements except current token
+                        blurFilterManager.applyEquipmentModeBlur(this.token);
+                        debug("Applied blur filter for equipment mode");
+                    } else {
+                        // Remove blur filters
+                        blurFilterManager.clearEquipmentModeBlur();
+                        debug("Cleared blur filter after equipment mode");
                     }
                 }
             }

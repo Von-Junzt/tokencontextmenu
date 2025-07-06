@@ -323,8 +323,23 @@ export const EQUIPMENT_ZOOM = {
     MIN_SCALE: 1.0,          // Minimum zoom (100% - no zoom)
     MAX_SCALE: 3.0,          // Maximum zoom (300%)
     STEP: 0.1,               // Step for range input
-    ANIMATION_DURATION: 800, // Default animation duration in ms
+    ANIMATION_DURATION: 750, // Default animation duration in ms
     MIN_DURATION: 0,         // Minimum animation duration (instant)
     MAX_DURATION: 2000,      // Maximum animation duration (1 second)
     DURATION_STEP: 50        // Step for duration range input
+};
+
+/**
+ * Equipment mode blur filter constants
+ */
+export const EQUIPMENT_BLUR = {
+    FILTER_NAME: 'tcm-equipment-blur',  // Unique name for filter identification
+    DEFAULT_STRENGTH: 8,                // Default blur strength
+    MIN_STRENGTH: 1,                    // Minimum blur strength
+    MAX_STRENGTH: 20,                   // Maximum blur strength
+    STRENGTH_STEP: 1,                   // Step for strength range input
+    DEFAULT_QUALITY: 4,                 // Default blur quality (affects performance)
+    MIN_QUALITY: 1,                     // Minimum quality (fastest)
+    MAX_QUALITY: 8,                     // Maximum quality (best looking)
+    QUALITY_STEP: 1                     // Step for quality range input
 };

@@ -4,7 +4,7 @@
  * Settings are client-scoped (per-user) to allow individual preferences.
  */
 import { debug } from "../utils/debug.js";
-import { COLOR_PICKER_UI, HEX_COLOR, EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM } from "../utils/constants.js";
+import { COLOR_PICKER_UI, HEX_COLOR, EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM, EQUIPMENT_BLUR } from "../utils/constants.js";
 
 export function registerSettings() {
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
@@ -185,6 +185,47 @@ export function registerSettings() {
         requiresReload: false
     });
 
+    // Equipment mode blur settings
+    game.settings.register("tokencontextmenu", "equipmentModeBlur", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeBlur"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeBlurHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        requiresReload: false
+    });
+
+    game.settings.register("tokencontextmenu", "equipmentModeBlurStrength", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeBlurStrength"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeBlurStrengthHint"),
+        scope: "client",
+        config: true,
+        type: Number,
+        default: EQUIPMENT_BLUR.DEFAULT_STRENGTH,
+        range: {
+            min: EQUIPMENT_BLUR.MIN_STRENGTH,
+            max: EQUIPMENT_BLUR.MAX_STRENGTH,
+            step: EQUIPMENT_BLUR.STRENGTH_STEP
+        },
+        requiresReload: false
+    });
+
+    game.settings.register("tokencontextmenu", "equipmentModeBlurQuality", {
+        name: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeBlurQuality"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EquipmentModeBlurQualityHint"),
+        scope: "client",
+        config: true,
+        type: Number,
+        default: EQUIPMENT_BLUR.DEFAULT_QUALITY,
+        range: {
+            min: EQUIPMENT_BLUR.MIN_QUALITY,
+            max: EQUIPMENT_BLUR.MAX_QUALITY,
+            step: EQUIPMENT_BLUR.QUALITY_STEP
+        },
+        requiresReload: false
+    });
+
     // Debug setting - this should show up as last entry in the settings window
     game.settings.register("tokencontextmenu", "debugMode", {
         name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
@@ -349,6 +390,33 @@ export function getEquipmentModeZoomLevel() {
 export function getEquipmentModeZoomDuration() {
     if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_ZOOM.ANIMATION_DURATION;
     return game.settings.get("tokencontextmenu", "equipmentModeZoomDuration");
+}
+
+/**
+ * Check if blur should be enabled for equipment mode
+ * @returns {boolean} True if equipment mode blur is enabled
+ */
+export function shouldBlurOnEquipmentMode() {
+    if (typeof game === 'undefined' || !game.ready) return true;
+    return game.settings.get("tokencontextmenu", "equipmentModeBlur");
+}
+
+/**
+ * Get the equipment mode blur strength
+ * @returns {number} Blur strength value
+ */
+export function getEquipmentModeBlurStrength() {
+    if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_BLUR.DEFAULT_STRENGTH;
+    return game.settings.get("tokencontextmenu", "equipmentModeBlurStrength");
+}
+
+/**
+ * Get the equipment mode blur quality
+ * @returns {number} Blur quality value
+ */
+export function getEquipmentModeBlurQuality() {
+    if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_BLUR.DEFAULT_QUALITY;
+    return game.settings.get("tokencontextmenu", "equipmentModeBlurQuality");
 }
 
 /**

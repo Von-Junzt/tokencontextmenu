@@ -32,7 +32,13 @@
             "EquipmentModeZoomLevel": "Equipment Mode Zoom Level",
             "EquipmentModeZoomLevelHint": "Zoom level when entering equipment mode (1.0 = 100%, 2.0 = 200%).",
             "EquipmentModeZoomDuration": "Equipment Mode Zoom Speed",
-            "EquipmentModeZoomDurationHint": "Animation duration in milliseconds (0 = instant, 1000 = 1 second)."
+            "EquipmentModeZoomDurationHint": "Animation duration in milliseconds (0 = instant, 1000 = 1 second).",
+            "EquipmentModeBlur": "Blur Background in Equipment Mode",
+            "EquipmentModeBlurHint": "Apply blur effect to background when entering equipment mode, keeping focus on the active token.",
+            "EquipmentModeBlurStrength": "Equipment Mode Blur Strength",
+            "EquipmentModeBlurStrengthHint": "Intensity of the blur effect (higher values = more blur).",
+            "EquipmentModeBlurQuality": "Equipment Mode Blur Quality",
+            "EquipmentModeBlurQualityHint": "Quality of the blur effect. Higher values look better but may impact performance."
         },
         "PowerStatus": {
             "Favorited": "Favorited",
