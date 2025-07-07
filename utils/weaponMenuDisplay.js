@@ -7,6 +7,7 @@ import {getWeaponSortPriority, getItemSortPriorityEquipmentMode, emergencyCleanu
 import {WeaponMenuApplication} from "../applications/weaponMenuApplication.js";
 import {weaponSystemCoordinator} from "../managers/WeaponSystemCoordinator.js";
 import {targetingSessionManager} from "../managers/TargetingSessionManager.js";
+import {equipmentModeHandler} from "../managers/EquipmentModeHandler.js";
 import {debugWarn} from "./debug.js";
 import {shouldShowEquipmentBadges} from "../settings/settings.js";
 
@@ -39,9 +40,8 @@ export function getMenuItems(token, options = {}) {
             };
             
             // Determine if this weapon would be visible in normal mode
-            const isEquipped = [2, 4, 5].includes(w.system.equipStatus);
-            const hasTemplate = w.system.templates && 
-                Object.values(w.system.templates).some(v => v === true);
+            const isEquipped = w.isReadied;
+            const hasTemplate = equipmentModeHandler.hasTemplateAOE(w);
             const isCarriedTemplate = w.system.equipStatus === 1 && hasTemplate;
             
             // Mark items that would NOT be visible in normal mode for grey coloring
@@ -58,13 +58,11 @@ export function getMenuItems(token, options = {}) {
             if (i.type !== "weapon") return false;
             
             // Always show equipped weapons
-            if ([5, 4, 2].includes(i.system.equipStatus)) return true;
+            if (i.isReadied) return true;
             
             // Show carried (status 1) template weapons only
             if (i.system.equipStatus === 1) {
-                const hasTemplate = i.system.templates && 
-                    Object.values(i.system.templates).some(v => v === true);
-                return hasTemplate;
+                return equipmentModeHandler.hasTemplateAOE(i);
             }
             
             return false;
@@ -224,11 +222,10 @@ export function getEquipmentStateColor(item) {
     // Weapon logic
     if (item.type === "weapon") {
         const equipStatus = item.system.equipStatus;
-        const hasTemplate = item.system.templates && 
-            Object.values(item.system.templates).some(v => v === true);
+        const hasTemplate = equipmentModeHandler.hasTemplateAOE(item);
         
         // Equipped or carried template = active (green)
-        if ([2, 4, 5].includes(equipStatus) || (equipStatus === 1 && hasTemplate)) {
+        if (item.isReadied || (equipStatus === 1 && hasTemplate)) {
             return game.settings.get("tokencontextmenu", "equipmentColorActive");
         }
         // Carried non-template = carried (yellow)

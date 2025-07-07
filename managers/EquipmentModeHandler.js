@@ -41,15 +41,15 @@ class EquipmentModeHandler {
         // Special weapons (unarmed, claws) toggle between equipped (4) and carried (1)
         if (isSpecialWeapon) {
             return {
-                update: { "system.equipStatus": currentStatus > 1 ? 1 : 4 },
-                description: currentStatus > 1 ? "Unequipping special weapon" : "Equipping special weapon"
+                update: { "system.equipStatus": weapon.isReadied ? 1 : 4 },
+                description: weapon.isReadied ? "Unequipping special weapon" : "Equipping special weapon"
             };
         }
 
         // Template weapons toggle between carried (1) and stored (0), never equipped
         if (hasTemplateAOE) {
             let newStatus;
-            if (currentStatus >= 2) {
+            if (weapon.isReadied) {
                 // Incorrectly equipped -> Move to carried
                 newStatus = 1;
             } else if (currentStatus === 1) {
@@ -68,8 +68,8 @@ class EquipmentModeHandler {
 
         // Normal weapons toggle between equipped and carried
         return {
-            update: { "system.equipStatus": currentStatus > 1 ? 1 : 4 },
-            description: currentStatus > 1 ? "Unequipping weapon" : "Equipping weapon",
+            update: { "system.equipStatus": weapon.isReadied ? 1 : 4 },
+            description: weapon.isReadied ? "Unequipping weapon" : "Equipping weapon",
             useHandler: true // Use existing handlers for normal weapons
         };
     }
