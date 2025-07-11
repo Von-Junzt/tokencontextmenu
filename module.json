@@ -1,7 +1,7 @@
 {
   "id": "tokencontextmenu",
   "title": "Von Junzt's Simple Token Context Menu",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "url": "https://github.com/Von-Junzt/tokencontextmenu",
   "dependencies": [
     {
@@ -30,7 +30,7 @@
     "minimum": "12",
     "verified": "12.331"
   },
-  "description": "A simple token context menu",
+  "description": "A weapon context menu for SWADE with quick access to equipped weapons, powers, and ammunition reload",
   "authors": [
     {
       "name": "Von Junzt",

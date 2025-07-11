@@ -26,6 +26,10 @@ A Foundry VTT module that adds a quick-access context menu for weapons and power
 - **Hover Effects**: Visual feedback when hovering over weapons
 - **Detailed Tooltips**: Optional detailed weapon stats on hover (damage, range, AP, etc.)
 - **Ammo Display**: Shows current/max ammunition for ranged weapons
+- **Reload Button**: Quick reload button for weapons with ammunition tracking
+  - Appears on hover or always visible (configurable)
+  - Customizable colors matching badge system
+  - Smart positioning at weapon icon corner
 - **Equipment Mode**: Expand button shows all weapons/powers with visual badges
 - **Status Badges**: Visual indicators for equipment status and power favorites
 - **Customizable Colors**: Player-configurable badge colors with color picker
@@ -54,6 +58,10 @@ A Foundry VTT module that adds a quick-access context menu for weapons and power
 - **Icon Scale**: Adjust icon size (0.3-1.2x grid size)
 - **Detailed Tooltips**: Toggle between simple and detailed weapon information
 - **Auto-Remove Targets**: Clear existing targets when selecting new weapons
+- **Reload Button Settings**: 
+  - Icon color customization
+  - Background color customization
+  - Always show option (default: on)
 - **Hide Target Button**: Optional removal of default target button from token HUD
 
 ### 🏗️ Architecture Highlights
@@ -127,6 +135,9 @@ Access module settings through Foundry's module configuration:
 | Expand Weapons by Default | Off | Show carried weapons when menu opens |
 | Expand Powers by Default | Off | Show unfavorited powers when menu opens |
 | Equipment Badge Color | #00C4FF | Color for equipment and power badges |
+| Reload Button Color | #00C4FF | Color for reload button icon |
+| Reload Button Background | #1A1A1A | Background color for reload button |
+| Always Show Reload Button | On | Always display reload buttons (not just on hover) |
 | Debug Mode | Off | Enable diagnostic logging |
 
 ## Troubleshooting

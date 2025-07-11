@@ -92,12 +92,20 @@ To develop:
      - Special weapons (unarmed/claws): Toggle between equipped/carried
      - Normal weapons: Standard equip/unequip behavior
 
-3. **Smart Menu Behavior**:
+3. **Weapon Reload Feature**:
+   - Reload button appears on weapons with ammunition tracking
+   - Visual button at top-left corner (opposite equipment badges)
+   - Uses SWADE's native weapon.reload() function when available
+   - Customizable colors and always-show option
+   - Hidden in equipment mode to reduce clutter
+   - Dynamically checks ammo state to auto-hide when fully loaded
+
+4. **Smart Menu Behavior**:
    - Hides during token movement, reopens when stopped
    - Closes on right-click or escape key
    - Cleans up properly on scene changes
 
-4. **Click Event Handling**:
+5. **Click Event Handling**:
    - `Token._onClickLeft` wrapped to capture mouse events before selection
    - Selection state checked during `mouseup` (not `mousedown`) to handle race conditions
    - Drag detection prevents menu opening during immediate token drags

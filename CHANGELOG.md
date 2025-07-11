@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2025-01-07
+## [1.1.0] - 2025-01-11
 
 ### Added
 - **SWADE System Dependency** - Added explicit SWADE system requirement to module.json
@@ -26,6 +26,18 @@ All notable changes to this project will be documented in this file.
   - Appears below separator line in tooltip for better readability
   - Provides accessibility for color-blind users
   - Complements visual badge indicators
+- **Reload Button for Weapons** - Added quick reload functionality for weapons with ammunition
+  - Visual reload button appears on weapons that need reloading
+  - Position: top-left corner of weapon icon (opposite equipment badge)
+  - Customizable colors for icon and background
+  - Always show option (default: on) or show only on hover
+  - Works with SWADE's native reload functionality
+  - Automatically hides after weapon is reloaded
+  - Hidden in equipment mode to avoid clutter
+- **Ammo Type in Tooltips** - Added ammunition type display to weapon tooltips
+  - Shows as first stat (e.g., "⦿ Ammo: 9mm")
+  - Only displays for weapons with defined ammo type
+  - Uses monochrome bullet symbol for consistency
 
 ### Changed
 - **Foundry Compatibility** - Updated to v12.331 (stable)
@@ -70,6 +82,18 @@ All notable changes to this project will be documented in this file.
 - **Drag Detection** - Added 5-pixel threshold to distinguish clicks from drags
 - **Setting Behavior** - "Show on selection" now only affects initial selection, not subsequent clicks
 - **Reopen After Drag** - This setting now works independently of "Show on selection" setting
+
+### Fixed
+- **Reload Button Icon Issue** - Fixed reload icon displaying as black square
+  - Changed from reload.svg to cycle.svg for better compatibility
+  - Fixed SVG fill conflicts by using currentColor
+  - Icon now properly respects user color settings
+- **Reload Button Z-Order** - Fixed reload button rendering behind weapon icon
+  - Moved button creation to after sprite loading completes
+  - Ensures proper layer ordering in PIXI container
+- **Reload Button Persistence** - Fixed reload button showing after weapon fully reloaded
+  - Button now checks current weapon state dynamically
+  - Properly hides when weapon no longer needs reloading
 
 ### Technical Improvements
 - Removed global document/canvas mouse event listeners
