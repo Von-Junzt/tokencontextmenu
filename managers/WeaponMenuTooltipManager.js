@@ -191,6 +191,11 @@ class WeaponMenuTooltipManager extends CleanupManager {
     _buildStatLines(weapon) {
         const statLines = [];
 
+        // Ammo Type - show first for weapons with ammo
+        if (weapon.type === "weapon" && weapon.system.ammo) {
+            statLines.push(`⦿ Ammo: ${weapon.system.ammo}`);
+        }
+
         // Damage
         if (weapon.system.damage) {
             const damageMod = (weapon.system.actions?.dmgMod !== '0') ? weapon.system.actions.dmgMod : '';
