@@ -756,8 +756,10 @@ export class WeaponMenuApplication {
                 // Handle blur if enabled
                 if (shouldBlurOnEquipmentMode() && canvas?.ready) {
                     if (newState) {
-                        // Apply blur to canvas elements except current token
-                        blurFilterManager.applyEquipmentModeBlur(this.token);
+                        // Apply blur asynchronously to prevent UI lag
+                        Promise.resolve().then(() => {
+                            blurFilterManager.applyEquipmentModeBlur(this.token);
+                        });
                         debug("Applied blur filter for equipment mode");
                     } else {
                         // Remove blur filters

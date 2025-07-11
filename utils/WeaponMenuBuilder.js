@@ -237,6 +237,7 @@ export class WeaponMenuBuilder {
         weaponContainer.eventMode = 'static';
         weaponContainer.cursor = 'pointer';
         weaponContainer.weapon = weapon;
+        weaponContainer.equipmentMode = options.equipmentMode || false;
 
         // Create icon background
         const iconBg = this._createIconBackground(weapon, options.itemMetadata);
@@ -315,7 +316,7 @@ export class WeaponMenuBuilder {
      * @private
      */
     _addReloadButton(weaponContainer, iconRadius) {
-        if (!weaponContainer._needsReload || weaponContainer._reloadButton) return;
+        if (!weaponContainer._needsReload || weaponContainer._reloadButton || weaponContainer.equipmentMode) return;
         
         // Create reload button with visibility based on settings
         const reloadButton = this._createReloadButton(iconRadius);
