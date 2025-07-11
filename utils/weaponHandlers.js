@@ -220,6 +220,44 @@ export async function handlePowerFavoriteToggle(actor, powerId) {
 }
 
 /**
+ * Handles reloading a weapon to full ammo
+ * @param {Actor} actor - The actor that owns the weapon
+ * @param {string} weaponId - The ID of the weapon to reload
+ * @returns {Promise<void>}
+ */
+export async function handleWeaponReload(actor, weaponId) {
+    // Check permissions
+    if (!actor.isOwner) {
+        ui.notifications.warn("You don't have permission to modify this token");
+        return;
+    }
+    
+    const weapon = actor.items.get(weaponId);
+    if (!weapon || weapon.type !== "weapon") {
+        debugWarn("Invalid weapon for reloading:", weaponId);
+        return;
+    }
+    
+    // Check if weapon has ammo system
+    if (weapon.system?.shots === undefined || weapon.system?.currentShots === undefined) {
+        debugWarn("Weapon does not have ammo system:", weapon.name);
+        return;
+    }
+    
+    debug(`Reloading weapon: ${weapon.name} from ${weapon.system.currentShots}/${weapon.system.shots}`);
+    
+    // Call SWADE's reload method if available, otherwise update currentShots
+    if (weapon.reload && typeof weapon.reload === 'function') {
+        await weapon.reload();
+    } else {
+        // Fallback to manual update
+        await weapon.update({ "system.currentShots": weapon.system.shots });
+    }
+    
+    debug(`${weapon.name} reloaded!`);
+}
+
+/**
  * Handles unequipping a weapon (setting it to carried status)
  * @param {Actor} actor - The actor that owns the weapon
  * @param {string} weaponId - The ID of the weapon to unequip

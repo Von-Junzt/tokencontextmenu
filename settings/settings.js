@@ -226,6 +226,37 @@ export function registerSettings() {
         requiresReload: false
     });
 
+    // Reload button color settings
+    game.settings.register("tokencontextmenu", "reloadButtonColor", {
+        name: game.i18n.localize("tokencontextmenu.Settings.ReloadButtonColor"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ReloadButtonColorHint"),
+        scope: "client",
+        config: true,
+        type: String,
+        default: `#${COLORS.EQUIPMENT_BADGE_DEFAULT.toString(16).padStart(6, '0')}`, // Same as badge icon color
+        requiresReload: false
+    });
+
+    game.settings.register("tokencontextmenu", "reloadButtonBgColor", {
+        name: game.i18n.localize("tokencontextmenu.Settings.ReloadButtonBgColor"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ReloadButtonBgColorHint"),
+        scope: "client",
+        config: true,
+        type: String,
+        default: `#${COLORS.EQUIPMENT_BADGE_BG_DEFAULT.toString(16).padStart(6, '0')}`, // Same as badge bg color
+        requiresReload: false
+    });
+
+    game.settings.register("tokencontextmenu", "alwaysShowReloadButton", {
+        name: game.i18n.localize("tokencontextmenu.Settings.AlwaysShowReloadButton"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.AlwaysShowReloadButtonHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        requiresReload: false
+    });
+
     // Debug setting - this should show up as last entry in the settings window
     game.settings.register("tokencontextmenu", "debugMode", {
         name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
@@ -288,7 +319,8 @@ function openColorPickerDialog(settingName, currentColor) {
  */
 Hooks.on("renderSettingsConfig", (app, html, data) => {
     const colorSettings = ["equipmentBadgeColor", "equipmentBadgeBgColor", 
-                          "equipmentColorActive", "equipmentColorCarried"];
+                          "equipmentColorActive", "equipmentColorCarried",
+                          "reloadButtonColor", "reloadButtonBgColor"];
     
     colorSettings.forEach(settingName => {
         const input = html.find(`input[name="tokencontextmenu.${settingName}"]`);
@@ -497,4 +529,37 @@ export function getEquipmentModeBlurStrength() {
 export function getEquipmentModeBlurQuality() {
     if (typeof game === 'undefined' || !game.ready) return EQUIPMENT_BLUR.DEFAULT_QUALITY;
     return game.settings.get("tokencontextmenu", "equipmentModeBlurQuality");
+}
+
+/**
+ * Gets the reload button icon color
+ * @returns {string} The reload button icon color as hex string
+ */
+export function getReloadButtonColor() {
+    if (typeof game === 'undefined' || !game.ready) {
+        return `#${COLORS.EQUIPMENT_BADGE_DEFAULT.toString(16).padStart(6, '0')}`;
+    }
+    return game.settings.get("tokencontextmenu", "reloadButtonColor");
+}
+
+/**
+ * Gets the reload button background color
+ * @returns {string} The reload button background color as hex string
+ */
+export function getReloadButtonBgColor() {
+    if (typeof game === 'undefined' || !game.ready) {
+        return `#${COLORS.EQUIPMENT_BADGE_BG_DEFAULT.toString(16).padStart(6, '0')}`;
+    }
+    return game.settings.get("tokencontextmenu", "reloadButtonBgColor");
+}
+
+/**
+ * Gets whether to always show reload buttons
+ * @returns {boolean} Whether to always show reload buttons
+ */
+export function getAlwaysShowReloadButton() {
+    if (typeof game === 'undefined' || !game.ready) {
+        return false;
+    }
+    return game.settings.get("tokencontextmenu", "alwaysShowReloadButton");
 }

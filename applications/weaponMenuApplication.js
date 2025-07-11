@@ -1,4 +1,4 @@
-import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, shouldShowDetailedTooltips, shouldZoomOnEquipmentMode, getEquipmentModeZoomLevel, getEquipmentModeZoomDuration, shouldBlurOnEquipmentMode } from "../settings/settings.js";
+import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, shouldShowDetailedTooltips, shouldZoomOnEquipmentMode, getEquipmentModeZoomLevel, getEquipmentModeZoomDuration, shouldBlurOnEquipmentMode, getAlwaysShowReloadButton } from "../settings/settings.js";
 import { handleWeaponSelection, handleWeaponEdit } from "../utils/weaponHandlers.js";
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { equipmentModeHandler } from "../managers/EquipmentModeHandler.js";
@@ -6,7 +6,7 @@ import { weaponMenuTooltipManager } from "../managers/WeaponMenuTooltipManager.j
 import { blurFilterManager } from "../managers/BlurFilterManager.js";
 import { WeaponMenuBuilder } from "../utils/WeaponMenuBuilder.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
-import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION, EQUIPMENT_ZOOM } from "../utils/constants.js";
+import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION, EQUIPMENT_ZOOM, RELOAD_BUTTON } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
 import { debug, debugWarn, debugError } from "../utils/debug.js";
 
@@ -158,6 +158,7 @@ export class WeaponMenuApplication {
             this.expandButtons,
             {
                 itemMetadata: this.itemMetadata,
+                equipmentMode: this.equipmentMode,
                 onWeaponHover: (container, event) => this._setupWeaponEvents(container, container.getChildByName('background'), this.menuBuilder.iconRadius),
                 onExpandClick: (section) => this._handleExpandToggle(section)
             }
@@ -261,6 +262,37 @@ export class WeaponMenuApplication {
             );
 
             this._showTooltip(tooltipContent, event);
+
+            // Show reload button if weapon needs reloading (but not in equipment mode)
+            if (weaponContainer._reloadButton && !this.equipmentMode) {
+                // Check current weapon state to see if it still needs reloading
+                const currentWeapon = this.token.actor.items.get(weapon.id);
+                const needsReload = currentWeapon?.type === "weapon" &&
+                                  currentWeapon.system?.shots !== undefined &&
+                                  currentWeapon.system?.currentShots !== undefined &&
+                                  currentWeapon.system.currentShots < currentWeapon.system.shots;
+                
+                if (needsReload) {
+                    // Only change visibility if not already visible (respects always show setting)
+                    if (!weaponContainer._reloadButton.visible) {
+                        weaponContainer._reloadButton.visible = true;
+                    }
+                    weaponContainer._reloadButton.alpha = RELOAD_BUTTON.NORMAL_ALPHA;
+                    
+                    // Set up reload click handler
+                    weaponContainer.onReloadClick = async () => {
+                        // Import and call reload handler
+                        const { handleWeaponReload } = await import("../utils/weaponHandlers.js");
+                        await handleWeaponReload(this.token.actor, weapon.id);
+                        
+                        // Hide reload button after successful reload (regardless of always show setting)
+                        if (weaponContainer._reloadButton) {
+                            weaponContainer._reloadButton.visible = false;
+                            weaponContainer._needsReload = false;
+                        }
+                    };
+                }
+            }
         });
 
         weaponContainer.on('pointerout', () => {
@@ -283,6 +315,11 @@ export class WeaponMenuApplication {
             iconBg.endFill();
 
             this._hideTooltip();
+
+            // Hide reload button on pointer out (unless always show is enabled)
+            if (weaponContainer._reloadButton && !getAlwaysShowReloadButton()) {
+                weaponContainer._reloadButton.visible = false;
+            }
         });
 
         weaponContainer.on('pointerdown', async (event) => {
@@ -821,6 +858,7 @@ export class WeaponMenuApplication {
             this.expandButtons,
             {
                 itemMetadata: this.itemMetadata,
+                equipmentMode: this.equipmentMode,
                 onWeaponHover: (container, event) => this._setupWeaponEvents(container, container.getChildByName('background'), this.menuBuilder.iconRadius),
                 onExpandClick: (section) => this._handleExpandToggle(section)
             }

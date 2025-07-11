@@ -38,7 +38,13 @@
             "EquipmentModeBlurStrength": "Equipment Mode Blur Strength",
             "EquipmentModeBlurStrengthHint": "Intensity of the blur effect (higher values = more blur).",
             "EquipmentModeBlurQuality": "Equipment Mode Blur Quality",
-            "EquipmentModeBlurQualityHint": "Quality of the blur effect. Higher values look better but may impact performance."
+            "EquipmentModeBlurQualityHint": "Quality of the blur effect. Higher values look better but may impact performance.",
+            "ReloadButtonColor": "Reload Button Icon Color",
+            "ReloadButtonColorHint": "Color for the reload button icon. Click to open color picker.",
+            "ReloadButtonBgColor": "Reload Button Background Color",
+            "ReloadButtonBgColorHint": "Background color for the reload button. Click to open color picker.",
+            "AlwaysShowReloadButton": "Always Show Reload Button",
+            "AlwaysShowReloadButtonHint": "Show reload buttons on weapons that need reloading without requiring hover. When disabled, reload buttons only appear on hover."
         },
         "PowerStatus": {
             "Favorited": "Favorited",

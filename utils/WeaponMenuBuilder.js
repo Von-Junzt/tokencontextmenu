@@ -4,8 +4,8 @@
  */
 
 import { debug, debugWarn } from "./debug.js";
-import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS, UI_ANIMATION, BADGE, EXPAND_BUTTON, GRAPHICS, MATH, CONTAINER, HEX_COLOR } from "./constants.js";
-import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, getEquipmentBadgeColor, getEquipmentBadgeBgColor } from "../settings/settings.js";
+import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS, UI_ANIMATION, BADGE, RELOAD_BUTTON, EXPAND_BUTTON, GRAPHICS, MATH, CONTAINER, HEX_COLOR } from "./constants.js";
+import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, getEquipmentBadgeColor, getEquipmentBadgeBgColor, getReloadButtonColor, getReloadButtonBgColor, getAlwaysShowReloadButton } from "../settings/settings.js";
 import { getEquipmentStateColor } from "./weaponMenuDisplay.js";
 
 /**
@@ -270,6 +270,11 @@ export class WeaponMenuBuilder {
             }
         }
 
+        // Store reload flag for later button creation
+        if (this._needsReload(weapon)) {
+            weaponContainer._needsReload = true;
+        }
+
         return weaponContainer;
     }
 
@@ -304,6 +309,43 @@ export class WeaponMenuBuilder {
     }
 
     /**
+     * Adds reload button to weapon container if needed
+     * @param {PIXI.Container} weaponContainer
+     * @param {number} iconRadius
+     * @private
+     */
+    _addReloadButton(weaponContainer, iconRadius) {
+        if (!weaponContainer._needsReload || weaponContainer._reloadButton) return;
+        
+        // Create reload button with visibility based on settings
+        const reloadButton = this._createReloadButton(iconRadius);
+        reloadButton.visible = getAlwaysShowReloadButton(); // Show based on user setting
+        weaponContainer._reloadButton = reloadButton;
+        weaponContainer.addChild(reloadButton);
+        
+        // Setup reload button events
+        reloadButton.on('pointerover', () => {
+            reloadButton.alpha = RELOAD_BUTTON.HOVER_ALPHA;
+        });
+        
+        reloadButton.on('pointerout', () => {
+            reloadButton.alpha = RELOAD_BUTTON.NORMAL_ALPHA;
+        });
+        
+        reloadButton.on('pointerdown', async (evt) => {
+            evt.stopPropagation();
+            if (evt.data?.originalEvent) {
+                evt.data.originalEvent.stopPropagation();
+            }
+            
+            // Trigger reload action through parent container
+            if (weaponContainer.onReloadClick) {
+                await weaponContainer.onReloadClick();
+            }
+        });
+    }
+
+    /**
      * Loads weapon sprite or creates fallback
      * @param {Object} weapon
      * @param {PIXI.Container} container
@@ -330,6 +372,9 @@ export class WeaponMenuBuilder {
                 container.addChild(badge);
                 delete container._badgeInfo;  // Clean up
             }
+            
+            // Add reload button after badge
+            this._addReloadButton(container, this.iconRadius);
             return;
         }
 
@@ -373,6 +418,9 @@ export class WeaponMenuBuilder {
                 container.addChild(badge);
                 delete container._badgeInfo;  // Clean up
             }
+            
+            // Add reload button after sprite and badge
+            this._addReloadButton(container, this.iconRadius);
         }).catch(error => {
             debugWarn(`Failed to load weapon texture for ${weapon.name}:`, error);
             this._createFallbackText(weapon, container);
@@ -393,6 +441,9 @@ export class WeaponMenuBuilder {
                 container.addChild(badge);
                 delete container._badgeInfo;  // Clean up
             }
+            
+            // Add reload button after fallback and badge
+            this._addReloadButton(container, this.iconRadius);
         });
     }
 
@@ -544,6 +595,93 @@ export class WeaponMenuBuilder {
         }
         
         return badge;
+    }
+
+    /**
+     * Checks if a weapon needs reloading
+     * @param {Object} weapon - The weapon item
+     * @returns {boolean}
+     * @private
+     */
+    _needsReload(weapon) {
+        return weapon.type === "weapon" &&
+               weapon.system?.shots !== undefined &&
+               weapon.system?.currentShots !== undefined &&
+               weapon.system.currentShots < weapon.system.shots;
+    }
+
+    /**
+     * Creates a reload button for weapons that need reloading
+     * @param {number} iconRadius - The radius of the parent icon
+     * @returns {PIXI.Container} The reload button container
+     * @private
+     */
+    _createReloadButton(iconRadius) {
+        const button = new PIXI.Container();
+        const buttonRadius = iconRadius * RELOAD_BUTTON.SIZE_RATIO;
+        
+        // Position button at top-left corner (similar to badge positioning)
+        button.x = -iconRadius + buttonRadius * BADGE.POSITION_OFFSET_RATIO;
+        button.y = -iconRadius + buttonRadius * BADGE.POSITION_OFFSET_RATIO;
+        
+        // Create circular background with user-selected color
+        const bgColor = getReloadButtonBgColor();
+        const bgTint = parseInt(bgColor.replace("#", ""), MATH.HEX_PARSE_BASE);
+        
+        const bg = new PIXI.Graphics();
+        bg.beginFill(bgTint, RELOAD_BUTTON.BG_ALPHA);
+        const circleRadius = buttonRadius * RELOAD_BUTTON.CIRCLE_SIZE_MULTIPLIER;
+        bg.drawCircle(0, 0, circleRadius);
+        bg.endFill();
+        button.addChild(bg);
+        
+        // Load reload icon
+        const iconPath = RELOAD_BUTTON.ICON_PATH;
+        if (iconPath) {
+            try {
+                const iconTexture = PIXI.Texture.from(iconPath);
+                const icon = new PIXI.Sprite(iconTexture);
+                
+                // Size and position icon
+                const iconSize = buttonRadius * RELOAD_BUTTON.ICON_SIZE_MULTIPLIER;
+                icon.width = iconSize;
+                icon.height = iconSize;
+                icon.anchor.set(GRAPHICS.CENTER_ANCHOR);
+                
+                // Apply user-selected icon color
+                const iconColor = getReloadButtonColor();
+                const iconTint = parseInt(iconColor.replace("#", ""), MATH.HEX_PARSE_BASE);
+                icon.tint = iconTint;
+                
+                button.addChild(icon);
+            } catch (error) {
+                // Fallback to Unicode reload symbol
+                debugWarn(`Failed to load reload icon:`, error);
+                
+                // Use user-selected color for fallback text
+                const iconColor = getReloadButtonColor();
+                const iconHex = parseInt(iconColor.replace("#", ""), MATH.HEX_PARSE_BASE);
+                
+                const fallback = new PIXI.Text('⟳', {
+                    fontFamily: 'Arial',
+                    fontSize: buttonRadius * RELOAD_BUTTON.ICON_SIZE_MULTIPLIER,
+                    fill: iconHex,
+                    fontWeight: 'bold'
+                });
+                fallback.anchor.set(GRAPHICS.CENTER_ANCHOR);
+                button.addChild(fallback);
+            }
+        }
+        
+        // Set initial state
+        button.alpha = RELOAD_BUTTON.NORMAL_ALPHA;
+        button.eventMode = 'static';
+        button.cursor = 'pointer';
+        
+        // Make button interactive
+        button.interactive = true;
+        
+        return button;
     }
 
     _createFallbackText(weapon, container) {

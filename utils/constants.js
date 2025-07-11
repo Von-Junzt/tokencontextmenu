@@ -231,6 +231,34 @@ export const BADGE = {
 };
 
 /**
+ * Reload button dimensions and styling
+ */
+export const RELOAD_BUTTON = {
+    // Positioning - top-left corner to match badge system
+    POSITION_X_RATIO: -0.8,      // Same as badge positioning
+    POSITION_Y_RATIO: -0.8,      // Top-left corner
+    
+    // Sizing - match badge size
+    SIZE_RATIO: 0.3,             // Same as BADGE.SIZE_RATIO
+    CIRCLE_SIZE_MULTIPLIER: 1.5, // Same as badge circle
+    ICON_SIZE_MULTIPLIER: 2.0,   // Same as badge icon
+    
+    // Styling
+    BG_COLOR: 0xFFFFFF,         // White background
+    BG_ALPHA: 0.9,              // Same as badge opacity
+    ICON_COLOR: 0x000000,       // Black icon color
+    HOVER_ALPHA: 0.9,           // Opacity on hover
+    NORMAL_ALPHA: 0.9,          // Normal opacity
+    
+    // Animation
+    FADE_IN_DURATION: 200,      // Fade in duration in ms
+    FADE_OUT_DURATION: 100,     // Fade out duration in ms
+    
+    // Icon path
+    ICON_PATH: 'modules/tokencontextmenu/icons/equipment/reload.svg'
+};
+
+/**
  * Expand button dimensions and styling
  */
 export const EXPAND_BUTTON = {
