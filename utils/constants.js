@@ -241,7 +241,7 @@ export const RELOAD_BUTTON = {
     // Sizing - match badge size
     SIZE_RATIO: 0.3,             // Same as BADGE.SIZE_RATIO
     CIRCLE_SIZE_MULTIPLIER: 1.5, // Same as badge circle
-    ICON_SIZE_MULTIPLIER: 2.0,   // Same as badge icon
+    ICON_SIZE_MULTIPLIER: 2.5,   // Same as badge icon
     
     // Styling
     BG_COLOR: 0xFFFFFF,         // White background
