@@ -183,6 +183,44 @@ class WeaponMenuTooltipManager extends CleanupManager {
     }
 
     /**
+     * Formats a stat value for display in tooltips
+     * - Adds "+" prefix to positive numbers if not present
+     * - Returns null for zero values to skip display
+     * - Preserves existing formatting
+     * @param {string|number} value - The stat value to format
+     * @returns {string|null} Formatted value or null if zero
+     * @private
+     */
+    _formatStatValue(value) {
+        // Handle empty or undefined values
+        if (value === undefined || value === null || value === '') {
+            return null;
+        }
+        
+        // Convert to string for consistent handling
+        const strValue = String(value).trim();
+        
+        // Check if it's zero (handle both numeric 0 and string '0')
+        if (strValue === '0' || strValue === '+0' || strValue === '-0') {
+            return null;
+        }
+        
+        // Check if it already has a sign prefix
+        if (strValue.startsWith('+') || strValue.startsWith('-')) {
+            return strValue;
+        }
+        
+        // Try to parse as number to determine if positive
+        const numValue = parseFloat(strValue);
+        if (!isNaN(numValue) && numValue > 0) {
+            return '+' + strValue;
+        }
+        
+        // Return as-is for other cases (negative numbers already have -)
+        return strValue;
+    }
+
+    /**
      * Builds stat lines for detailed tooltips
      * @param {Object} weapon - The weapon or power item
      * @returns {Array<string>} Array of stat lines
@@ -198,8 +236,9 @@ class WeaponMenuTooltipManager extends CleanupManager {
 
         // Damage
         if (weapon.system.damage) {
-            const damageMod = (weapon.system.actions?.dmgMod !== '0') ? weapon.system.actions.dmgMod : '';
-            statLines.push(`🗲 Damage: ${weapon.system.damage} ${damageMod}`);
+            const damageMod = this._formatStatValue(weapon.system.actions?.dmgMod);
+            const damageStr = damageMod ? `${weapon.system.damage} ${damageMod}` : weapon.system.damage;
+            statLines.push(`🗲 Damage: ${damageStr}`);
         }
 
         // Range
@@ -214,7 +253,10 @@ class WeaponMenuTooltipManager extends CleanupManager {
 
         // Trait Modifier
         if (weapon.system.actions?.traitMod) {
-            statLines.push(`⊕ Trait Mod: ${weapon.system.actions.traitMod}`);
+            const formattedMod = this._formatStatValue(weapon.system.actions.traitMod);
+            if (formattedMod) {
+                statLines.push(`⊕ Trait Mod: ${formattedMod}`);
+            }
         }
 
         // Power Points - only for powers
@@ -229,7 +271,10 @@ class WeaponMenuTooltipManager extends CleanupManager {
         // Append validated additional stats
         additionalStats.forEach(stat => {
             if (stat?.icon && stat?.label && stat?.value !== undefined) {
-                statLines.push(`${stat.icon} ${stat.label}: ${stat.value}`);
+                const formattedValue = this._formatStatValue(stat.value);
+                if (formattedValue) {
+                    statLines.push(`${stat.icon} ${stat.label}: ${formattedValue}`);
+                }
             }
         });
 
