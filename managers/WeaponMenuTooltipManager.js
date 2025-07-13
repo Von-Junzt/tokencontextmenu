@@ -222,6 +222,17 @@ class WeaponMenuTooltipManager extends CleanupManager {
             statLines.push(`◈ PP: ${weapon.system.pp}`);
         }
 
+        // Allow other modules to add additional stats
+        const additionalStats = [];
+        Hooks.call('tokencontextmenu.buildTooltipStats', weapon, additionalStats);
+        
+        // Append validated additional stats
+        additionalStats.forEach(stat => {
+            if (stat?.icon && stat?.label && stat?.value !== undefined) {
+                statLines.push(`${stat.icon} ${stat.label}: ${stat.value}`);
+            }
+        });
+
         return statLines;
     }
 
