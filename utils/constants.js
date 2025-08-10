@@ -124,6 +124,11 @@ export const WEAPON_PRIORITY = {
     OTHER: 100                // Other items
 };
 
+// Weapon name constants
+export const WEAPON_NAMES = {
+    UNARMED_ATTACK: "Unarmed Attack"
+};
+
 /**
  * Power favorite status constants
  */

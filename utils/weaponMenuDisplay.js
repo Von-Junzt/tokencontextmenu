@@ -8,7 +8,8 @@ import {WeaponMenuApplication} from "../applications/weaponMenuApplication.js";
 import {weaponSystemCoordinator} from "../managers/WeaponSystemCoordinator.js";
 import {targetingSessionManager} from "../managers/TargetingSessionManager.js";
 import {equipmentModeHandler} from "../managers/EquipmentModeHandler.js";
-import {debugWarn} from "./debug.js";
+import {debug, debugWarn} from "./debug.js";
+import {WEAPON_NAMES} from "./constants.js";
 import {shouldShowEquipmentBadges} from "../settings/settings.js";
 
 /**
@@ -169,6 +170,59 @@ export function getMenuItems(token, options = {}) {
  * Enhanced to coordinate with state manager
  * @param {Token} token - The token to show the menu for
  */
+/**
+ * Ensures the actor has an Unarmed Attack weapon equipped
+ * Creates one if it doesn't exist, equips it if it's not equipped
+ * @param {Actor} actor - The actor to check
+ * @returns {Promise<boolean>} - True if successful, false if no permissions
+ */
+async function ensureUnarmedAttack(actor) {
+    if (!actor?.isOwner) {
+        debugWarn("Cannot create Unarmed Attack - insufficient permissions");
+        return false;
+    }
+    
+    // Look for existing unarmed attack (case insensitive)
+    const existingUnarmed = actor.items.find(i => 
+        i.type === "weapon" && 
+        i.name.toLowerCase().includes(WEAPON_NAMES.UNARMED_ATTACK.toLowerCase())
+    );
+    
+    if (existingUnarmed) {
+        // Check if it needs to be equipped
+        if (!existingUnarmed.isReadied) {
+            debug(`Equipping existing ${WEAPON_NAMES.UNARMED_ATTACK} for ${actor.name}`);
+            await existingUnarmed.update({ "system.equipStatus": 4 });
+        }
+        return true;
+    }
+    
+    // Create minimal unarmed attack weapon
+    debug(`Creating ${WEAPON_NAMES.UNARMED_ATTACK} for ${actor.name}`);
+    await actor.createEmbeddedDocuments("Item", [{
+        name: WEAPON_NAMES.UNARMED_ATTACK,
+        type: "weapon",
+        img: "systems/swade/assets/icons/skills/punch.svg",
+        system: {
+            damage: "@str",
+            equipStatus: 4, // Equipped in main hand
+            actions: {
+                trait: "Fighting",
+                traitMod: "",
+                dmgMod: ""
+            },
+            ap: 0,
+            range: "",
+            rof: 1,
+            shots: 0,
+            currentShots: 0,
+            favorite: false,
+            isHeavyWeapon: false
+        }
+    }]);
+    return true;
+}
+
 export async function showWeaponMenuUnderToken(token) {
     if (!token?.actor) {
         ui.notifications.warn("No valid token selected.");
@@ -191,7 +245,19 @@ export async function showWeaponMenuUnderToken(token) {
     const expandWeapons = false;
     const expandPowers = false;
     
-    const { items, metadata } = getMenuItems(token, { expandWeapons, expandPowers });
+    let { items, metadata } = getMenuItems(token, { expandWeapons, expandPowers });
+
+    // If no weapons in menu, ensure unarmed attack exists
+    const hasWeapons = items.some(i => i.type === "weapon");
+    if (!hasWeapons) {
+        const created = await ensureUnarmedAttack(token.actor);
+        if (created) {
+            // Re-fetch menu items after creating/equipping unarmed attack
+            const refreshed = getMenuItems(token, { expandWeapons, expandPowers });
+            items = refreshed.items;
+            metadata = refreshed.metadata;
+        }
+    }
 
     if (!items.length) {
         debugWarn("No items found for", token.name);
