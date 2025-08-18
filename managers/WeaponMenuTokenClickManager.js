@@ -170,17 +170,17 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
         this._handleRightDown = (event) => {
             // Check if the event target is a token or child of a token
             let token = null;
-            if (event.target instanceof Token) {
+            if (event.target instanceof foundry.canvas.placeables.Token) {
                 token = event.target;
-            } else if (event.target?.parent instanceof Token) {
+            } else if (event.target?.parent instanceof foundry.canvas.placeables.Token) {
                 token = event.target.parent;
             } else {
                 // Walk up the parent chain to find a token (for deep children)
                 let parent = event.target?.parent;
-                while (parent && !(parent instanceof Token)) {
+                while (parent && !(parent instanceof foundry.canvas.placeables.Token)) {
                     parent = parent.parent;
                 }
-                if (parent instanceof Token) {
+                if (parent instanceof foundry.canvas.placeables.Token) {
                     token = parent;
                 }
             }
@@ -235,7 +235,7 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
         // Only intercept left clicks - right clicks are handled reliably by PIXI
         // This is necessary because Foundry's Token._onClickLeft consumes the event
         // before PIXI listeners can process it
-        libWrapper.register('tokencontextmenu', 'Token.prototype._onClickLeft', function(wrapped, event) {
+        libWrapper.register('tokencontextmenu', 'foundry.canvas.placeables.Token.prototype._onClickLeft', function(wrapped, event) {
             const token = this;
             
             // Early exit if not owner to reduce overhead
@@ -506,7 +506,7 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
         }
         
         // Unregister libWrapper hooks
-        libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
+        libWrapper.unregister('tokencontextmenu', 'foundry.canvas.placeables.Token.prototype._onClickLeft');
 
         // Clear collections
         this.controlledTokens.clear();

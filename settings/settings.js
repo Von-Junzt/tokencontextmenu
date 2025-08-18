@@ -292,10 +292,10 @@ function openColorPickerDialog(settingName, currentColor) {
             apply: {
                 label: "Apply",
                 callback: (html) => {
-                    const newColor = html.find('#color-picker').val();
-                    const input = $(`input[name="tokencontextmenu.${settingName}"]`);
-                    if (input.length) {
-                        input.val(newColor);
+                    const newColor = html.querySelector('#color-picker').value;
+                    const input = document.querySelector(`input[name="tokencontextmenu.${settingName}"]`);
+                    if (input) {
+                        input.value = newColor;
                         debug("Color picker value applied", { setting: settingName, color: newColor });
                     }
                 }
@@ -307,8 +307,8 @@ function openColorPickerDialog(settingName, currentColor) {
         default: "apply",
         render: (html) => {
             // Update preview on change (immediate execution, no timing)
-            html.find('#color-picker').on('input', function() {
-                html.find('#color-value').text(this.value);
+            html.querySelector('#color-picker').addEventListener('input', function() {
+                html.querySelector('#color-value').textContent = this.value;
             });
         }
     }).render(true);
@@ -323,19 +323,19 @@ Hooks.on("renderSettingsConfig", (app, html, data) => {
                           "reloadButtonColor", "reloadButtonBgColor"];
     
     colorSettings.forEach(settingName => {
-        const input = html.find(`input[name="tokencontextmenu.${settingName}"]`);
-        if (input.length) {
-            const currentValue = input.val() || '#000000';
+        const input = html.querySelector(`input[name="tokencontextmenu.${settingName}"]`);
+        if (input) {
+            const currentValue = input.value || '#000000';
             
             // Create button with type="button" to prevent form submission
-            const button = $(`<button type="button" 
-                style="margin-left: ${COLOR_PICKER_DIALOG.BUTTON_MARGIN_LEFT}px; 
-                       padding: ${COLOR_PICKER_DIALOG.BUTTON_PADDING};">
-                <i class="fas fa-palette"></i>
-            </button>`);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.style.marginLeft = `${COLOR_PICKER_DIALOG.BUTTON_MARGIN_LEFT}px`;
+            button.style.padding = COLOR_PICKER_DIALOG.BUTTON_PADDING;
+            button.innerHTML = '<i class="fas fa-palette"></i>';
             
             // Proper event handling to prevent form interference
-            button.on('click', function(event) {
+            button.addEventListener('click', function(event) {
                 event.preventDefault();
                 event.stopPropagation();
                 openColorPickerDialog(settingName, currentValue);
@@ -343,7 +343,7 @@ Hooks.on("renderSettingsConfig", (app, html, data) => {
             });
             
             // Insert after input without modifying any properties
-            input.after(button);
+            input.insertAdjacentElement('afterend', button);
         }
     });
 });
