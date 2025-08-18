@@ -69,12 +69,7 @@ export function initializeGlobalInteractionLayer() {
 
     updateInteractionLayerHitArea();
 
-    if (globalInteractionLayer.eventMode !== undefined) {
-        globalInteractionLayer.eventMode = 'static';
-    } else {
-        globalInteractionLayer.interactive = true;
-        globalInteractionLayer.interactiveChildren = true;
-    }
+    globalInteractionLayer.eventMode = 'static';
 }
 
 /**
@@ -213,6 +208,11 @@ export function getItemSortPriorityEquipmentMode(item) {
 
 /**
  * Sets up click handlers for target selection with enhanced state coordination
+ * 
+ * Uses direct position checking for token hit detection to ensure correctness
+ * when tokens move during targeting (common in multiplayer games).
+ * Checks current token positions on every mouse move/click for accurate detection.
+ * 
  * @param {Object} pendingData - The pending weapon roll data
  * @param {Function} onTargetSelected - Callback when target is selected
  * @param {Function} onAbort - Callback when targeting is aborted
@@ -232,7 +232,7 @@ export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort)
     interactionLayer.removeAllListeners();
     activateInteractionLayer();
 
-    const originalCursor = document.body.style.cursor;
+    const originalCursor = canvas.app.view.style.cursor;
 
     let hoveredToken = null;
     let isFinishing = false;
@@ -242,18 +242,23 @@ export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort)
             return;
         }
 
-        const clientPoint = new PIXI.Point(
-            event.data.originalEvent.clientX,
-            event.data.originalEvent.clientY
-        );
-        const { x, y } = canvas.canvasCoordinatesFromClient(clientPoint);
+        // Get canvas coordinates directly from event global position
+        const point = event.data.getLocalPosition(canvas.stage);
+        const x = point.x;
+        const y = point.y;
 
-        const targetedToken = canvas.tokens.placeables.find(t => {
-            const hitArea = new PIXI.Rectangle(t.x, t.y, t.w, t.h);
-            return hitArea.contains(x, y);
-        });
+        // Find token using direct position checks (always current)
+        const targetedToken = canvas.tokens.placeables.find(token => {
+            return x >= token.x && 
+                   x <= (token.x + token.w) && 
+                   y >= token.y && 
+                   y <= (token.y + token.h);
+        })
 
-        document.body.style.cursor = targetedToken ? 'pointer' : 'default';
+        // Set cursor on both canvas view and interaction layer for v13
+        const cursorStyle = targetedToken ? 'pointer' : 'default';
+        canvas.app.view.style.cursor = cursorStyle;
+        interactionLayer.cursor = cursorStyle;
 
         if (hoveredToken !== targetedToken) {
             if (hoveredToken) hoveredToken.hover = false;
@@ -276,16 +281,18 @@ export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort)
         }
 
         if (btn === 0) {
-            const clientPoint = new PIXI.Point(
-                event.data.originalEvent.clientX,
-                event.data.originalEvent.clientY
-            );
-            const { x, y } = canvas.canvasCoordinatesFromClient(clientPoint);
+            // Get canvas coordinates directly from event global position
+            const point = event.data.getLocalPosition(canvas.stage);
+            const x = point.x;
+            const y = point.y;
 
-            const targetedToken = canvas.tokens.placeables.find(t => {
-                const hitArea = new PIXI.Rectangle(t.x, t.y, t.w, t.h);
-                return hitArea.contains(x, y);
-            });
+            // Find token using direct position checks (always current)
+            const targetedToken = canvas.tokens.placeables.find(token => {
+                return x >= token.x && 
+                       x <= (token.x + token.w) && 
+                       y >= token.y && 
+                       y <= (token.y + token.h);
+            })
 
             if (targetedToken) {
                 targetedToken.setTarget(true, {user: game.user, releaseOthers: true, groupSelection: false});
@@ -319,7 +326,7 @@ export function setupTargetClickHandlers(pendingData, onTargetSelected, onAbort)
 
         deactivateInteractionLayer();
 
-        document.body.style.cursor = originalCursor;
+        canvas.app.view.style.cursor = originalCursor;
 
         if (hoveredToken) {
             hoveredToken.hover = false;
