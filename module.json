@@ -3,8 +3,25 @@
   "title": "Von Junzt's Simple Token Context Menu",
   "version": "1.1.0",
   "url": "https://github.com/Von-Junzt/tokencontextmenu",
-  "dependencies": [
-    {
+  "relationships": {
+    "requires": [
+      {
+        "id": "lib-wrapper",
+        "manifest": "https://raw.githubusercontent.com/league-of-foundry-developers/lib-wrapper/master/module.json",
+        "compatibility": {
+          "minimum": "1.8.0",
+          "verified": "1.8.0"
+        }
+      },
+      {
+        "id": "betterrolls-swade2",
+        "manifest": "https://raw.githubusercontent.com/javierriveracastro/betteroll-swade/version_2/module.json",
+        "compatibility": {
+          "minimum": "2.0.0",
+          "verified": "2.0.0"
+        }
+      },
+      {
       "id": "swade",
       "type": "system",
       "manifest": "https://gitlab.com/api/v4/projects/16688548/packages/generic/swade/latest/system.json",
@@ -12,20 +29,9 @@
         "minimum": "4.0.0",
         "verified": "4.4.3"
       }
-    },
-    {
-      "id": "lib-wrapper",
-      "manifest": "https://raw.githubusercontent.com/league-of-foundry-developers/lib-wrapper/master/module.json",
-      "minimum": "1.8.0",
-      "verified": "1.8.0"
-    },
-    {
-      "id": "betterrolls-swade2",
-      "manifest": "https://raw.githubusercontent.com/javierriveracastro/betteroll-swade/version_2/module.json",
-      "minimum": "2.0.0",
-      "verified": "2.0.0"
     }
-  ],
+    ]
+  },
   "compatibility": {
     "minimum": "13",
     "verified": "13"
