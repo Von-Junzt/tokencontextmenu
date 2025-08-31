@@ -112,10 +112,12 @@ export const WEAPON_PRIORITY = {
         STORED: 4             // Equip status 0: Stored weapons
     },
     
-    // Weapon type grouping (added to base priority)
+    // Weapon type grouping by skill/trait (added to base priority)
     WEAPON_TYPE_GROUP: {
-        NORMAL: 0,            // Regular weapons (0-29)
-        TEMPLATE: 30,         // Template/AOE weapons (30-59)
+        RANGED: 0,          // Shooting trait weapons (100-199)
+        MELEE: 100,             // Fighting trait weapons (0-99)
+        THROWN: 200,          // Athletics/Throwing trait weapons (200-299)
+        TEMPLATE: 300,        // Template/AOE weapons (300-399)
         SPECIAL: 900          // Special weapons - appear at end
     },
     

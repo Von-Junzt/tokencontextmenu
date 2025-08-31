@@ -156,16 +156,21 @@ export function getWeaponSortPriority(item) {
 
         const basePriority = equipStatusMap[item.system.equipStatus] ?? WEAPON_PRIORITY.DEFAULT;
 
-        // Check if it's a template weapon
-        const hasTemplateAOE = item.system?.templates &&
-            Object.values(item.system.templates).some(v => v === true);
-
-        // Add type group offset
-        if (hasTemplateAOE) {
-            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.TEMPLATE + basePriority;
-        } else {
-            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.NORMAL + basePriority;
+        // Get the weapon's trait (skill used) to determine weapon type
+        const trait = item.system?.actions?.trait?.toLowerCase() || "";
+        
+        // Determine weapon type group based on skill/trait
+        let typeGroup = WEAPON_PRIORITY.WEAPON_TYPE_GROUP.MELEE; // Default to melee
+        
+        if (trait.includes("fighting")) {
+            typeGroup = WEAPON_PRIORITY.WEAPON_TYPE_GROUP.MELEE;
+        } else if (trait.includes("shooting")) {
+            typeGroup = WEAPON_PRIORITY.WEAPON_TYPE_GROUP.RANGED;
+        } else if (trait.includes("athletics") || trait.includes("throwing")) {
+            typeGroup = WEAPON_PRIORITY.WEAPON_TYPE_GROUP.THROWN;
         }
+        
+        return typeGroup + basePriority;
     }
 
     return WEAPON_PRIORITY.OTHER;
@@ -191,16 +196,21 @@ export function getItemSortPriorityEquipmentMode(item) {
             return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.SPECIAL;
         }
 
-        // Check if it's a template weapon
-        const hasTemplateAOE = item.system?.templates &&
-            Object.values(item.system.templates).some(v => v === true);
-
+        // Get the weapon's trait (skill used) to determine weapon type
+        const trait = item.system?.actions?.trait?.toLowerCase() || "";
+        
+        // Determine weapon type group based on skill/trait
         // Return type group only, no equipment status consideration
-        if (hasTemplateAOE) {
-            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.TEMPLATE;
-        } else {
-            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.NORMAL;
+        if (trait.includes("fighting")) {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.MELEE;
+        } else if (trait.includes("shooting")) {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.RANGED;
+        } else if (trait.includes("athletics") || trait.includes("throwing")) {
+            return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.THROWN;
         }
+        
+        // Default to melee for weapons without a clear trait
+        return WEAPON_PRIORITY.WEAPON_TYPE_GROUP.MELEE;
     }
 
     return WEAPON_PRIORITY.OTHER;
