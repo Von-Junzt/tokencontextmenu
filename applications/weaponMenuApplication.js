@@ -397,21 +397,31 @@ export class WeaponMenuApplication {
         } else {
             // Normal use - check if weapon is empty before using
             if (isEmpty && weapon?.type === "weapon") {
-                // Determine appropriate message based on weapon type
+                // Determine appropriate message based on how the weapon tracks emptiness
                 let message;
                 
-                if (weapon.system?.shots !== undefined && weapon.system?.currentShots !== undefined) {
-                    // Ammo-based weapon
+                // Get the weapon's trait to determine type
+                const trait = weapon.system?.actions?.trait?.toLowerCase() || "";
+                
+                // Check if it's a shooting weapon with ammo tracking
+                if (trait.includes("shooting") && 
+                    weapon.system?.shots !== undefined && 
+                    weapon.system?.currentShots !== undefined) {
+                    // Ammo-based weapon (guns, bows, etc.)
                     message = game.i18n.format("tokencontextmenu.Messages.WeaponEmpty", {
                         weapon: weapon.name
                     }) || `${weapon.name} is out of ammunition!`;
-                } else if (weapon.system?.quantity !== undefined) {
-                    // Quantity-based item (grenades, thrown weapons)
+                } 
+                // Check if it's a thrown weapon or template weapon with quantity
+                else if ((trait.includes("athletics") || trait.includes("throwing") || 
+                          (weapon.system?.templates && Object.values(weapon.system.templates).some(v => v === true))) && 
+                         weapon.system?.quantity !== undefined) {
+                    // Quantity-based item (grenades, thrown weapons, template weapons)
                     message = game.i18n.format("tokencontextmenu.Messages.ItemEmpty", {
                         item: weapon.name
-                    }) || `You have no more ${weapon.name}!`;
+                    }) || `You have no ${weapon.name} left!`;
                 } else {
-                    // Generic empty message
+                    // Generic empty message for other cases
                     message = `${weapon.name} is empty!`;
                 }
                 
