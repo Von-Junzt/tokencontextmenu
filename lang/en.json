@@ -49,6 +49,10 @@
         "PowerStatus": {
             "Favorited": "Favorited",
             "Unfavorited": "Unfavorited"
+        },
+        "Messages": {
+            "WeaponEmpty": "{weapon} is out of ammunition!",
+            "ItemEmpty": "You have no more {item}!"
         }
     }
 }

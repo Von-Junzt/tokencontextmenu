@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a weapon context menu module for the SWADE (Savage Worlds Adventure Edition) system in Foundry VTT. The module provides a quick-access menu for weapons and powers that appears when tokens are selected.
 
-**Current Environment**: Foundry VTT v12
-**Compatibility Target**: All implementations should maintain compatibility with Foundry VTT v13
+**Current Environment**: Foundry VTT v13
+**Compatibility Target**: v13 only - no backwards compatibility required
 
 ## Development Commands
 
@@ -115,8 +115,7 @@ To develop:
 
 - **lib-wrapper** - For wrapping Foundry core functions
 - **betterrolls-swade2** - For dice rolling and attack cards
-- Foundry VTT v12+ with SWADE system
-- **Note**: Currently running on v12, but maintain v13 compatibility
+- Foundry VTT v13 with SWADE system
 
 ### Important Patterns
 
@@ -230,11 +229,10 @@ The module uses an **optimized hybrid approach** based on what works best:
   - Excessive try/catch can mask real issues and interfere with debugging
   - **NEVER use setTimeout, setInterval, or timing-based solutions** - Use event-driven patterns, Foundry hooks, or immediate execution instead
 
-**Foundry v13 Compatibility**:
+**Foundry v13 Standards**:
 - Always use `eventMode` instead of deprecated `interactive` property
-- Check for property existence before using v13-specific features
-- Maintain backwards compatibility with v12 APIs
-- Test features in both v12 and v13 environments when possible
+- Use v13 APIs and patterns without worrying about backwards compatibility
+- Leverage v13-specific features and improvements where beneficial
 
 ### Development Guidelines
 

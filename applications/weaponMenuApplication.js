@@ -331,7 +331,7 @@ export class WeaponMenuApplication {
             this._hideTooltip();
 
             if (event.data.button === MOUSE_BUTTON.LEFT) {
-                await this._handleWeaponSelection(weaponContainer.weapon.id);
+                await this._handleWeaponSelection(weaponContainer.weapon.id, weaponContainer._isEmpty);
             } else if (event.data.button === MOUSE_BUTTON.RIGHT) {
                 await this._handleWeaponEdit(weaponContainer.weapon.id);
             }
@@ -352,9 +352,10 @@ export class WeaponMenuApplication {
     /**
      * Handle weapon selection (left-click)
      * @param {string} weaponId - The ID of the selected weapon
+     * @param {boolean} isEmpty - Whether the weapon is empty
      * @private
      */
-    async _handleWeaponSelection(weaponId) {
+    async _handleWeaponSelection(weaponId, isEmpty = false) {
         const metadata = this.itemMetadata.get(weaponId);
         const weapon = this.token.actor.items.get(weaponId);
         
@@ -396,7 +397,31 @@ export class WeaponMenuApplication {
             await handlePowerFavoriteToggle(this.token.actor, weaponId);
             await this._updateMenuDisplay(); // Refresh to show favorited
         } else {
-            // Normal use
+            // Normal use - check if weapon is empty before using
+            if (isEmpty && weapon?.type === "weapon") {
+                // Determine appropriate message based on weapon type
+                let message;
+                
+                if (weapon.system?.shots !== undefined && weapon.system?.currentShots !== undefined) {
+                    // Ammo-based weapon
+                    message = game.i18n.format("tokencontextmenu.Messages.WeaponEmpty", {
+                        weapon: weapon.name
+                    }) || `${weapon.name} is out of ammunition!`;
+                } else if (weapon.system?.quantity !== undefined) {
+                    // Quantity-based item (grenades, thrown weapons)
+                    message = game.i18n.format("tokencontextmenu.Messages.ItemEmpty", {
+                        item: weapon.name
+                    }) || `You have no more ${weapon.name}!`;
+                } else {
+                    // Generic empty message
+                    message = `${weapon.name} is empty!`;
+                }
+                
+                ui.notifications.warn(message);
+                return;
+            }
+            
+            // Weapon is not empty, proceed with normal use
             await handleWeaponSelection(this.token, weaponId, () => this.close());
         }
     }

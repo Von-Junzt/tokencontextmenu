@@ -7,6 +7,7 @@ import { debug, debugWarn } from "./debug.js";
 import { COLORS, SIZES, UI, EQUIP_STATUS, POWER_STATUS, UI_ANIMATION, BADGE, RELOAD_BUTTON, EXPAND_BUTTON, GRAPHICS, MATH, CONTAINER, HEX_COLOR } from "./constants.js";
 import { getWeaponMenuIconScale, getWeaponMenuItemsPerRow, getEquipmentBadgeColor, getEquipmentBadgeBgColor, getReloadButtonColor, getReloadButtonBgColor, getAlwaysShowReloadButton } from "../settings/settings.js";
 import { getEquipmentStateColor } from "./weaponMenuDisplay.js";
+import { equipmentModeHandler } from "../managers/EquipmentModeHandler.js";
 
 /**
  * Builds PIXI menu structures for weapon menus
@@ -276,6 +277,11 @@ export class WeaponMenuBuilder {
             weaponContainer._needsReload = true;
         }
 
+        // Store empty state for later use in event handlers
+        if (this._isWeaponEmpty(weapon)) {
+            weaponContainer._isEmpty = true;
+        }
+
         return weaponContainer;
     }
 
@@ -398,6 +404,13 @@ export class WeaponMenuBuilder {
             const metadata = itemMetadata?.get(weapon.id);
             if (metadata?.isCarried || metadata?.isUnfavorited || metadata?.isStored) {
                 sprite.alpha = UI_ANIMATION.CARRIED_SPRITE_ALPHA;
+            }
+
+            // Apply grey tint and reduced opacity for empty weapons (but NOT in equipment mode)
+            // Equipment mode is for inventory management, not usage, so empty weapons should appear normal
+            if (container._isEmpty && !container.equipmentMode) {
+                sprite.tint = COLORS.EMPTY_WEAPON_TINT;
+                sprite.alpha = COLORS.EMPTY_WEAPON_ALPHA;
             }
 
             container.addChild(spriteMask);
@@ -609,6 +622,73 @@ export class WeaponMenuBuilder {
                weapon.system?.shots !== undefined &&
                weapon.system?.currentShots !== undefined &&
                weapon.system.currentShots < weapon.system.shots;
+    }
+
+    /**
+     * Checks if a weapon is empty (no ammo or quantity)
+     * 
+     * This method uses SWADE's trait system to determine weapon type and only
+     * checks for "emptiness" on weapons that would logically have ammunition:
+     * 
+     * WEAPON TYPES BY TRAIT:
+     * - "Fighting" = Melee weapons (swords, clubs) - NEVER empty
+     * - "Shooting" = Ranged weapons (guns, bows) - Check currentShots/shots
+     * - "Athletics"/"Throwing" = Thrown weapons - Check quantity if defined
+     * - Template weapons (grenades) - Check quantity if defined
+     * 
+     * WHY BOTH TEMPLATE AND TRAIT CHECKS?
+     * We intentionally check BOTH templates and traits for redundancy:
+     * - Template check: Catches ALL AOE weapons regardless of their trait
+     *   (some template weapons might use custom skills or no skill at all)
+     * - Athletics/Throwing check: Catches non-template thrown weapons
+     *   (throwing knives, spears that don't have AOE templates)
+     * This redundancy ensures comprehensive coverage of all weapon types
+     * that might track quantity, regardless of module additions or custom content.
+     * 
+     * LOGIC:
+     * 1. Melee weapons (Fighting trait) are never considered empty
+     * 2. Ranged weapons (Shooting trait) are empty when currentShots === 0
+     * 3. Template weapons (AOE) are empty when quantity === 0 (if field exists)
+     * 4. Thrown weapons are empty when quantity === 0 (if field exists)
+     * 
+     * @param {Object} weapon - The weapon item to check
+     * @returns {boolean} True if the weapon is empty and should be disabled
+     * @private
+     */
+    _isWeaponEmpty(weapon) {
+        if (!weapon || weapon.type !== "weapon") {
+            return false;
+        }
+
+        // Get the weapon's trait (skill used) - this tells us the weapon type
+        const trait = weapon.system?.actions?.trait?.toLowerCase() || "";
+        
+        // Melee weapons (Fighting trait) are never "empty"
+        if (trait.includes("fighting")) {
+            return false;
+        }
+        
+        // Ranged weapons (Shooting trait) - check ammunition
+        if (trait.includes("shooting") && 
+            weapon.system?.shots !== undefined && 
+            weapon.system?.currentShots !== undefined) {
+            return weapon.system.currentShots === 0;
+        }
+        
+        // Template weapons (grenades, explosives) - check quantity if defined
+        if (equipmentModeHandler.hasTemplateAOE(weapon) && 
+            weapon.system?.quantity !== undefined) {
+            return weapon.system.quantity === 0;
+        }
+        
+        // Thrown weapons (Athletics/Throwing trait) - check quantity if defined
+        if ((trait.includes("athletics") || trait.includes("throwing")) && 
+            weapon.system?.quantity !== undefined) {
+            return weapon.system.quantity === 0;
+        }
+        
+        // Weapon doesn't track ammo or quantity, so can't be empty
+        return false;
     }
 
     /**

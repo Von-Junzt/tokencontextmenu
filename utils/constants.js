@@ -83,6 +83,10 @@ export const COLORS = {
     EQUIPMENT_BADGE_BG_DEFAULT: 0xff2929,    // Default equipment badge background (red)
     EQUIPMENT_BADGE_FALLBACK: 0xffa500,      // Fallback badge color when game not ready (orange)
     EQUIPMENT_BADGE_BG_FALLBACK: 0x000000,   // Fallback badge background when game not ready (black)
+    
+    // Empty weapon appearance
+    EMPTY_WEAPON_TINT: 0x808080,            // Grey tint for empty weapons
+    EMPTY_WEAPON_ALPHA: 0.5,                // 50% opacity for empty weapons
 };
 
 /**
