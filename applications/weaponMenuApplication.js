@@ -285,11 +285,9 @@ export class WeaponMenuApplication {
                         const { handleWeaponReload } = await import("../utils/weaponHandlers.js");
                         await handleWeaponReload(this.token.actor, weapon.id);
                         
-                        // Hide reload button after successful reload (regardless of always show setting)
-                        if (weaponContainer._reloadButton) {
-                            weaponContainer._reloadButton.visible = false;
-                            weaponContainer._needsReload = false;
-                        }
+                        // Rebuild menu to update weapon states (gray out, reload button visibility)
+                        // This ensures the menu reflects the new ammo state after reload
+                        await this._rebuildMenuContent();
                     };
                 }
             }
