@@ -7,6 +7,17 @@ import { debug } from "../utils/debug.js";
 import { EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM, EQUIPMENT_BLUR, COLORS, COLOR_PICKER_DIALOG } from "../utils/constants.js";
 
 export function registerSettings() {
+    // Debug setting - this should show up as last entry in the settings window
+    game.settings.register("tokencontextmenu", "debugMode", {
+        name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.DebugModeHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        requiresReload: false
+    });
+
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
         name: game.i18n.localize("tokencontextmenu.Settings.AutoRemoveTargets"),
         hint: game.i18n.localize("tokencontextmenu.Settings.AutoRemoveTargetsHint"),
@@ -256,17 +267,6 @@ export function registerSettings() {
         default: true,
         requiresReload: false
     });
-
-    // Debug setting - this should show up as last entry in the settings window
-    game.settings.register("tokencontextmenu", "debugMode", {
-        name: game.i18n.localize("tokencontextmenu.Settings.DebugMode"),
-        hint: game.i18n.localize("tokencontextmenu.Settings.DebugModeHint"),
-        scope: "client",
-        config: true,
-        type: Boolean,
-        default: false,
-        requiresReload: false
-});
 }
 
 /**

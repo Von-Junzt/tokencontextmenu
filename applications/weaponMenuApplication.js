@@ -4,7 +4,7 @@ import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js"
 import { equipmentModeHandler } from "../managers/EquipmentModeHandler.js";
 import { weaponMenuTooltipManager } from "../managers/WeaponMenuTooltipManager.js";
 import { blurFilterManager } from "../managers/BlurFilterManager.js";
-import { WeaponMenuBuilder } from "../utils/WeaponMenuBuilder.js";
+import { WeaponMenuBuilder } from "../utils/weaponMenuBuilder.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
 import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION, EQUIPMENT_ZOOM, RELOAD_BUTTON } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
