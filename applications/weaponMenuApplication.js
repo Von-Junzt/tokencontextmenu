@@ -4,6 +4,7 @@ import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js"
 import { equipmentModeHandler } from "../managers/EquipmentModeHandler.js";
 import { weaponMenuTooltipManager } from "../managers/WeaponMenuTooltipManager.js";
 import { blurFilterManager } from "../managers/BlurFilterManager.js";
+import { ectMenuManager } from "../managers/ECTMenuManager.js";
 import { WeaponMenuBuilder } from "../utils/weaponMenuBuilder.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
 import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION, EQUIPMENT_ZOOM, RELOAD_BUTTON } from "../utils/constants.js";
@@ -150,14 +151,6 @@ export class WeaponMenuApplication {
         this.container.name = "tokencontextmenu-weapon-menu";
         this.container.x = this.token.x + (this.token.w / MATH.CENTER_DIVISOR);
         this.container.y = this.token.y + this.token.h + UI.MENU_Y_OFFSET;
-
-        // Close ECT menu when clicking anywhere on the main menu
-        this.container.interactive = true;
-        this.container.eventMode = 'static';
-        this.container.on('pointerdown', async () => {
-            const { ectMenuManager } = await import("../managers/ECTMenuManager.js");
-            ectMenuManager.hide();
-        });
         
         // Use the menu builder to create the menu
         const { weaponContainers } = this.menuBuilder.buildMenu(
@@ -328,6 +321,7 @@ export class WeaponMenuApplication {
             }
         });
 
+        // Handle both left and right clicks in a single pointerdown handler
         weaponContainer.on('pointerdown', async (event) => {
             event.stopPropagation();
             if (event.data?.originalEvent) {
@@ -342,17 +336,6 @@ export class WeaponMenuApplication {
                 await this._handleWeaponEdit(weaponContainer.weapon.id);
             }
         });
-
-        // Add dedicated right-click handler as backup
-        weaponContainer.on('rightdown', async (event) => {
-            event.stopPropagation();
-            if (event.data?.originalEvent) {
-                event.data.originalEvent.stopPropagation();
-            }
-
-            this._hideTooltip();
-            await this._handleWeaponEdit(weaponContainer.weapon.id);
-        });
     }
 
     /**
@@ -363,7 +346,6 @@ export class WeaponMenuApplication {
      */
     async _handleWeaponSelection(weaponId, isEmpty = false) {
         // Close ECT menu when selecting a weapon
-        const { ectMenuManager } = await import("../managers/ECTMenuManager.js");
         ectMenuManager.hide();
 
         const metadata = this.itemMetadata.get(weaponId);
@@ -458,8 +440,6 @@ export class WeaponMenuApplication {
             return;
         }
 
-        // Import ECT menu manager
-        const { ectMenuManager } = await import("../managers/ECTMenuManager.js");
 
         // Get weapon
         const weapon = this.token.actor.items.get(weaponId);
@@ -551,7 +531,7 @@ export class WeaponMenuApplication {
 
         // Mark timestamp for debouncing
         timestamps.mark('weaponMenuOpened');
-        
+
         // Set up event listeners with defensive check
         if (this.stateMachine.isActive() && canvas.stage) {
             canvas.stage.on('pointerdown', this.clickOutsideHandler);
@@ -559,6 +539,17 @@ export class WeaponMenuApplication {
             document.addEventListener('keydown', this.keyHandler);
             canvas.app.view.addEventListener('contextmenu', this.contextMenuHandler);
         }
+
+        // Listen for weapon reload to refresh the menu
+        this._reloadHandler = async (item, reloaded) => {
+            // Check if this weapon is in our current menu
+            if (this.weapons.some(w => w.id === item.id)) {
+                debug("Weapon in menu was reloaded, refreshing", { weapon: item.name });
+                // Rebuild the menu to show updated ammo counts
+                await this._rebuildMenuContent();
+            }
+        };
+        Hooks.on('swadeReloadWeapon', this._reloadHandler);
     }
 
 
@@ -637,6 +628,11 @@ export class WeaponMenuApplication {
                 if (this.contextMenuHandler && canvas.app?.view) {
                     canvas.app.view.removeEventListener('contextmenu', this.contextMenuHandler);
                     this.contextMenuHandler = null;
+                }
+                // Clean up reload hook
+                if (this._reloadHandler) {
+                    Hooks.off('swadeReloadWeapon', this._reloadHandler);
+                    this._reloadHandler = null;
                 }
 
                 // Clean up weapon containers
@@ -786,9 +782,7 @@ export class WeaponMenuApplication {
                 this.equipmentMode = newState;
 
                 // Close ECT menu when toggling equipment mode
-                import("../managers/ECTMenuManager.js").then(({ ectMenuManager }) => {
-                    ectMenuManager.hide();
-                });
+                ectMenuManager.hide();
 
                 debug(`Toggled equipment mode to: ${newState}`, {
                     weapons: this.expandedSections.weapons,

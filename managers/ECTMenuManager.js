@@ -181,7 +181,7 @@ class ECTMenuManager extends CleanupManager {
             fontSize: 10,  // Slightly larger for better readability
             fill: 0xffffff,  // Pure white for better contrast
             align: 'center',
-            resolution: 4  // Higher resolution for sharper text
+            resolution: 2  // Higher resolution for sharper text
         });
 
         // Position the text

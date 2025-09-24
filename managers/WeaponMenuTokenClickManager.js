@@ -1,5 +1,6 @@
 import { weaponSystemCoordinator } from "./WeaponSystemCoordinator.js";
 import { tokenDragManager } from "./TokenDragManager.js";
+import { ectMenuManager } from "./ECTMenuManager.js";
 import { shouldShowWeaponMenuOnSelection } from "../settings/settings.js";
 import { TIMING } from "../utils/constants.js";
 import { debug, debugWarn } from "../utils/debug.js";
@@ -239,9 +240,7 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
             const token = this;
 
             // Close ECT menu on any token click
-            import("../managers/ECTMenuManager.js").then(({ ectMenuManager }) => {
-                ectMenuManager.hide();
-            });
+            ectMenuManager.hide();
 
             // Early exit if not owner to reduce overhead
             if (!token.isOwner) {
