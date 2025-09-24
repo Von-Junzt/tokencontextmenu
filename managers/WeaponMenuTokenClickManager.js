@@ -237,17 +237,22 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
         // before PIXI listeners can process it
         libWrapper.register('tokencontextmenu', 'foundry.canvas.placeables.Token.prototype._onClickLeft', function(wrapped, event) {
             const token = this;
-            
+
+            // Close ECT menu on any token click
+            import("../managers/ECTMenuManager.js").then(({ ectMenuManager }) => {
+                ectMenuManager.hide();
+            });
+
             // Early exit if not owner to reduce overhead
             if (!token.isOwner) {
                 return wrapped.call(this, event);
             }
-            
+
             debug('Left-click intercepted via libWrapper', { token: token.name });
-            
+
             // Set up our interaction handling
             manager._setupTokenInteraction(token, event, 'libWrapper');
-            
+
             // Continue with normal Foundry selection
             // This ensures we don't break Foundry's selection logic
             return wrapped.call(this, event);

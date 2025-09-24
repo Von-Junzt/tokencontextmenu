@@ -53,6 +53,7 @@
         "Messages": {
             "WeaponEmpty": "{weapon} is out of ammunition!",
             "ItemEmpty": "You have no {item} left!"
-        }
+        },
+        "EditWeapon": "Edit Weapon"
     }
 }

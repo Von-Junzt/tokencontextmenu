@@ -150,6 +150,14 @@ export class WeaponMenuApplication {
         this.container.name = "tokencontextmenu-weapon-menu";
         this.container.x = this.token.x + (this.token.w / MATH.CENTER_DIVISOR);
         this.container.y = this.token.y + this.token.h + UI.MENU_Y_OFFSET;
+
+        // Close ECT menu when clicking anywhere on the main menu
+        this.container.interactive = true;
+        this.container.eventMode = 'static';
+        this.container.on('pointerdown', async () => {
+            const { ectMenuManager } = await import("../managers/ECTMenuManager.js");
+            ectMenuManager.hide();
+        });
         
         // Use the menu builder to create the menu
         const { weaponContainers } = this.menuBuilder.buildMenu(
@@ -354,6 +362,10 @@ export class WeaponMenuApplication {
      * @private
      */
     async _handleWeaponSelection(weaponId, isEmpty = false) {
+        // Close ECT menu when selecting a weapon
+        const { ectMenuManager } = await import("../managers/ECTMenuManager.js");
+        ectMenuManager.hide();
+
         const metadata = this.itemMetadata.get(weaponId);
         const weapon = this.token.actor.items.get(weaponId);
         
@@ -440,7 +452,42 @@ export class WeaponMenuApplication {
      * @private
      */
     async _handleWeaponEdit(weaponId) {
-        await handleWeaponEdit(this.token, weaponId, () => this.close());
+        // Don't show ECT menu in equipment mode
+        if (this.equipmentMode) {
+            debug("ECT menu disabled in equipment mode");
+            return;
+        }
+
+        // Import ECT menu manager
+        const { ectMenuManager } = await import("../managers/ECTMenuManager.js");
+
+        // Get weapon
+        const weapon = this.token.actor.items.get(weaponId);
+        if (!weapon) {
+            debugWarn("Weapon not found for ECT menu:", weaponId);
+            return;
+        }
+
+        // Get the weapon container to find its position
+        const weaponContainer = this.weaponContainers.find(c => c.weapon?.id === weaponId);
+        if (!weaponContainer) {
+            // Fallback to direct edit if we can't find the container
+            await handleWeaponEdit(this.token, weaponId, () => this.close());
+            return;
+        }
+
+        // Show ECT menu with PIXI container reference
+        await ectMenuManager.show({
+            actor: this.token.actor,
+            weapon: weapon,
+            token: this.token,
+            weaponContainer: weaponContainer,
+            iconRadius: this.menuBuilder.iconRadius,
+            onClose: () => {
+                // Optional: Could close the weapon menu too if desired
+                // this.close();
+            }
+        });
     }
 
     /**
@@ -733,11 +780,16 @@ export class WeaponMenuApplication {
             if (section === 'equipment') {
                 const currentState = this.expandedSections.weapons || this.expandedSections.powers;
                 const newState = !currentState;
-                
+
                 this.expandedSections.weapons = newState;
                 this.expandedSections.powers = newState;
                 this.equipmentMode = newState;
-                
+
+                // Close ECT menu when toggling equipment mode
+                import("../managers/ECTMenuManager.js").then(({ ectMenuManager }) => {
+                    ectMenuManager.hide();
+                });
+
                 debug(`Toggled equipment mode to: ${newState}`, {
                     weapons: this.expandedSections.weapons,
                     powers: this.expandedSections.powers,
