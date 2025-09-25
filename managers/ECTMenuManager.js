@@ -21,8 +21,17 @@ class ECTMenuManager extends CleanupManager {
         this._currentMenuContainer = null;  // PIXI.Container
         this._clickHandler = null;
         this._keyHandler = null;
+        this._tokenClickHandler = null;  // Hook handler for token clicks
         this._textureCache = new Map();  // Cache for loaded textures
         this._blurredContainers = null;  // Track containers we've blurred
+        
+        // Set up cleanup hook - ECT menu should close when weapon menu closes
+        Hooks.on('tokencontextmenu.weaponMenuClosed', () => {
+            if (this.isOpen()) {
+                debug("ECT menu closing - parent weapon menu closed");
+                this.hide();
+            }
+        });
     }
 
     /**
@@ -351,6 +360,39 @@ class ECTMenuManager extends CleanupManager {
      * @private
      */
     _setupEventHandlers(onClose) {
+        // Listen for clicks on tokens layer (catches ALL token clicks, not just selection changes)
+        this._tokenClickHandler = (event) => {
+            // Check if the click target is a token
+            let isTokenClick = false;
+            const target = event.target;
+            
+            if (target instanceof foundry.canvas.placeables.Token) {
+                isTokenClick = true;
+            } else if (target?.parent instanceof foundry.canvas.placeables.Token) {
+                isTokenClick = true;
+            } else {
+                // Walk up the parent chain to find a token
+                let parent = target?.parent;
+                while (parent && !(parent instanceof foundry.canvas.placeables.Token)) {
+                    parent = parent.parent;
+                }
+                if (parent instanceof foundry.canvas.placeables.Token) {
+                    isTokenClick = true;
+                }
+            }
+
+            if (isTokenClick) {
+                debug("ECT menu closing - token clicked");
+                this.hide();
+                if (onClose) onClose();
+            }
+        };
+
+        // Add listener to tokens layer (following the same pattern as WeaponMenuTokenClickManager)
+        if (canvas?.tokens) {
+            canvas.tokens.on('pointerdown', this._tokenClickHandler);
+        }
+
         // Close on canvas click outside the menu
         this._clickHandler = (event) => {
             // Check debounce timing to prevent immediate close
@@ -358,12 +400,13 @@ class ECTMenuManager extends CleanupManager {
                 return;
             }
 
-            // Check if click is outside menu
+            // Check if click is outside menu bounds
             if (this._currentMenuContainer) {
                 const bounds = this._currentMenuContainer.getBounds();
                 const point = event.data.global;
 
                 if (!bounds.contains(point.x, point.y)) {
+                    debug("ECT menu closing - clicked outside bounds");
                     this.hide();
                     if (onClose) onClose();
                 }
@@ -391,7 +434,7 @@ class ECTMenuManager extends CleanupManager {
      */
     hide() {
         // Early return if nothing to hide
-        if (!this._currentMenuContainer && !this._blurredContainers && !this._clickHandler && !this._keyHandler) {
+        if (!this._currentMenuContainer && !this._blurredContainers && !this._clickHandler && !this._keyHandler && !this._tokenClickHandler) {
             return;
         }
 
@@ -413,7 +456,7 @@ class ECTMenuManager extends CleanupManager {
             this._currentMenuContainer = null;
         }
 
-        // Remove event handlers - must match how they were added (with capture flag)
+        // Remove event handlers - must match how they were added
         if (this._clickHandler && canvas?.stage) {
             canvas.stage.off('pointerdown', this._clickHandler, null, true);
             this._clickHandler = null;
@@ -424,7 +467,21 @@ class ECTMenuManager extends CleanupManager {
             this._keyHandler = null;
         }
 
+        // Remove token click handler from tokens layer
+        if (this._tokenClickHandler && canvas?.tokens) {
+            canvas.tokens.off('pointerdown', this._tokenClickHandler);
+            this._tokenClickHandler = null;
+        }
+
         debug("ECT menu hidden");
+    }
+
+    /**
+     * Check if the ECT menu is currently open
+     * @returns {boolean} True if menu is open, false otherwise
+     */
+    isOpen() {
+        return !!this._currentMenuContainer;
     }
 
     /**

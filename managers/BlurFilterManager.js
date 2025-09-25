@@ -273,9 +273,15 @@ class BlurFilterManager extends CleanupManager {
                     ECT_BLUR.FILTER_NAME
                 );
 
+                // Create and apply desaturation filter
+                const colorMatrix = new PIXI.filters.ColorMatrixFilter();
+                // Use saturate method (0 = no change, negative = desaturate, -1 = grayscale)
+                colorMatrix.saturate(-ECT_BLUR.DESATURATION_AMOUNT);
+                colorMatrix.name = `${ECT_BLUR.FILTER_NAME}-desaturate`;
+
                 container.filters = container.filters || [];
-                container.filters.push(blurFilter);
-                this.appliedFilters.set(container, blurFilter);
+                container.filters.push(blurFilter, colorMatrix);
+                this.appliedFilters.set(container, [blurFilter, colorMatrix]);
 
                 // Store original state
                 container._ectBlurState = {
@@ -303,10 +309,13 @@ class BlurFilterManager extends CleanupManager {
 
         containers.forEach(container => {
             if (container && container._ectBlurState) {
-                // Remove ECT blur filter specifically
+                // Remove ECT blur and desaturation filters
                 if (container.filters) {
-                    container.filters = container.filters.filter(f => f.name !== ECT_BLUR.FILTER_NAME);
-                    
+                    container.filters = container.filters.filter(f =>
+                        f.name !== ECT_BLUR.FILTER_NAME &&
+                        f.name !== `${ECT_BLUR.FILTER_NAME}-desaturate`
+                    );
+
                     // Clean up empty filter array
                     if (container.filters.length === 0) {
                         container.filters = null;

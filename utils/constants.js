@@ -96,7 +96,7 @@ export const ECT_MENU = {
     CIRCLE_BORDER_COLOR: 0x666666,           // Subtle gray border
     CIRCLE_SPACING: 6,                       // Gap between circles
     ICON_MASK_RADIUS: 10,                    // Mask radius for circular icon (same as circle radius - no padding)
-    EDIT_ICON_PATH: 'modules/tokencontextmenu/icons/equipment/edit.svg', // Path to edit icon
+    EDIT_ICON_PATH: 'modules/tokencontextmenu/icons/equipment/edit.webp', // Path to edit icon
     POSITION_OFFSET: 10,                     // Pixels offset from weapon icon
     EDGE_PADDING: 10,                        // Padding from canvas edges
 
@@ -412,6 +412,7 @@ export const ECT_BLUR = {
     FILTER_NAME: 'tcm-ect-blur',        // Unique name for ECT blur filters
     BLUR_STRENGTH: 2,                   // Blur strength (lighter than equipment mode)
     BLUR_QUALITY: 3,                    // Blur quality for performance
-    INACTIVE_ALPHA: 1,                // Alpha for blurred/inactive weapon icons
-    ACTIVE_ALPHA: 1.0                   // Alpha for active weapon icon
+    INACTIVE_ALPHA: 1,                  // Alpha for blurred/inactive weapon icons
+    ACTIVE_ALPHA: 1.0,                  // Alpha for active weapon icon
+    DESATURATION_AMOUNT: 0.35            // Desaturation amount (0 = full color, 1 = grayscale)
 };
