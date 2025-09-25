@@ -4,7 +4,7 @@
  */
 
 import { CleanupManager } from "./CleanupManager.js";
-import { EQUIPMENT_BLUR } from "../utils/constants.js";
+import { EQUIPMENT_BLUR, ECT_BLUR } from "../utils/constants.js";
 import { debug, debugWarn, debugError } from "../utils/debug.js";
 import { 
     getEquipmentModeBlurStrength,
@@ -252,18 +252,89 @@ class BlurFilterManager extends CleanupManager {
     }
     
     /**
+     * Apply blur to weapon containers except the active one (for ECT menu)
+     * @param {PIXI.Container} activeContainer - The container to keep active
+     * @param {Array<PIXI.Container>} allContainers - All weapon containers
+     */
+    applyECTWeaponBlur(activeContainer, allContainers) {
+        if (!allContainers || allContainers.length === 0) return;
+
+        debug("Applying ECT weapon blur", {
+            activeContainer: !!activeContainer,
+            containerCount: allContainers.length
+        });
+
+        allContainers.forEach(container => {
+            if (container !== activeContainer && container && !container.destroyed) {
+                // Create and apply blur filter
+                const blurFilter = this._createBlurFilter(
+                    ECT_BLUR.BLUR_STRENGTH,
+                    ECT_BLUR.BLUR_QUALITY,
+                    ECT_BLUR.FILTER_NAME
+                );
+
+                container.filters = container.filters || [];
+                container.filters.push(blurFilter);
+                this.appliedFilters.set(container, blurFilter);
+
+                // Store original state
+                container._ectBlurState = {
+                    wasInteractive: container.interactive,
+                    originalAlpha: container.alpha || ECT_BLUR.ACTIVE_ALPHA
+                };
+
+                // Apply dimming and disable interaction
+                container.alpha = ECT_BLUR.INACTIVE_ALPHA;
+                container.interactive = false;
+            }
+        });
+    }
+
+    /**
+     * Clear ECT weapon blur effects
+     * @param {Array<PIXI.Container>} containers - Containers to restore
+     */
+    clearECTWeaponBlur(containers) {
+        if (!containers) return;
+
+        debug("Clearing ECT weapon blur", {
+            containerCount: containers.length
+        });
+
+        containers.forEach(container => {
+            if (container && container._ectBlurState) {
+                // Remove ECT blur filter specifically
+                if (container.filters) {
+                    container.filters = container.filters.filter(f => f.name !== ECT_BLUR.FILTER_NAME);
+                    
+                    // Clean up empty filter array
+                    if (container.filters.length === 0) {
+                        container.filters = null;
+                    }
+                }
+
+                // Restore original state
+                container.alpha = container._ectBlurState.originalAlpha;
+                container.interactive = container._ectBlurState.wasInteractive;
+                delete container._ectBlurState;
+            }
+        });
+    }
+
+    /**
      * Create a PIXI blur filter
      * @param {number} strength - Blur strength
      * @param {number} quality - Blur quality
+     * @param {string} [filterName] - Optional filter name override
      * @returns {PIXI.filters.BlurFilter} The blur filter
      * @private
      */
-    _createBlurFilter(strength, quality) {
+    _createBlurFilter(strength, quality, filterName = null) {
         const filter = new PIXI.filters.BlurFilter(strength, quality);
-        filter.name = EQUIPMENT_BLUR.FILTER_NAME;
+        filter.name = filterName || EQUIPMENT_BLUR.FILTER_NAME;
         return filter;
     }
-    
+
     /**
      * Clean up resources
      * @override
@@ -271,10 +342,10 @@ class BlurFilterManager extends CleanupManager {
     destroy() {
         // Clear any active blur
         this.clearEquipmentModeBlur();
-        
+
         // Clear references
         this.appliedFilters = new WeakMap();
-        
+
         // Call parent cleanup
         super.destroy();
     }

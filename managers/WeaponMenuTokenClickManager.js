@@ -239,8 +239,7 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
         libWrapper.register('tokencontextmenu', 'foundry.canvas.placeables.Token.prototype._onClickLeft', function(wrapped, event) {
             const token = this;
 
-            // Close ECT menu on any token click
-            ectMenuManager.hide();
+            // ECT menu will be closed by its own event handlers
 
             // Early exit if not owner to reduce overhead
             if (!token.isOwner) {

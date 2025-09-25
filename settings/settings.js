@@ -4,7 +4,7 @@
  * Settings are client-scoped (per-user) to allow individual preferences.
  */
 import { debug } from "../utils/debug.js";
-import { EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM, EQUIPMENT_BLUR, COLORS, COLOR_PICKER_DIALOG } from "../utils/constants.js";
+import { EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM, EQUIPMENT_BLUR, COLORS } from "../utils/constants.js";
 
 export function registerSettings() {
     // Debug setting - this should show up as last entry in the settings window
@@ -269,84 +269,6 @@ export function registerSettings() {
     });
 }
 
-/**
- * Opens a color picker dialog for a setting
- * @param {string} settingName - The setting key  
- * @param {string} currentColor - Current color value
- */
-function openColorPickerDialog(settingName, currentColor) {
-    const nameKey = settingName.charAt(0).toUpperCase() + settingName.slice(1);
-    
-    new Dialog({
-        title: game.i18n.localize(`tokencontextmenu.Settings.${nameKey}`),
-        content: `
-            <div style="text-align: center; padding: ${COLOR_PICKER_DIALOG.PADDING}px;">
-                <input type="color" id="color-picker" value="${currentColor}" 
-                       style="width: ${COLOR_PICKER_DIALOG.WIDTH}px; height: ${COLOR_PICKER_DIALOG.HEIGHT}px; cursor: pointer;">
-                <p style="margin-top: ${COLOR_PICKER_DIALOG.PADDING}px;">
-                    Current: <span id="color-value">${currentColor}</span>
-                </p>
-            </div>
-        `,
-        buttons: {
-            apply: {
-                label: "Apply",
-                callback: (html) => {
-                    const newColor = html.querySelector('#color-picker').value;
-                    const input = document.querySelector(`input[name="tokencontextmenu.${settingName}"]`);
-                    if (input) {
-                        input.value = newColor;
-                        debug("Color picker value applied", { setting: settingName, color: newColor });
-                    }
-                }
-            },
-            cancel: {
-                label: "Cancel"
-            }
-        },
-        default: "apply",
-        render: (html) => {
-            // Update preview on change (immediate execution, no timing)
-            html.querySelector('#color-picker').addEventListener('input', function() {
-                html.querySelector('#color-value').textContent = this.value;
-            });
-        }
-    }).render(true);
-}
-
-/**
- * Hook to add color picker buttons to settings
- */
-Hooks.on("renderSettingsConfig", (app, html, data) => {
-    const colorSettings = ["equipmentBadgeColor", "equipmentBadgeBgColor", 
-                          "equipmentColorActive", "equipmentColorCarried",
-                          "reloadButtonColor", "reloadButtonBgColor"];
-    
-    colorSettings.forEach(settingName => {
-        const input = html.querySelector(`input[name="tokencontextmenu.${settingName}"]`);
-        if (input) {
-            const currentValue = input.value || '#000000';
-            
-            // Create button with type="button" to prevent form submission
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.style.marginLeft = `${COLOR_PICKER_DIALOG.BUTTON_MARGIN_LEFT}px`;
-            button.style.padding = COLOR_PICKER_DIALOG.BUTTON_PADDING;
-            button.innerHTML = '<i class="fas fa-palette"></i>';
-            
-            // Proper event handling to prevent form interference
-            button.addEventListener('click', function(event) {
-                event.preventDefault();
-                event.stopPropagation();
-                openColorPickerDialog(settingName, currentValue);
-                return false; // Extra safety
-            });
-            
-            // Insert after input without modifying any properties
-            input.insertAdjacentElement('afterend', button);
-        }
-    });
-});
 
 /**
  * Check if targets should be automatically removed when selecting weapons

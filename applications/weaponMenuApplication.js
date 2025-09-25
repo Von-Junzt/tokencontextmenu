@@ -345,8 +345,8 @@ export class WeaponMenuApplication {
      * @private
      */
     async _handleWeaponSelection(weaponId, isEmpty = false) {
-        // Close ECT menu when selecting a weapon
-        ectMenuManager.hide();
+        // ECT menu will be closed by its own click handler when clicking on weapon icons
+        // No need to explicitly call ectMenuManager.hide() here
 
         const metadata = this.itemMetadata.get(weaponId);
         const weapon = this.token.actor.items.get(weaponId);
@@ -440,6 +440,14 @@ export class WeaponMenuApplication {
             return;
         }
 
+        // Get the weapon container to find its position
+        const weaponContainer = this.weaponContainers.find(c => c.weapon?.id === weaponId);
+
+        // Don't show ECT menu if this container is blurred
+        if (weaponContainer?._ectBlurState) {
+            debug("ECT menu blocked - weapon icon is blurred");
+            return;
+        }
 
         // Get weapon
         const weapon = this.token.actor.items.get(weaponId);
@@ -448,13 +456,14 @@ export class WeaponMenuApplication {
             return;
         }
 
-        // Get the weapon container to find its position
-        const weaponContainer = this.weaponContainers.find(c => c.weapon?.id === weaponId);
         if (!weaponContainer) {
             // Fallback to direct edit if we can't find the container
             await handleWeaponEdit(this.token, weaponId, () => this.close());
             return;
         }
+
+        // Close any existing ECT menu first (this will clear blur)
+        ectMenuManager.hide();
 
         // Show ECT menu with PIXI container reference
         await ectMenuManager.show({
@@ -594,7 +603,9 @@ export class WeaponMenuApplication {
                     return;
                 }
             }
-            
+
+            // ECT menu will close itself via its own event handler
+
             // Restore zoom if in equipment mode
             if (this.equipmentMode && this.originalCanvasState) {
                 this._restoreCanvasZoom(); // Don't await - let zoom out happen in background
@@ -781,8 +792,7 @@ export class WeaponMenuApplication {
                 this.expandedSections.powers = newState;
                 this.equipmentMode = newState;
 
-                // Close ECT menu when toggling equipment mode
-                ectMenuManager.hide();
+                // ECT menu will be closed by its own handlers if open
 
                 debug(`Toggled equipment mode to: ${newState}`, {
                     weapons: this.expandedSections.weapons,

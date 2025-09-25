@@ -5,8 +5,10 @@
  */
 
 import { CleanupManager } from "./CleanupManager.js";
-import { debug, debugWarn } from "../utils/debug.js";
-import { COLORS, TIMING } from "../utils/constants.js";
+import { blurFilterManager } from "./BlurFilterManager.js";
+import { weaponSystemCoordinator } from "./WeaponSystemCoordinator.js";
+import { debug, debugWarn, debugError } from "../utils/debug.js";
+import { COLORS, TIMING, ECT_MENU, ECT_BLUR } from "../utils/constants.js";
 import { timestamps } from "../utils/timingUtils.js";
 
 /**
@@ -19,6 +21,8 @@ class ECTMenuManager extends CleanupManager {
         this._currentMenuContainer = null;  // PIXI.Container
         this._clickHandler = null;
         this._keyHandler = null;
+        this._textureCache = new Map();  // Cache for loaded textures
+        this._blurredContainers = null;  // Track containers we've blurred
     }
 
     /**
@@ -39,36 +43,13 @@ class ECTMenuManager extends CleanupManager {
         // Start with empty menu options
         let menuOptions = [];
 
-        // Add detailed debugging
-        debug("ECT Integration Check:", {
-            moduleActive: game.modules.get('enhancedcombattoolkit')?.active,
-            gameObject: !!game.enhancedcombattoolkit,
-            apiObject: !!game.enhancedcombattoolkit?.api,
-            weaponContextMenuAPI: !!game.enhancedcombattoolkit?.api?.weaponContextMenu,
-            hasGetMenuOptions: typeof game.enhancedcombattoolkit?.api?.weaponContextMenu?.getMenuOptions,
-            weaponName: weapon?.name,
-            weaponType: weapon?.type,
-            weaponFlags: weapon?.flags?.enhancedcombattoolkit
-        });
-
         // Check if ECT is available and get menu options
-        // ECT initializes its API in the ready hook, so it should be available now
         const ectAPI = game.enhancedcombattoolkit?.api?.weaponContextMenu;
         if (ectAPI && typeof ectAPI.getMenuOptions === 'function') {
             const ectOptions = await ectAPI.getMenuOptions(actor, weapon, token) || [];
-            debug("ECT options retrieved:", {
-                count: ectOptions.length,
-                options: ectOptions.map(opt => opt.name),
-                weaponEnhancements: weapon?.flags?.enhancedcombattoolkit?.enhancements
-            });
             if (ectOptions.length > 0) {
                 menuOptions = [...ectOptions];
             }
-        } else {
-            debug("ECT API not available or getMenuOptions not a function", {
-                ectAPI: ectAPI,
-                typeOfGetMenuOptions: typeof ectAPI?.getMenuOptions
-            });
         }
 
         // Always add Edit Weapon as the last option
@@ -84,6 +65,12 @@ class ECTMenuManager extends CleanupManager {
         // Create PIXI menu
         const menu = this._createPIXIMenu(menuOptions, weaponContainer, iconRadius, { weapon, onClose });
 
+        // If no menu was created (no valid icons), return early
+        if (!menu) {
+            if (onClose) onClose();
+            return;
+        }
+
         // Store current menu reference
         this._currentMenuContainer = menu;
 
@@ -93,9 +80,24 @@ class ECTMenuManager extends CleanupManager {
         // Set up event handlers
         this._setupEventHandlers(onClose);
 
+        // Apply blur to other weapon containers
+        const weaponMenu = weaponSystemCoordinator.getMenuApp();
+
+        debug("Checking for weapon menu to blur", {
+            hasCoordinator: !!weaponSystemCoordinator,
+            menuApp: !!weaponMenu,
+            containerCount: weaponMenu?.weaponContainers?.length || 0
+        });
+
+        if (weaponMenu?.weaponContainers) {
+            this._blurredContainers = weaponMenu.weaponContainers;
+            blurFilterManager.applyECTWeaponBlur(weaponContainer, this._blurredContainers);
+        }
+
         debug("ECT menu shown", {
             optionCount: menuOptions.length,
-            weaponName: weapon.name
+            weaponName: weapon.name,
+            blurredContainers: this._blurredContainers?.length || 0
         });
     }
 
@@ -105,58 +107,51 @@ class ECTMenuManager extends CleanupManager {
      * @param {PIXI.Container} weaponContainer - The weapon icon container
      * @param {number} iconRadius - Radius of the weapon icon
      * @param {Object} context - Context data {weapon, onClose}
-     * @returns {PIXI.Container} The menu container
+     * @returns {PIXI.Container|null} The menu container or null if no valid items
      * @private
      */
     _createPIXIMenu(menuOptions, weaponContainer, iconRadius, context) {
         const menu = new PIXI.Container();
         menu.name = "ect-context-menu";
 
-        // Simpler dimensions for badge-style items
-        const menuWidth = 150;
-        const itemHeight = 24;
-        const padding = 4;
-
         // Filter out separators for simplified menu
         const filteredOptions = menuOptions.filter(option => !option.separator);
 
-        // Calculate total height
-        const totalHeight = (filteredOptions.length * itemHeight) + (padding * 2);
+        // Create circle menu items and filter out nulls
+        const circles = [];
+        filteredOptions.forEach(option => {
+            const circle = this._createMenuItem(option, context);
+            if (circle) {
+                circles.push(circle);
+            }
+        });
+
+        // If no valid circles, don't create menu
+        if (circles.length === 0) {
+            return null;
+        }
+
+        // Calculate dimensions based on actual circles
+        const circleSize = ECT_MENU.CIRCLE_RADIUS * 2;
+        const totalHeight = (circles.length * circleSize) +
+                           ((circles.length - 1) * ECT_MENU.CIRCLE_SPACING);
 
         // Position relative to weapon icon
         const globalPos = weaponContainer.toGlobal(new PIXI.Point(0, 0));
         const localPos = canvas.tokens.toLocal(globalPos);
-        menu.x = localPos.x + iconRadius + 15;  // Position to right of icon
+        menu.x = localPos.x + iconRadius + ECT_MENU.POSITION_OFFSET;
         menu.y = localPos.y - totalHeight / 2;  // Center vertically on icon
 
-        // Create background
-        const background = new PIXI.Graphics();
-        background.beginFill(0x000000, 0.85);
-        background.lineStyle(1, COLORS.MENU_BORDER);
-        background.drawRoundedRect(0, 0, menuWidth, totalHeight, 5);
-        background.endFill();
-        menu.addChild(background);
-
-        // Make the background interactive to prevent click-through
-        background.interactive = true;
-        background.eventMode = 'static';
-
-        // Create menu items as simple text badges
-        let currentY = padding;
-        filteredOptions.forEach((option, index) => {
-            const textBadge = this._createMenuItem(
-                option,
-                currentY,
-                menuWidth,
-                itemHeight,
-                context
-            );
-            menu.addChild(textBadge);
-            currentY += itemHeight;
+        // Position and add circles
+        let currentY = 0;
+        circles.forEach(circle => {
+            circle.y = currentY;
+            menu.addChild(circle);
+            currentY += circleSize + ECT_MENU.CIRCLE_SPACING;
         });
 
         // Check if menu would go off screen and adjust
-        this._adjustMenuPosition(menu, menuWidth, totalHeight, weaponContainer, iconRadius);
+        this._adjustMenuPosition(menu, circleSize, totalHeight, weaponContainer, iconRadius);
 
         // Add to canvas tokens layer (same layer as weapon menu)
         canvas.tokens.addChild(menu);
@@ -165,50 +160,133 @@ class ECTMenuManager extends CleanupManager {
     }
 
     /**
-     * Creates a single menu item as a text badge
-     * @param {Object} option - Menu option configuration
-     * @param {number} y - Y position within menu
-     * @param {number} width - Item width
-     * @param {number} height - Item height
-     * @param {Object} context - Context data {weapon, onClose}
-     * @returns {PIXI.Text} The text badge
+     * Resolves the icon path for a menu option
+     * @param {Object} option - Menu option
+     * @param {Object} context - Context with weapon data
+     * @returns {string|null} Icon path or null
      * @private
      */
-    _createMenuItem(option, y, width, height, context) {
-        // Create text badge with better rendering
-        const text = new PIXI.Text(option.name, {
-            fontFamily: 'Signika',  // Use system fonts for sharper rendering
-            fontSize: 10,  // Slightly larger for better readability
-            fill: 0xffffff,  // Pure white for better contrast
-            align: 'center',
-            resolution: 2  // Higher resolution for sharper text
-        });
+    _resolveIconPath(option, context) {
+        // Check if option already has an icon
+        if (option.icon) {
+            // Extract icon path from HTML if it's wrapped in HTML
+            const iconMatch = option.icon.match(/src=["']([^"']+)["']/);
+            if (iconMatch) {
+                return iconMatch[1];
+            } else if (typeof option.icon === 'string' && !option.icon.includes('<')) {
+                // Direct path
+                return option.icon;
+            }
+        }
 
-        // Position the text
-        text.x = (width - text.width) / 2;  // Center horizontally
-        text.y = y + (height - text.height) / 2;  // Position vertically with centering
+        // Check if this is the Edit Weapon option
+        if (option.name.includes("Edit")) {
+            return ECT_MENU.EDIT_ICON_PATH;
+        }
 
-        // Make text interactive
-        text.interactive = true;
-        text.eventMode = 'static';
-        text.cursor = 'pointer';
+        // Get enhancement type from mapping
+        const enhancementType = ECT_MENU.ENHANCEMENT_MAPPINGS[option.name];
+        if (!enhancementType || !context.weapon) {
+            return null;
+        }
 
-        // Set hitArea to the full item area, not just the text bounds
-        text.hitArea = new PIXI.Rectangle(
-            -(width - text.width) / 2,  // Offset to expand hit area to full width
-            -(height - text.height) / 2,  // Offset to expand hit area to full height
-            width,
-            height
-        );
+        // Try to get icon from ECT API
+        const ectAPI = game.enhancedcombattoolkit?.api?.weaponContextMenu;
+        let iconPath = ectAPI?.getEnhancementIcon?.(context.weapon, enhancementType);
+
+        // If no path from API, check weapon's enhancement data directly
+        if (!iconPath) {
+            const enhancements = context.weapon.flags?.enhancedcombattoolkit?.enhancements || [];
+            const enhancement = enhancements.find(e => e.enhancementType === enhancementType);
+            iconPath = enhancement?.img;
+        }
+
+        // Add module path if needed
+        if (iconPath && !iconPath.startsWith('modules/') && !iconPath.startsWith('systems/')) {
+            iconPath = `modules/enhancedcombattoolkit/${iconPath}`;
+        }
+
+        return iconPath;
+    }
+
+    /**
+     * Creates a single menu item as a circular icon
+     * @param {Object} option - Menu option configuration
+     * @param {Object} context - Context data {weapon, onClose}
+     * @returns {PIXI.Container|null} The menu item container or null if invalid
+     * @private
+     */
+    _createMenuItem(option, context) {
+        const iconPath = this._resolveIconPath(option, context);
+
+        // Only create circle if we have an icon
+        if (!iconPath) {
+            return null;
+        }
+
+        const container = new PIXI.Container();
+
+        // Create circle border
+        const circle = new PIXI.Graphics();
+        circle.lineStyle(ECT_MENU.CIRCLE_BORDER_WIDTH, ECT_MENU.CIRCLE_BORDER_COLOR);
+        circle.drawCircle(ECT_MENU.CIRCLE_RADIUS, ECT_MENU.CIRCLE_RADIUS, ECT_MENU.CIRCLE_RADIUS);
+        container.addChild(circle);
+
+        // Create icon sprite (with caching)
+        try {
+            // Check texture cache first
+            let iconTexture = this._textureCache.get(iconPath);
+            if (!iconTexture) {
+                // Limit cache size - simple FIFO eviction
+                const MAX_CACHE_SIZE = 20;
+                if (this._textureCache.size >= MAX_CACHE_SIZE) {
+                    const firstKey = this._textureCache.keys().next().value;
+                    this._textureCache.delete(firstKey);
+                }
+                
+                iconTexture = PIXI.Texture.from(iconPath);
+                this._textureCache.set(iconPath, iconTexture);
+            }
+
+            const icon = new PIXI.Sprite(iconTexture);
+
+            // Size and position icon within circle
+            icon.width = ECT_MENU.ICON_SIZE;
+            icon.height = ECT_MENU.ICON_SIZE;
+            icon.x = ECT_MENU.CIRCLE_RADIUS - (ECT_MENU.ICON_SIZE / 2);
+            icon.y = ECT_MENU.CIRCLE_RADIUS - (ECT_MENU.ICON_SIZE / 2);
+
+            // Create circular mask for the icon
+            const iconMask = new PIXI.Graphics();
+            iconMask.beginFill(0xffffff);
+            iconMask.drawCircle(ECT_MENU.CIRCLE_RADIUS, ECT_MENU.CIRCLE_RADIUS, ECT_MENU.ICON_MASK_RADIUS);
+            iconMask.endFill();
+
+            // Apply mask to icon
+            icon.mask = iconMask;
+
+            // Add mask and icon to container
+            container.addChild(iconMask);
+            container.addChild(icon);
+        } catch (error) {
+            debugError(`Failed to load icon for ${option.name}:`, error);
+            return null;
+        }
+
+        // Make container interactive
+        container.interactive = true;
+        container.eventMode = 'static';
+        container.cursor = 'pointer';
+
+        // Set hit area to circle
+        container.hitArea = new PIXI.Circle(ECT_MENU.CIRCLE_RADIUS, ECT_MENU.CIRCLE_RADIUS, ECT_MENU.CIRCLE_RADIUS);
 
         // Click handler
-        text.on('pointerdown', async (event) => {
+        container.on('pointerdown', async (event) => {
             event.stopPropagation();
             if (event.data?.originalEvent) {
                 event.data.originalEvent.stopPropagation();
             }
-
-            debug(`ECT menu item clicked: ${option.name}`);
 
             // Hide menu
             this.hide();
@@ -226,9 +304,8 @@ class ECTMenuManager extends CleanupManager {
             }
         });
 
-        return text;
+        return container;
     }
-
 
     /**
      * Adjusts menu position to keep it on screen
@@ -254,17 +331,17 @@ class ECTMenuManager extends CleanupManager {
             // Position to left of icon instead
             const globalPos = weaponContainer.toGlobal(new PIXI.Point(0, 0));
             const localPos = canvas.tokens.toLocal(globalPos);
-            menu.x = localPos.x - iconRadius - menuWidth - 15;
+            menu.x = localPos.x - iconRadius - menuWidth - ECT_MENU.POSITION_OFFSET;
         }
 
         // Check bottom edge
         if (menuBounds.bottom > canvasBounds.bottom) {
-            menu.y = canvasBounds.bottom - menuHeight - 10;
+            menu.y = canvasBounds.bottom - menuHeight - ECT_MENU.EDGE_PADDING;
         }
 
         // Check top edge
         if (menuBounds.top < canvasBounds.top) {
-            menu.y = canvasBounds.top + 10;
+            menu.y = canvasBounds.top + ECT_MENU.EDGE_PADDING;
         }
     }
 
@@ -293,8 +370,11 @@ class ECTMenuManager extends CleanupManager {
             }
         };
 
-        // Add click listener to canvas
-        canvas.stage.on('pointerdown', this._clickHandler);
+        // Add click listener to canvas with capture phase to catch events before stopPropagation
+        // Use 'true' for capture phase so we get the event before weapon containers
+        if (canvas?.ready && canvas?.stage) {
+            canvas.stage.on('pointerdown', this._clickHandler, null, true);
+        }
 
         // Close on escape key
         this._keyHandler = (event) => {
@@ -310,6 +390,17 @@ class ECTMenuManager extends CleanupManager {
      * Hides the current menu
      */
     hide() {
+        // Early return if nothing to hide
+        if (!this._currentMenuContainer && !this._blurredContainers && !this._clickHandler && !this._keyHandler) {
+            return;
+        }
+
+        // Clear weapon container blur if applied
+        if (this._blurredContainers) {
+            blurFilterManager.clearECTWeaponBlur(this._blurredContainers);
+            this._blurredContainers = null;
+        }
+
         // Remove PIXI container
         if (this._currentMenuContainer) {
             // Remove from parent
@@ -322,9 +413,9 @@ class ECTMenuManager extends CleanupManager {
             this._currentMenuContainer = null;
         }
 
-        // Remove event handlers
-        if (this._clickHandler) {
-            canvas.stage.off('pointerdown', this._clickHandler);
+        // Remove event handlers - must match how they were added (with capture flag)
+        if (this._clickHandler && canvas?.stage) {
+            canvas.stage.off('pointerdown', this._clickHandler, null, true);
             this._clickHandler = null;
         }
 
@@ -341,6 +432,13 @@ class ECTMenuManager extends CleanupManager {
      * @override
      */
     cleanup() {
+        // Clear any remaining blur
+        if (this._blurredContainers) {
+            blurFilterManager.clearECTWeaponBlur(this._blurredContainers);
+            this._blurredContainers = null;
+        }
+        // Clear texture cache
+        this._textureCache.clear();
         this.hide();
         super.cleanup();
     }

@@ -80,13 +80,36 @@ export const COLORS = {
     
     // Equipment badge colors
     EQUIPMENT_BADGE_DEFAULT: 0x000000,       // Default equipment badge color (black)
-    EQUIPMENT_BADGE_BG_DEFAULT: 0xff2929,    // Default equipment badge background (red)
+    EQUIPMENT_BADGE_BG_DEFAULT: 0x972824,    // Default equipment badge background (darker red)
     EQUIPMENT_BADGE_FALLBACK: 0xffa500,      // Fallback badge color when game not ready (orange)
     EQUIPMENT_BADGE_BG_FALLBACK: 0x000000,   // Fallback badge background when game not ready (black)
     
     // Empty weapon appearance
     EMPTY_WEAPON_TINT: 0x808080,            // Grey tint for empty weapons
     EMPTY_WEAPON_ALPHA: 0.5,                // 50% opacity for empty weapons
+};
+// ECT Context Menu constants
+export const ECT_MENU = {
+    ICON_SIZE: 20,                           // Icon dimensions in pixels (increased for circles)
+    CIRCLE_RADIUS: 10,                       // Circle radius (28px diameter)
+    CIRCLE_BORDER_WIDTH: 3,                  // Circle border width
+    CIRCLE_BORDER_COLOR: 0x666666,           // Subtle gray border
+    CIRCLE_SPACING: 6,                       // Gap between circles
+    ICON_MASK_RADIUS: 10,                    // Mask radius for circular icon (same as circle radius - no padding)
+    EDIT_ICON_PATH: 'modules/tokencontextmenu/icons/equipment/edit.svg', // Path to edit icon
+    POSITION_OFFSET: 10,                     // Pixels offset from weapon icon
+    EDGE_PADDING: 10,                        // Padding from canvas edges
+
+    // Enhancement type mappings for icon lookup
+    ENHANCEMENT_MAPPINGS: {
+        "Toggle Bipod": "bipod",
+        "Toggle Foldable Stock": "foldableStock",
+        "Toggle Laser Marker": "laserMarker",
+        "Toggle Flashlight": "flashlight",
+        "Toggle Suppressor": "suppressor",
+        "Cycle Firemode": "fireMode",
+        "Change Ammunition": "ammunition"
+    }
 };
 
 /**
@@ -326,16 +349,6 @@ export const HEX_COLOR = {
     WHITE: 0xFFFFFF,              // White color in PIXI hex format
     VALIDATION_LENGTH: 6,         // Length of hex color string (without #)
 };
-/**
- * Color picker dialog constants
- */
-export const COLOR_PICKER_DIALOG = {
-    WIDTH: 200,                    // Color input width in pixels
-    HEIGHT: 50,                    // Color input height in pixels
-    PADDING: 10,                   // Dialog padding in pixels
-    BUTTON_MARGIN_LEFT: 5,         // Button left margin in pixels
-    BUTTON_PADDING: '2px 8px',     // Button padding
-};
 
 /**
  * Drag detection constants
@@ -390,4 +403,15 @@ export const EQUIPMENT_BLUR = {
     MIN_QUALITY: 1,                     // Minimum quality (fastest)
     MAX_QUALITY: 8,                     // Maximum quality (best looking)
     QUALITY_STEP: 1                     // Step for quality range input
+};
+
+/**
+ * ECT menu blur constants (for blurring other weapon icons)
+ */
+export const ECT_BLUR = {
+    FILTER_NAME: 'tcm-ect-blur',        // Unique name for ECT blur filters
+    BLUR_STRENGTH: 2,                   // Blur strength (lighter than equipment mode)
+    BLUR_QUALITY: 3,                    // Blur quality for performance
+    INACTIVE_ALPHA: 1,                // Alpha for blurred/inactive weapon icons
+    ACTIVE_ALPHA: 1.0                   // Alpha for active weapon icon
 };
