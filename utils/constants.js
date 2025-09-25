@@ -110,9 +110,18 @@ export const ECT_MENU = {
     CIRCULAR: {
         RADIUS_OFFSET: 30,                   // Distance from weapon center to menu items
         START_ANGLE: 0,                      // Start at 3 o'clock (0 degrees = right side)
-        ANGLE_STEP: 40,                      // Degrees between each item (alternates above/below)
+        ANGLE_STEP: 35,                      // Degrees between each item (alternates above/below)
         // Pattern: 0°, -30°, +30°, -60°, +60°, -90°, +90°, etc.
         // This creates an alternating pattern starting from 3 o'clock
+    },
+
+    // Animation constants
+    ANIMATION: {
+        DURATION: 200,                        // Total animation duration in ms
+        STAGGER_DELAY: 30,                   // Delay between each item animation in ms
+        EASING: 'easeOutBack',                // Easing function name (for reference)
+        INITIAL_SCALE: 0,                     // Starting scale (0 = invisible)
+        FINAL_SCALE: 1                        // Final scale (1 = normal size)
     },
 
     // Enhancement type mappings for icon lookup
@@ -125,6 +134,17 @@ export const ECT_MENU = {
         "Cycle Firemode": "fireMode",
         "Change Ammunition": "ammunition"
     }
+};
+
+/**
+ * Weapon menu animation constants
+ */
+export const WEAPON_MENU_ANIMATION = {
+    SLIDE_DISTANCE: 20,                      // Pixels to slide up from
+    DURATION: 150,                            // Animation duration in ms
+    INITIAL_ALPHA: 0,                         // Starting opacity
+    FINAL_ALPHA: 1,                           // Final opacity
+    EASING: 'easeOutQuad'                     // Easing function name
 };
 
 /**

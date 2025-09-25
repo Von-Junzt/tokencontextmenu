@@ -177,13 +177,22 @@ class ECTMenuManager extends CleanupManager {
         menu.x = localPos.x + iconRadius + ECT_MENU.POSITION_OFFSET + ECT_MENU.CIRCLE_RADIUS;
         menu.y = localPos.y - totalHeight / 2 + ECT_MENU.CIRCLE_RADIUS;  // Center vertically on icon
 
-        // Position and add circles (now centered at 0,0)
+        // Position and add circles with animation
         let currentY = 0;
-        circles.forEach(circle => {
+        circles.forEach((circle, index) => {
+            // Set initial state (at origin, invisible)
             circle.x = 0;
-            circle.y = currentY;
+            circle.y = 0;
+            circle.scale.set(ECT_MENU.ANIMATION.INITIAL_SCALE);
+            circle.alpha = 0;
             menu.addChild(circle);
+
+            // Calculate target position
+            const targetY = currentY;
             currentY += circleSize + ECT_MENU.CIRCLE_SPACING;
+
+            // Animate to target position with stagger
+            this._animateMenuItem(circle, 0, targetY, index);
         });
 
         // Check if menu would go off screen and adjust
@@ -211,22 +220,87 @@ class ECTMenuManager extends CleanupManager {
         const startAngle = -(totalSpread / 2); // Start from top of arc
 
         circles.forEach((circle, index) => {
+            // Set initial state (at center, invisible)
+            circle.x = 0;
+            circle.y = 0;
+            circle.scale.set(ECT_MENU.ANIMATION.INITIAL_SCALE);
+            circle.alpha = 0;
+            menu.addChild(circle);
+
             // Calculate angle for this item (spreading from top to bottom)
             const angle = startAngle + (index * ECT_MENU.CIRCULAR.ANGLE_STEP);
 
             // Convert to radians
             const radians = (angle * Math.PI) / 180;
 
-            // Calculate position
+            // Calculate target position
             const radius = iconRadius + ECT_MENU.CIRCULAR.RADIUS_OFFSET;
-            circle.x = Math.cos(radians) * radius;
-            circle.y = Math.sin(radians) * radius;
+            const targetX = Math.cos(radians) * radius;
+            const targetY = Math.sin(radians) * radius;
 
-            menu.addChild(circle);
+            // Animate to target position with stagger
+            this._animateMenuItem(circle, targetX, targetY, index);
         });
 
         // Adjust menu position if items would go off screen
         this._adjustMenuPositionCircular(menu, weaponContainer, iconRadius);
+    }
+
+    /**
+     * Animates a menu item from center to its target position
+     * @param {PIXI.Container} item - The menu item container
+     * @param {number} targetX - Target X position
+     * @param {number} targetY - Target Y position
+     * @param {number} index - Item index for stagger delay
+     * @private
+     */
+    _animateMenuItem(item, targetX, targetY, index) {
+        // Calculate stagger delay based on index
+        const delay = index * ECT_MENU.ANIMATION.STAGGER_DELAY;
+
+        // Use setTimeout for stagger, then animate
+        setTimeout(() => {
+            const startTime = Date.now();
+            const duration = ECT_MENU.ANIMATION.DURATION;
+
+            // Create animation ticker
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Apply easeOutBack easing (overshoots slightly then settles)
+                const eased = this._easeOutBack(progress);
+
+                // Update position
+                item.x = targetX * eased;
+                item.y = targetY * eased;
+
+                // Update scale and alpha
+                item.scale.set(ECT_MENU.ANIMATION.INITIAL_SCALE +
+                             (ECT_MENU.ANIMATION.FINAL_SCALE - ECT_MENU.ANIMATION.INITIAL_SCALE) * eased);
+                item.alpha = eased;
+
+                // Continue animation or cleanup
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+
+            // Start animation
+            animate();
+        }, delay);
+    }
+
+    /**
+     * EaseOutBack easing function - overshoots then settles
+     * @param {number} t - Progress (0-1)
+     * @returns {number} Eased value
+     * @private
+     */
+    _easeOutBack(t) {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
     }
 
     /**

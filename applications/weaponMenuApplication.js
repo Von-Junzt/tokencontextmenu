@@ -7,7 +7,7 @@ import { blurFilterManager } from "../managers/BlurFilterManager.js";
 import { ectMenuManager } from "../managers/ECTMenuManager.js";
 import { WeaponMenuBuilder } from "../utils/weaponMenuBuilder.js";
 import { tickerDelay, timestamps } from "../utils/timingUtils.js";
-import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION, EQUIPMENT_ZOOM, RELOAD_BUTTON } from "../utils/constants.js";
+import { COLORS, SIZES, UI, GRAPHICS, TIMING, MOUSE_BUTTON, MATH, CONTAINER, UI_ANIMATION, EQUIPMENT_ZOOM, RELOAD_BUTTON, WEAPON_MENU_ANIMATION } from "../utils/constants.js";
 import { WeaponMenuStateMachine, OperationQueue, ContainerVerification } from "../utils/weaponMenuState.js";
 import { debug, debugWarn, debugError } from "../utils/debug.js";
 
@@ -150,8 +150,14 @@ export class WeaponMenuApplication {
         this.container = new PIXI.Container();
         this.container.name = "tokencontextmenu-weapon-menu";
         this.container.x = this.token.x + (this.token.w / MATH.CENTER_DIVISOR);
-        this.container.y = this.token.y + this.token.h + UI.MENU_Y_OFFSET;
-        
+
+        // Store final Y position for animation
+        const finalY = this.token.y + this.token.h + UI.MENU_Y_OFFSET;
+
+        // Set initial position and opacity for animation (start from token bottom)
+        this.container.y = this.token.y + this.token.h;
+        this.container.alpha = WEAPON_MENU_ANIMATION.INITIAL_ALPHA;
+
         // Use the menu builder to create the menu
         const { weaponContainers } = this.menuBuilder.buildMenu(
             this.container, 
@@ -178,6 +184,51 @@ export class WeaponMenuApplication {
         });
         
         canvas.tokens.addChild(this.container);
+
+        // Animate the container sliding up and fading in
+        this._animateMenuOpen(finalY);
+    }
+
+    /**
+     * Animates the menu sliding up and fading in
+     * @param {number} targetY - The final Y position
+     * @private
+     */
+    _animateMenuOpen(targetY) {
+        const startTime = Date.now();
+        const duration = WEAPON_MENU_ANIMATION.DURATION;
+        const startY = this.container.y;
+        const startAlpha = this.container.alpha;
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Apply easeOutQuad easing
+            const eased = this._easeOutQuad(progress);
+
+            // Update position and alpha
+            this.container.y = startY + (targetY - startY) * eased;
+            this.container.alpha = startAlpha + (WEAPON_MENU_ANIMATION.FINAL_ALPHA - startAlpha) * eased;
+
+            // Continue animation or cleanup
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+
+        // Start animation
+        animate();
+    }
+
+    /**
+     * EaseOutQuad easing function - decelerating
+     * @param {number} t - Progress (0-1)
+     * @returns {number} Eased value
+     * @private
+     */
+    _easeOutQuad(t) {
+        return t * (2 - t);
     }
 
     /**
@@ -792,7 +843,10 @@ export class WeaponMenuApplication {
                 this.expandedSections.powers = newState;
                 this.equipmentMode = newState;
 
-                // ECT menu will be closed by its own handlers if open
+                // Close ECT menu when entering equipment mode
+                if (newState) {
+                    ectMenuManager.hide();
+                }
 
                 debug(`Toggled equipment mode to: ${newState}`, {
                     weapons: this.expandedSections.weapons,
