@@ -99,6 +99,7 @@ export const ECT_MENU = {
     EDIT_ICON_PATH: 'modules/tokencontextmenu/icons/equipment/edit.webp', // Path to edit icon
     POSITION_OFFSET: 10,                     // Pixels offset from weapon icon
     EDGE_PADDING: 10,                        // Padding from canvas edges
+    MAX_TEXTURE_CACHE_SIZE: 20,              // Maximum cached textures before FIFO eviction
 
     // Layout options
     LAYOUTS: {
@@ -134,7 +135,7 @@ export const ECT_MENU = {
         "Cycle Firemode": "fireMode",
         "Change Ammunition": "ammunition"
     }
-};
+};;
 
 /**
  * Weapon menu animation constants
@@ -446,8 +447,8 @@ export const EQUIPMENT_BLUR = {
 export const ECT_BLUR = {
     FILTER_NAME: 'tcm-ect-blur',        // Unique name for ECT blur filters
     BLUR_STRENGTH: 2,                   // Blur strength (lighter than equipment mode)
-    BLUR_QUALITY: 3,                    // Blur quality for performance
-    INACTIVE_ALPHA: 1,                  // Alpha for blurred/inactive weapon icons
-    ACTIVE_ALPHA: 1.0,                  // Alpha for active weapon icon
-    DESATURATION_AMOUNT: 0.35            // Desaturation amount (0 = full color, 1 = grayscale)
+    BLUR_QUALITY: 4,                    // Blur quality for performance
+    INACTIVE_ALPHA: .35,                  // Alpha for blurred/inactive weapon icons
+    ACTIVE_ALPHA: 1,                  // Alpha for active weapon icon
+    DESATURATION_AMOUNT: 0.45            // Desaturation amount (0 = full color, 1 = grayscale)
 };

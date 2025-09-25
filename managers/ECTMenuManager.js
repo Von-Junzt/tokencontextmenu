@@ -255,40 +255,65 @@ class ECTMenuManager extends CleanupManager {
      * @private
      */
     _animateMenuItem(item, targetX, targetY, index) {
-        // Calculate stagger delay based on index
-        const delay = index * ECT_MENU.ANIMATION.STAGGER_DELAY;
-
-        // Use setTimeout for stagger, then animate
-        setTimeout(() => {
-            const startTime = Date.now();
-            const duration = ECT_MENU.ANIMATION.DURATION;
-
-            // Create animation ticker
-            const animate = () => {
+        // Calculate stagger delay based on index (in frames, not ms)
+        const staggerFrames = (index * ECT_MENU.ANIMATION.STAGGER_DELAY) / (1000 / 60); // Convert ms to frames at 60fps
+        
+        // Track animation state
+        let frameCount = 0;
+        let animationStarted = false;
+        const duration = ECT_MENU.ANIMATION.DURATION;
+        let startTime = null;
+        
+        // Create ticker function
+        const tickerFn = (delta) => {
+            frameCount += delta;
+            
+            // Wait for stagger delay
+            if (!animationStarted && frameCount >= staggerFrames) {
+                animationStarted = true;
+                startTime = Date.now();
+            }
+            
+            // Perform animation after stagger delay
+            if (animationStarted) {
                 const elapsed = Date.now() - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-
+                
                 // Apply easeOutBack easing (overshoots slightly then settles)
                 const eased = this._easeOutBack(progress);
-
+                
                 // Update position
                 item.x = targetX * eased;
                 item.y = targetY * eased;
-
+                
                 // Update scale and alpha
                 item.scale.set(ECT_MENU.ANIMATION.INITIAL_SCALE +
                              (ECT_MENU.ANIMATION.FINAL_SCALE - ECT_MENU.ANIMATION.INITIAL_SCALE) * eased);
                 item.alpha = eased;
-
-                // Continue animation or cleanup
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
+                
+                // Remove ticker when animation completes
+                if (progress >= 1) {
+                    canvas.app.ticker.remove(tickerFn);
                 }
-            };
-
-            // Start animation
-            animate();
-        }, delay);
+            }
+        };
+        
+        // Add ticker to PIXI application ticker
+        if (canvas?.app?.ticker) {
+            canvas.app.ticker.add(tickerFn);
+            
+            // Store ticker reference for cleanup
+            if (!this._animationTickers) {
+                this._animationTickers = [];
+            }
+            this._animationTickers.push(tickerFn);
+        } else {
+            // Fallback: immediate positioning if ticker not available
+            item.x = targetX;
+            item.y = targetY;
+            item.scale.set(ECT_MENU.ANIMATION.FINAL_SCALE);
+            item.alpha = 1;
+        }
     }
 
     /**
@@ -376,46 +401,53 @@ class ECTMenuManager extends CleanupManager {
         circle.drawCircle(0, 0, ECT_MENU.CIRCLE_RADIUS);
         container.addChild(circle);
 
-        // Create icon sprite (with caching)
-        try {
-            // Check texture cache first
-            let iconTexture = this._textureCache.get(iconPath);
-            if (!iconTexture) {
-                // Limit cache size - simple FIFO eviction
-                const MAX_CACHE_SIZE = 20;
-                if (this._textureCache.size >= MAX_CACHE_SIZE) {
-                    const firstKey = this._textureCache.keys().next().value;
-                    this._textureCache.delete(firstKey);
-                }
-                
-                iconTexture = PIXI.Texture.from(iconPath);
-                this._textureCache.set(iconPath, iconTexture);
+        // Create icon sprite (with caching) - use existence checks instead of try-catch
+        // Check texture cache first
+        let iconTexture = this._textureCache.get(iconPath);
+        if (!iconTexture) {
+            // Limit cache size - simple FIFO eviction
+            if (this._textureCache.size >= ECT_MENU.MAX_TEXTURE_CACHE_SIZE) {
+                const firstKey = this._textureCache.keys().next().value;
+                this._textureCache.delete(firstKey);
             }
+            
+            // Check if texture can be created (validate path exists)
+            const textureLoader = PIXI.Assets || PIXI.Loader?.shared;
+            if (!textureLoader) {
+                debugWarn(`PIXI texture loader not available for icon: ${option.name}`);
+                return null;
+            }
+            
+            iconTexture = PIXI.Texture.from(iconPath);
+            this._textureCache.set(iconPath, iconTexture);
+        }
 
-            const icon = new PIXI.Sprite(iconTexture);
-
-            // Size and position icon within circle
-            icon.width = ECT_MENU.ICON_SIZE;
-            icon.height = ECT_MENU.ICON_SIZE;
-            icon.x = -(ECT_MENU.ICON_SIZE / 2);
-            icon.y = -(ECT_MENU.ICON_SIZE / 2);
-
-            // Create circular mask for the icon
-            const iconMask = new PIXI.Graphics();
-            iconMask.beginFill(0xffffff);
-            iconMask.drawCircle(0, 0, ECT_MENU.ICON_MASK_RADIUS);
-            iconMask.endFill();
-
-            // Apply mask to icon
-            icon.mask = iconMask;
-
-            // Add mask and icon to container
-            container.addChild(iconMask);
-            container.addChild(icon);
-        } catch (error) {
-            debugError(`Failed to load icon for ${option.name}:`, error);
+        // Check if texture is valid before creating sprite
+        if (!iconTexture || iconTexture === PIXI.Texture.EMPTY || iconTexture === PIXI.Texture.WHITE) {
+            debugWarn(`Invalid texture for icon: ${option.name} at path: ${iconPath}`);
             return null;
         }
+
+        const icon = new PIXI.Sprite(iconTexture);
+
+        // Size and position icon within circle
+        icon.width = ECT_MENU.ICON_SIZE;
+        icon.height = ECT_MENU.ICON_SIZE;
+        icon.x = -(ECT_MENU.ICON_SIZE / 2);
+        icon.y = -(ECT_MENU.ICON_SIZE / 2);
+
+        // Create circular mask for the icon
+        const iconMask = new PIXI.Graphics();
+        iconMask.beginFill(0xffffff);
+        iconMask.drawCircle(0, 0, ECT_MENU.ICON_MASK_RADIUS);
+        iconMask.endFill();
+
+        // Apply mask to icon
+        icon.mask = iconMask;
+
+        // Add mask and icon to container
+        container.addChild(iconMask);
+        container.addChild(icon);
 
         // Make container interactive
         container.interactive = true;
@@ -439,6 +471,7 @@ class ECTMenuManager extends CleanupManager {
             // Execute callback
             if (option.callback) {
                 // Try-catch acceptable here - executing external module code
+                // CLAUDE.md: "Operations on external modules that might not be installed"
                 try {
                     await option.callback(context.weapon);
                 } catch (error) {
@@ -549,23 +582,33 @@ class ECTMenuManager extends CleanupManager {
     _setupEventHandlers(onClose) {
         // Listen for clicks on tokens layer (catches ALL token clicks, not just selection changes)
         this._tokenClickHandler = (event) => {
-            // Check if the click target is a token
+            // Simplified token detection using canvas.tokens.placeables
             let isTokenClick = false;
-            const target = event.target;
             
-            if (target instanceof foundry.canvas.placeables.Token) {
-                isTokenClick = true;
-            } else if (target?.parent instanceof foundry.canvas.placeables.Token) {
-                isTokenClick = true;
-            } else {
-                // Walk up the parent chain to find a token
-                let parent = target?.parent;
-                while (parent && !(parent instanceof foundry.canvas.placeables.Token)) {
-                    parent = parent.parent;
+            // Get the event's global position
+            const globalPos = event.data?.global;
+            if (globalPos && canvas?.tokens?.placeables) {
+                // Check if click position intersects with any token
+                for (const token of canvas.tokens.placeables) {
+                    if (token.mesh && token.mesh.containsPoint) {
+                        // Use token's mesh contains point if available (v13+)
+                        if (token.mesh.containsPoint(globalPos)) {
+                            isTokenClick = true;
+                            break;
+                        }
+                    } else if (token.bounds) {
+                        // Fallback to bounds check
+                        if (token.bounds.contains(globalPos.x, globalPos.y)) {
+                            isTokenClick = true;
+                            break;
+                        }
+                    }
                 }
-                if (parent instanceof foundry.canvas.placeables.Token) {
-                    isTokenClick = true;
-                }
+            }
+            
+            // Also check if the direct target is a token (for immediate detection)
+            if (!isTokenClick && event.target instanceof foundry.canvas.placeables.Token) {
+                isTokenClick = true;
             }
 
             if (isTokenClick) {
@@ -621,8 +664,16 @@ class ECTMenuManager extends CleanupManager {
      */
     hide() {
         // Early return if nothing to hide
-        if (!this._currentMenuContainer && !this._blurredContainers && !this._clickHandler && !this._keyHandler && !this._tokenClickHandler) {
+        if (!this._currentMenuContainer && !this._blurredContainers && !this._clickHandler && !this._keyHandler && !this._tokenClickHandler && !this._animationTickers) {
             return;
+        }
+        
+        // Clean up animation tickers
+        if (this._animationTickers && canvas?.app?.ticker) {
+            this._animationTickers.forEach(ticker => {
+                canvas.app.ticker.remove(ticker);
+            });
+            this._animationTickers = [];
         }
 
         // Clear weapon container blur if applied
@@ -676,6 +727,14 @@ class ECTMenuManager extends CleanupManager {
      * @override
      */
     cleanup() {
+        // Clear any animation tickers
+        if (this._animationTickers && canvas?.app?.ticker) {
+            this._animationTickers.forEach(ticker => {
+                canvas.app.ticker.remove(ticker);
+            });
+            this._animationTickers = [];
+        }
+        
         // Clear any remaining blur
         if (this._blurredContainers) {
             blurFilterManager.clearECTWeaponBlur(this._blurredContainers);
