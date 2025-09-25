@@ -94,11 +94,26 @@ export const ECT_MENU = {
     CIRCLE_RADIUS: 10,                       // Circle radius (28px diameter)
     CIRCLE_BORDER_WIDTH: 3,                  // Circle border width
     CIRCLE_BORDER_COLOR: 0x666666,           // Subtle gray border
-    CIRCLE_SPACING: 6,                       // Gap between circles
+    CIRCLE_SPACING: 6,                       // Gap between circles (for list layout)
     ICON_MASK_RADIUS: 10,                    // Mask radius for circular icon (same as circle radius - no padding)
     EDIT_ICON_PATH: 'modules/tokencontextmenu/icons/equipment/edit.webp', // Path to edit icon
     POSITION_OFFSET: 10,                     // Pixels offset from weapon icon
     EDGE_PADDING: 10,                        // Padding from canvas edges
+
+    // Layout options
+    LAYOUTS: {
+        LIST: 'list',                        // Vertical list layout
+        CIRCULAR: 'circular'                 // Circular layout around weapon
+    },
+
+    // Circular layout specific constants
+    CIRCULAR: {
+        RADIUS_OFFSET: 30,                   // Distance from weapon center to menu items
+        START_ANGLE: 0,                      // Start at 3 o'clock (0 degrees = right side)
+        ANGLE_STEP: 40,                      // Degrees between each item (alternates above/below)
+        // Pattern: 0°, -30°, +30°, -60°, +60°, -90°, +90°, etc.
+        // This creates an alternating pattern starting from 3 o'clock
+    },
 
     // Enhancement type mappings for icon lookup
     ENHANCEMENT_MAPPINGS: {

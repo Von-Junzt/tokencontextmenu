@@ -267,6 +267,21 @@ export function registerSettings() {
         default: true,
         requiresReload: false
     });
+
+    // ECT Menu Layout option
+    game.settings.register("tokencontextmenu", "ectMenuLayout", {
+        name: game.i18n.localize("tokencontextmenu.Settings.ECTMenuLayout"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ECTMenuLayoutHint"),
+        scope: "client",
+        config: true,
+        type: String,
+        choices: {
+            "list": game.i18n.localize("tokencontextmenu.Settings.ECTMenuLayoutList"),
+            "circular": game.i18n.localize("tokencontextmenu.Settings.ECTMenuLayoutCircular")
+        },
+        default: "circular",
+        requiresReload: false
+    });
 }
 
 
@@ -484,4 +499,15 @@ export function getAlwaysShowReloadButton() {
         return false;
     }
     return game.settings.get("tokencontextmenu", "alwaysShowReloadButton");
+}
+
+/**
+ * Gets the ECT menu layout preference
+ * @returns {string} The layout type: 'list' or 'circular'
+ */
+export function getECTMenuLayout() {
+    if (typeof game === 'undefined' || !game.ready) {
+        return 'list';
+    }
+    return game.settings.get("tokencontextmenu", "ectMenuLayout");
 }

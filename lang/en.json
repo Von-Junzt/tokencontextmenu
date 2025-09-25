@@ -44,7 +44,11 @@
             "ReloadButtonBgColor": "Reload Button Background Color",
             "ReloadButtonBgColorHint": "Background color for the reload button. Click to open color picker.",
             "AlwaysShowReloadButton": "Always Show Reload Button",
-            "AlwaysShowReloadButtonHint": "Show reload buttons on weapons that need reloading without requiring hover. When disabled, reload buttons only appear on hover."
+            "AlwaysShowReloadButtonHint": "Show reload buttons on weapons that need reloading without requiring hover. When disabled, reload buttons only appear on hover.",
+            "ECTMenuLayout": "ECT Menu Layout",
+            "ECTMenuLayoutHint": "Choose how to display weapon enhancement options from Enhanced Combat Toolkit.",
+            "ECTMenuLayoutList": "Vertical List",
+            "ECTMenuLayoutCircular": "Circular (around weapon)"
         },
         "PowerStatus": {
             "Favorited": "Favorited",
