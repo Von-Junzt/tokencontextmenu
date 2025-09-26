@@ -282,6 +282,22 @@ export function registerSettings() {
         default: "circular",
         requiresReload: false
     });
+
+    // ECT Menu Icon Scale setting
+    game.settings.register("tokencontextmenu", "ectMenuIconScale", {
+        name: game.i18n.localize("tokencontextmenu.Settings.ECTMenuIconScale"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.ECTMenuIconScaleHint"),
+        scope: "client",
+        config: true,
+        type: Number,
+        range: {
+            min: 1.0,
+            max: 5.0,
+            step: 0.1
+        },
+        default: 2.7,
+        requiresReload: false
+    });
 }
 
 
@@ -510,4 +526,15 @@ export function getECTMenuLayout() {
         return 'list';
     }
     return game.settings.get("tokencontextmenu", "ectMenuLayout");
+}
+
+/**
+ * Gets the ECT menu icon scale setting
+ * @returns {number} The icon scale multiplier (0.5 to 2.0)
+ */
+export function getECTMenuIconScale() {
+    if (typeof game === 'undefined' || !game.ready) {
+        return 1.0;
+    }
+    return game.settings.get("tokencontextmenu", "ectMenuIconScale");
 }

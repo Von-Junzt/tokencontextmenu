@@ -8,9 +8,9 @@ import { CleanupManager } from "./CleanupManager.js";
 import { blurFilterManager } from "./BlurFilterManager.js";
 import { weaponSystemCoordinator } from "./WeaponSystemCoordinator.js";
 import { debug, debugWarn, debugError } from "../utils/debug.js";
-import { COLORS, TIMING, ECT_MENU, ECT_BLUR } from "../utils/constants.js";
+import { COLORS, TIMING, ECT_MENU, ECT_BLUR, GRID } from "../utils/constants.js";
 import { timestamps } from "../utils/timingUtils.js";
-import { getECTMenuLayout } from "../settings/settings.js";
+import { getECTMenuLayout, getWeaponMenuIconScale, getECTMenuIconScale } from "../settings/settings.js";
 
 /**
  * Manages ECT enhancement context menu using PIXI
@@ -33,6 +33,32 @@ class ECTMenuManager extends CleanupManager {
                 this.hide();
             }
         });
+    }
+
+    /**
+     * Calculates scaled dimensions based on grid size and user settings
+     * @returns {Object} Object with scaled dimensions
+     * @private
+     */
+    _calculateScaledDimensions() {
+        // Get grid size with fallback
+        const gridSize = canvas?.grid?.size || GRID.DEFAULT_SIZE;
+
+        // Use both the weapon menu scale (for base size) and ECT menu scale (for additional control)
+        const baseScale = getWeaponMenuIconScale();  // Base scaling with grid
+        const ectScale = getECTMenuIconScale();      // User's ECT-specific scale preference
+        const combinedScale = baseScale * ectScale;  // Combine both scales
+
+        // Calculate all scaled dimensions
+        return {
+            circleRadius: Math.round(gridSize * ECT_MENU.CIRCLE_RADIUS_RATIO * combinedScale),
+            circleSpacing: Math.round(gridSize * ECT_MENU.CIRCLE_SPACING_RATIO * combinedScale),
+            iconSize: Math.round(gridSize * ECT_MENU.ICON_SIZE_RATIO * combinedScale),
+            positionOffset: Math.round(gridSize * ECT_MENU.POSITION_OFFSET_RATIO * combinedScale),
+            iconMaskRadius: Math.round(gridSize * ECT_MENU.ICON_MASK_RADIUS_RATIO * combinedScale),
+            circleBorderWidth: Math.max(1, Math.round(gridSize * ECT_MENU.CIRCLE_BORDER_WIDTH_RATIO * combinedScale)),
+            edgePadding: Math.round(gridSize * ECT_MENU.EDGE_PADDING_RATIO * combinedScale)
+        };
     }
 
     /**
@@ -124,13 +150,16 @@ class ECTMenuManager extends CleanupManager {
         const menu = new PIXI.Container();
         menu.name = "ect-context-menu";
 
+        // Calculate scaled dimensions for this menu
+        const scaledDimensions = this._calculateScaledDimensions();
+
         // Filter out separators for simplified menu
         const filteredOptions = menuOptions.filter(option => !option.separator);
 
         // Create circle menu items and filter out nulls
         const circles = [];
         filteredOptions.forEach(option => {
-            const circle = this._createMenuItem(option, context);
+            const circle = this._createMenuItem(option, context, scaledDimensions);
             if (circle) {
                 circles.push(circle);
             }
@@ -146,9 +175,9 @@ class ECTMenuManager extends CleanupManager {
 
         // Position menu based on layout
         if (layout === ECT_MENU.LAYOUTS.CIRCULAR) {
-            this._positionCircular(circles, menu, weaponContainer, iconRadius);
+            this._positionCircular(circles, menu, weaponContainer, iconRadius, scaledDimensions);
         } else {
-            this._positionList(circles, menu, weaponContainer, iconRadius);
+            this._positionList(circles, menu, weaponContainer, iconRadius, scaledDimensions);
         }
 
         // Add to canvas tokens layer (same layer as weapon menu)
@@ -163,19 +192,20 @@ class ECTMenuManager extends CleanupManager {
      * @param {PIXI.Container} menu - The menu container
      * @param {PIXI.Container} weaponContainer - The weapon icon container
      * @param {number} iconRadius - Radius of the weapon icon
+     * @param {Object} scaledDimensions - Scaled dimension values
      * @private
      */
-    _positionList(circles, menu, weaponContainer, iconRadius) {
-        // Calculate dimensions based on actual circles
-        const circleSize = ECT_MENU.CIRCLE_RADIUS * 2;
+    _positionList(circles, menu, weaponContainer, iconRadius, scaledDimensions) {
+        // Use scaled dimensions
+        const circleSize = scaledDimensions.circleRadius * 2;
         const totalHeight = (circles.length * circleSize) +
-                           ((circles.length - 1) * ECT_MENU.CIRCLE_SPACING);
+                           ((circles.length - 1) * scaledDimensions.circleSpacing);
 
         // Position relative to weapon icon
         const globalPos = weaponContainer.toGlobal(new PIXI.Point(0, 0));
         const localPos = canvas.tokens.toLocal(globalPos);
-        menu.x = localPos.x + iconRadius + ECT_MENU.POSITION_OFFSET + ECT_MENU.CIRCLE_RADIUS;
-        menu.y = localPos.y - totalHeight / 2 + ECT_MENU.CIRCLE_RADIUS;  // Center vertically on icon
+        menu.x = localPos.x + iconRadius + scaledDimensions.positionOffset + scaledDimensions.circleRadius;
+        menu.y = localPos.y - totalHeight / 2 + scaledDimensions.circleRadius;  // Center vertically on icon
 
         // Position and add circles with animation
         let currentY = 0;
@@ -189,14 +219,14 @@ class ECTMenuManager extends CleanupManager {
 
             // Calculate target position
             const targetY = currentY;
-            currentY += circleSize + ECT_MENU.CIRCLE_SPACING;
+            currentY += circleSize + scaledDimensions.circleSpacing;
 
             // Animate to target position with stagger
             this._animateMenuItem(circle, 0, targetY, index);
         });
 
         // Check if menu would go off screen and adjust
-        this._adjustMenuPosition(menu, circleSize, totalHeight, weaponContainer, iconRadius);
+        this._adjustMenuPosition(menu, circleSize, totalHeight, weaponContainer, iconRadius, scaledDimensions);
     }
 
     /**
@@ -205,9 +235,10 @@ class ECTMenuManager extends CleanupManager {
      * @param {PIXI.Container} menu - The menu container
      * @param {PIXI.Container} weaponContainer - The weapon icon container
      * @param {number} iconRadius - Radius of the weapon icon
+     * @param {Object} scaledDimensions - Scaled dimension values
      * @private
      */
-    _positionCircular(circles, menu, weaponContainer, iconRadius) {
+    _positionCircular(circles, menu, weaponContainer, iconRadius, scaledDimensions) {
         // Position menu at weapon center
         const globalPos = weaponContainer.toGlobal(new PIXI.Point(0, 0));
         const localPos = canvas.tokens.toLocal(globalPos);
@@ -233,8 +264,14 @@ class ECTMenuManager extends CleanupManager {
             // Convert to radians
             const radians = (angle * Math.PI) / 180;
 
-            // Calculate target position
-            const radius = iconRadius + ECT_MENU.CIRCULAR.RADIUS_OFFSET;
+            // Calculate target position with scaled radius offset
+            // Scale the radius offset proportionally to grid size
+            const baseScale = getWeaponMenuIconScale();
+            const ectScale = getECTMenuIconScale();
+            const scaledRadiusOffset = Math.round(
+                ECT_MENU.CIRCULAR.RADIUS_OFFSET_RATIO * canvas.grid.size * baseScale * ectScale
+            );
+            const radius = iconRadius + scaledRadiusOffset;
             const targetX = Math.cos(radians) * radius;
             const targetY = Math.sin(radians) * radius;
 
@@ -243,7 +280,7 @@ class ECTMenuManager extends CleanupManager {
         });
 
         // Adjust menu position if items would go off screen
-        this._adjustMenuPositionCircular(menu, weaponContainer, iconRadius);
+        this._adjustMenuPositionCircular(menu, weaponContainer, iconRadius, scaledDimensions);
     }
 
     /**
@@ -382,10 +419,11 @@ class ECTMenuManager extends CleanupManager {
      * Creates a single menu item as a circular icon
      * @param {Object} option - Menu option configuration
      * @param {Object} context - Context data {weapon, onClose}
+     * @param {Object} scaledDimensions - Scaled dimension values
      * @returns {PIXI.Container|null} The menu item container or null if invalid
      * @private
      */
-    _createMenuItem(option, context) {
+    _createMenuItem(option, context, scaledDimensions) {
         const iconPath = this._resolveIconPath(option, context);
 
         // Only create circle if we have an icon
@@ -395,10 +433,10 @@ class ECTMenuManager extends CleanupManager {
 
         const container = new PIXI.Container();
 
-        // Create circle border
+        // Create circle border with scaled dimensions
         const circle = new PIXI.Graphics();
-        circle.lineStyle(ECT_MENU.CIRCLE_BORDER_WIDTH, ECT_MENU.CIRCLE_BORDER_COLOR);
-        circle.drawCircle(0, 0, ECT_MENU.CIRCLE_RADIUS);
+        circle.lineStyle(scaledDimensions.circleBorderWidth, ECT_MENU.CIRCLE_BORDER_COLOR);
+        circle.drawCircle(0, 0, scaledDimensions.circleRadius);
         container.addChild(circle);
 
         // Create icon sprite (with caching) - use existence checks instead of try-catch
@@ -430,16 +468,16 @@ class ECTMenuManager extends CleanupManager {
 
         const icon = new PIXI.Sprite(iconTexture);
 
-        // Size and position icon within circle
-        icon.width = ECT_MENU.ICON_SIZE;
-        icon.height = ECT_MENU.ICON_SIZE;
-        icon.x = -(ECT_MENU.ICON_SIZE / 2);
-        icon.y = -(ECT_MENU.ICON_SIZE / 2);
+        // Size and position icon within circle using scaled dimensions
+        icon.width = scaledDimensions.iconSize;
+        icon.height = scaledDimensions.iconSize;
+        icon.x = -(scaledDimensions.iconSize / 2);
+        icon.y = -(scaledDimensions.iconSize / 2);
 
-        // Create circular mask for the icon
+        // Create circular mask for the icon with scaled radius
         const iconMask = new PIXI.Graphics();
         iconMask.beginFill(0xffffff);
-        iconMask.drawCircle(0, 0, ECT_MENU.ICON_MASK_RADIUS);
+        iconMask.drawCircle(0, 0, scaledDimensions.iconMaskRadius);
         iconMask.endFill();
 
         // Apply mask to icon
@@ -454,8 +492,8 @@ class ECTMenuManager extends CleanupManager {
         container.eventMode = 'static';
         container.cursor = 'pointer';
 
-        // Set hit area to circle
-        container.hitArea = new PIXI.Circle(0, 0, ECT_MENU.CIRCLE_RADIUS);
+        // Set hit area to circle with scaled radius
+        container.hitArea = new PIXI.Circle(0, 0, scaledDimensions.circleRadius);
 
         // Click handler
         container.on('pointerdown', async (event) => {
@@ -491,14 +529,15 @@ class ECTMenuManager extends CleanupManager {
      * @param {number} menuHeight - Menu height
      * @param {PIXI.Container} weaponContainer - The weapon icon container
      * @param {number} iconRadius - Icon radius
+     * @param {Object} scaledDimensions - Scaled dimension values
      * @private
      */
-    _adjustMenuPosition(menu, menuWidth, menuHeight, weaponContainer, iconRadius) {
+    _adjustMenuPosition(menu, menuWidth, menuHeight, weaponContainer, iconRadius, scaledDimensions) {
         const menuBounds = {
-            left: menu.x - ECT_MENU.CIRCLE_RADIUS,
-            right: menu.x + ECT_MENU.CIRCLE_RADIUS,
-            top: menu.y - ECT_MENU.CIRCLE_RADIUS,
-            bottom: menu.y + menuHeight - ECT_MENU.CIRCLE_RADIUS
+            left: menu.x - scaledDimensions.circleRadius,
+            right: menu.x + scaledDimensions.circleRadius,
+            top: menu.y - scaledDimensions.circleRadius,
+            bottom: menu.y + menuHeight - scaledDimensions.circleRadius
         };
 
         const canvasBounds = canvas.dimensions.rect;
@@ -508,17 +547,17 @@ class ECTMenuManager extends CleanupManager {
             // Position to left of icon instead
             const globalPos = weaponContainer.toGlobal(new PIXI.Point(0, 0));
             const localPos = canvas.tokens.toLocal(globalPos);
-            menu.x = localPos.x - iconRadius - menuWidth - ECT_MENU.POSITION_OFFSET;
+            menu.x = localPos.x - iconRadius - menuWidth - scaledDimensions.positionOffset;
         }
 
         // Check bottom edge
         if (menuBounds.bottom > canvasBounds.bottom) {
-            menu.y = canvasBounds.bottom - menuHeight - ECT_MENU.EDGE_PADDING;
+            menu.y = canvasBounds.bottom - menuHeight - scaledDimensions.edgePadding;
         }
 
         // Check top edge
         if (menuBounds.top < canvasBounds.top) {
-            menu.y = canvasBounds.top + ECT_MENU.EDGE_PADDING;
+            menu.y = canvasBounds.top + scaledDimensions.edgePadding;
         }
     }
 
@@ -527,11 +566,18 @@ class ECTMenuManager extends CleanupManager {
      * @param {PIXI.Container} menu - The menu container
      * @param {PIXI.Container} weaponContainer - The weapon icon container
      * @param {number} iconRadius - Icon radius
+     * @param {Object} scaledDimensions - Scaled dimension values
      * @private
      */
-    _adjustMenuPositionCircular(menu, weaponContainer, iconRadius) {
+    _adjustMenuPositionCircular(menu, weaponContainer, iconRadius, scaledDimensions) {
         const canvasBounds = canvas.dimensions.rect;
-        const radius = iconRadius + ECT_MENU.CIRCULAR.RADIUS_OFFSET;
+        // Use the same scaled radius offset that was used in positioning
+        const baseScale = getWeaponMenuIconScale();
+        const ectScale = getECTMenuIconScale();
+        const scaledRadiusOffset = Math.round(
+            ECT_MENU.CIRCULAR.RADIUS_OFFSET_RATIO * canvas.grid.size * baseScale * ectScale
+        );
+        const radius = iconRadius + scaledRadiusOffset;
 
         // Get the bounds of all children to find actual menu bounds
         let minX = Infinity, maxX = -Infinity;
@@ -539,10 +585,10 @@ class ECTMenuManager extends CleanupManager {
 
         menu.children.forEach(child => {
             const childBounds = {
-                left: menu.x + child.x - ECT_MENU.CIRCLE_RADIUS,
-                right: menu.x + child.x + ECT_MENU.CIRCLE_RADIUS,
-                top: menu.y + child.y - ECT_MENU.CIRCLE_RADIUS,
-                bottom: menu.y + child.y + ECT_MENU.CIRCLE_RADIUS
+                left: menu.x + child.x - scaledDimensions.circleRadius,
+                right: menu.x + child.x + scaledDimensions.circleRadius,
+                top: menu.y + child.y - scaledDimensions.circleRadius,
+                bottom: menu.y + child.y + scaledDimensions.circleRadius
             };
 
             minX = Math.min(minX, childBounds.left);
@@ -556,15 +602,15 @@ class ECTMenuManager extends CleanupManager {
 
         // Check edges and adjust
         if (minX < canvasBounds.left) {
-            adjustX = canvasBounds.left - minX + ECT_MENU.EDGE_PADDING;
+            adjustX = canvasBounds.left - minX + scaledDimensions.edgePadding;
         } else if (maxX > canvasBounds.right) {
-            adjustX = canvasBounds.right - maxX - ECT_MENU.EDGE_PADDING;
+            adjustX = canvasBounds.right - maxX - scaledDimensions.edgePadding;
         }
 
         if (minY < canvasBounds.top) {
-            adjustY = canvasBounds.top - minY + ECT_MENU.EDGE_PADDING;
+            adjustY = canvasBounds.top - minY + scaledDimensions.edgePadding;
         } else if (maxY > canvasBounds.bottom) {
-            adjustY = canvasBounds.bottom - maxY - ECT_MENU.EDGE_PADDING;
+            adjustY = canvasBounds.bottom - maxY - scaledDimensions.edgePadding;
         }
 
         // Apply adjustments

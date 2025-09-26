@@ -90,6 +90,16 @@ export const COLORS = {
 };
 // ECT Context Menu constants
 export const ECT_MENU = {
+    // Grid-relative scaling ratios (multiply by canvas.grid.size)
+    CIRCLE_RADIUS_RATIO: 0.1,                // Circle radius as ratio of grid size
+    CIRCLE_SPACING_RATIO: 0.06,              // Gap between circles as ratio of grid size
+    ICON_SIZE_RATIO: 0.2,                    // Icon size as ratio of grid size
+    POSITION_OFFSET_RATIO: 0.1,              // Offset from weapon icon as ratio of grid size
+    ICON_MASK_RADIUS_RATIO: 0.1,             // Mask radius as ratio of grid size
+    CIRCLE_BORDER_WIDTH_RATIO: 0.03,         // Border width as ratio of grid size
+    EDGE_PADDING_RATIO: 0.1,                 // Edge padding as ratio of grid size
+
+    // Legacy fixed pixel values (kept for backwards compatibility/fallback)
     ICON_SIZE: 20,                           // Icon dimensions in pixels (increased for circles)
     CIRCLE_RADIUS: 10,                       // Circle radius (28px diameter)
     CIRCLE_BORDER_WIDTH: 3,                  // Circle border width
@@ -110,6 +120,7 @@ export const ECT_MENU = {
     // Circular layout specific constants
     CIRCULAR: {
         RADIUS_OFFSET: 30,                   // Distance from weapon center to menu items
+        RADIUS_OFFSET_RATIO: 0.3,            // Radius offset as ratio of grid size
         START_ANGLE: 0,                      // Start at 3 o'clock (0 degrees = right side)
         ANGLE_STEP: 35,                      // Degrees between each item (alternates above/below)
         // Pattern: 0°, -30°, +30°, -60°, +60°, -90°, +90°, etc.
@@ -187,6 +198,11 @@ export const WEAPON_PRIORITY = {
     POWER: 95,                // Powers
     DEFAULT: 50,              // Default priority
     OTHER: 100                // Other items
+};
+
+// Grid size constants
+export const GRID = {
+    DEFAULT_SIZE: 64                 // Default grid size fallback (matches EQUIPMENT_ZOOM.REFERENCE_GRID_SIZE)
 };
 
 // Weapon name constants
@@ -450,5 +466,5 @@ export const ECT_BLUR = {
     BLUR_QUALITY: 4,                    // Blur quality for performance
     INACTIVE_ALPHA: .35,                  // Alpha for blurred/inactive weapon icons
     ACTIVE_ALPHA: 1,                  // Alpha for active weapon icon
-    DESATURATION_AMOUNT: 0.45            // Desaturation amount (0 = full color, 1 = grayscale)
+    DESATURATION_AMOUNT: 0.65            // Desaturation amount (0 = full color, 1 = grayscale)
 };

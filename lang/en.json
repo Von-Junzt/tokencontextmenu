@@ -48,7 +48,9 @@
             "ECTMenuLayout": "ECT Menu Layout",
             "ECTMenuLayoutHint": "Choose how to display weapon enhancement options from Enhanced Combat Toolkit.",
             "ECTMenuLayoutList": "Vertical List",
-            "ECTMenuLayoutCircular": "Circular (around weapon)"
+            "ECTMenuLayoutCircular": "Circular (around weapon)",
+            "ECTMenuIconScale": "ECT Menu Icon Scale",
+            "ECTMenuIconScaleHint": "Scale factor for ECT menu icons (0.5 = 50% smaller, 1.0 = normal, 2.0 = 200% larger). Multiplies with the weapon menu icon scale."
         },
         "PowerStatus": {
             "Favorited": "Favorited",
