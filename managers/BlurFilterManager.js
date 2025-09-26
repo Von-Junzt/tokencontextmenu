@@ -273,8 +273,8 @@ class BlurFilterManager extends CleanupManager {
                     ECT_BLUR.FILTER_NAME
                 );
 
-                // Create and apply desaturation filter
-                const colorMatrix = new PIXI.filters.ColorMatrixFilter();
+                // Create and apply desaturation filter (PixiJS v7+)
+                const colorMatrix = new PIXI.ColorMatrixFilter();
                 // Use saturate method (0 = no change, negative = desaturate, -1 = grayscale)
                 colorMatrix.saturate(-ECT_BLUR.DESATURATION_AMOUNT);
                 colorMatrix.name = `${ECT_BLUR.FILTER_NAME}-desaturate`;
@@ -331,15 +331,15 @@ class BlurFilterManager extends CleanupManager {
     }
 
     /**
-     * Create a PIXI blur filter
+     * Create a PIXI blur filter (PixiJS v7+)
      * @param {number} strength - Blur strength
      * @param {number} quality - Blur quality
      * @param {string} [filterName] - Optional filter name override
-     * @returns {PIXI.filters.BlurFilter} The blur filter
+     * @returns {PIXI.BlurFilter} The blur filter
      * @private
      */
     _createBlurFilter(strength, quality, filterName = null) {
-        const filter = new PIXI.filters.BlurFilter(strength, quality);
+        const filter = new PIXI.BlurFilter(strength, quality);
         filter.name = filterName || EQUIPMENT_BLUR.FILTER_NAME;
         return filter;
     }

@@ -508,8 +508,9 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
             this._canvasReadyResetHandler = null;
         }
         
-        // Unregister libWrapper hooks
-        libWrapper.unregister('tokencontextmenu', 'foundry.canvas.placeables.Token.prototype._onClickLeft');
+        // NOTE: We do NOT unregister libWrapper here
+        // libWrapper handles its own cleanup when the module is disabled
+        // Unregistering here would break the module until restart
 
         // Clear collections
         this.controlledTokens.clear();

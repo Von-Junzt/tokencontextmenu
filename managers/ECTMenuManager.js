@@ -8,7 +8,7 @@ import { CleanupManager } from "./CleanupManager.js";
 import { blurFilterManager } from "./BlurFilterManager.js";
 import { weaponSystemCoordinator } from "./WeaponSystemCoordinator.js";
 import { debug, debugWarn, debugError } from "../utils/debug.js";
-import { COLORS, TIMING, ECT_MENU, ECT_BLUR, GRID } from "../utils/constants.js";
+import { COLORS, TIMING, ECT_MENU, ECT_BLUR, GRID, MATH } from "../utils/constants.js";
 import { timestamps } from "../utils/timingUtils.js";
 import { getECTMenuLayout, getWeaponMenuIconScale, getECTMenuIconScale } from "../settings/settings.js";
 
@@ -41,23 +41,31 @@ class ECTMenuManager extends CleanupManager {
      * @private
      */
     _calculateScaledDimensions() {
-        // Get grid size with fallback
+        // Cache grid size with fallback
         const gridSize = canvas?.grid?.size || GRID.DEFAULT_SIZE;
 
-        // Use both the weapon menu scale (for base size) and ECT menu scale (for additional control)
+        // Cache scale settings (only 2 settings calls instead of 6)
         const baseScale = getWeaponMenuIconScale();  // Base scaling with grid
         const ectScale = getECTMenuIconScale();      // User's ECT-specific scale preference
         const combinedScale = baseScale * ectScale;  // Combine both scales
 
-        // Calculate all scaled dimensions
+        // Calculate all scaled dimensions once
         return {
+            // Core dimensions
             circleRadius: Math.round(gridSize * ECT_MENU.CIRCLE_RADIUS_RATIO * combinedScale),
             circleSpacing: Math.round(gridSize * ECT_MENU.CIRCLE_SPACING_RATIO * combinedScale),
             iconSize: Math.round(gridSize * ECT_MENU.ICON_SIZE_RATIO * combinedScale),
             positionOffset: Math.round(gridSize * ECT_MENU.POSITION_OFFSET_RATIO * combinedScale),
             iconMaskRadius: Math.round(gridSize * ECT_MENU.ICON_MASK_RADIUS_RATIO * combinedScale),
             circleBorderWidth: Math.max(1, Math.round(gridSize * ECT_MENU.CIRCLE_BORDER_WIDTH_RATIO * combinedScale)),
-            edgePadding: Math.round(gridSize * ECT_MENU.EDGE_PADDING_RATIO * combinedScale)
+            edgePadding: Math.round(gridSize * ECT_MENU.EDGE_PADDING_RATIO * combinedScale),
+
+            // Circular layout specific (calculated once here, not repeated later)
+            circularRadiusOffset: Math.round(ECT_MENU.CIRCULAR.RADIUS_OFFSET_RATIO * gridSize * combinedScale),
+
+            // Store the scales for any other calculations that might need them
+            gridSize: gridSize,
+            combinedScale: combinedScale
         };
     }
 
@@ -261,17 +269,11 @@ class ECTMenuManager extends CleanupManager {
             // Calculate angle for this item (spreading from top to bottom)
             const angle = startAngle + (index * ECT_MENU.CIRCULAR.ANGLE_STEP);
 
-            // Convert to radians
-            const radians = (angle * Math.PI) / 180;
+            // Convert to radians using constant
+            const radians = angle * MATH.DEG_TO_RAD;
 
-            // Calculate target position with scaled radius offset
-            // Scale the radius offset proportionally to grid size
-            const baseScale = getWeaponMenuIconScale();
-            const ectScale = getECTMenuIconScale();
-            const scaledRadiusOffset = Math.round(
-                ECT_MENU.CIRCULAR.RADIUS_OFFSET_RATIO * canvas.grid.size * baseScale * ectScale
-            );
-            const radius = iconRadius + scaledRadiusOffset;
+            // Use pre-calculated radius offset from scaledDimensions
+            const radius = iconRadius + scaledDimensions.circularRadiusOffset;
             const targetX = Math.cos(radians) * radius;
             const targetY = Math.sin(radians) * radius;
 
@@ -571,13 +573,8 @@ class ECTMenuManager extends CleanupManager {
      */
     _adjustMenuPositionCircular(menu, weaponContainer, iconRadius, scaledDimensions) {
         const canvasBounds = canvas.dimensions.rect;
-        // Use the same scaled radius offset that was used in positioning
-        const baseScale = getWeaponMenuIconScale();
-        const ectScale = getECTMenuIconScale();
-        const scaledRadiusOffset = Math.round(
-            ECT_MENU.CIRCULAR.RADIUS_OFFSET_RATIO * canvas.grid.size * baseScale * ectScale
-        );
-        const radius = iconRadius + scaledRadiusOffset;
+        // Use the pre-calculated radius offset from scaledDimensions
+        const radius = iconRadius + scaledDimensions.circularRadiusOffset;
 
         // Get the bounds of all children to find actual menu bounds
         let minX = Infinity, maxX = -Infinity;

@@ -195,12 +195,23 @@ export class WeaponMenuApplication {
      * @private
      */
     _animateMenuOpen(targetY) {
+        // Safety check before starting animation
+        if (!this.container || this.container.destroyed) {
+            debugWarn('Cannot animate menu - container is invalid');
+            return;
+        }
+        
         const startTime = Date.now();
         const duration = WEAPON_MENU_ANIMATION.DURATION;
         const startY = this.container.y;
         const startAlpha = this.container.alpha;
 
         const animate = () => {
+            // Check if container still exists and is valid
+            if (!this.container || this.container.destroyed) {
+                return; // Stop animation if container is gone
+            }
+            
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
 
@@ -537,8 +548,13 @@ export class WeaponMenuApplication {
      */
     _setupEventListeners() {
         this.clickOutsideHandler = (event) => {
-            // Defensive checks
-            if (!ContainerVerification.isValid(this.container)) return;
+            // Defensive checks - validate container before any operations
+            if (!ContainerVerification.isValid(this.container)) {
+                debugWarn('Container invalid in click handler, triggering cleanup');
+                this.stateMachine.transition('ERROR');
+                this._emergencyCleanup();
+                return;
+            }
             if (this.stateMachine.getState() !== 'OPEN') return;
             
             // Check debounce timing
@@ -555,12 +571,21 @@ export class WeaponMenuApplication {
                 }
             } catch (error) {
                 debugWarn('Error in click outside handler', error);
+                // If getBounds fails, the container is likely invalid
+                this.stateMachine.transition('ERROR');
+                this._emergencyCleanup();
             }
         };
 
         // Handle right-click outside menu
         this.rightClickHandler = (event) => {
-            if (!ContainerVerification.isValid(this.container)) return;
+            // Defensive checks - validate container before any operations
+            if (!ContainerVerification.isValid(this.container)) {
+                debugWarn('Container invalid in right-click handler, triggering cleanup');
+                this.stateMachine.transition('ERROR');
+                this._emergencyCleanup();
+                return;
+            }
             if (this.stateMachine.getState() !== 'OPEN') return;
             
             try {
@@ -572,6 +597,9 @@ export class WeaponMenuApplication {
                 }
             } catch (error) {
                 debugWarn('Error in right-click handler', error);
+                // If getBounds fails, the container is likely invalid
+                this.stateMachine.transition('ERROR');
+                this._emergencyCleanup();
             }
         };
 
@@ -756,19 +784,31 @@ export class WeaponMenuApplication {
             if (this.contextMenuHandler && canvas.app?.view) {
                 canvas.app.view.removeEventListener('contextmenu', this.contextMenuHandler);
             }
-        } catch (e) {}
+        } catch (e) {
+            // Intentionally suppressing error during emergency cleanup
+            // This prevents cleanup from failing partway through
+            debugWarn('Non-critical error during emergency cleanup - event listeners (continuing)', e);
+        }
         
         // Force hide tooltip
         try {
             this._hideTooltip();
-        } catch (e) {}
+        } catch (e) {
+            // Intentionally suppressing error during emergency cleanup
+            // Tooltip may already be destroyed
+            debugWarn('Non-critical error during emergency cleanup - tooltip (continuing)', e);
+        }
         
         // Force destroy container
         try {
             if (this.container) {
                 ContainerVerification.safeDestroy(this.container);
             }
-        } catch (e) {}
+        } catch (e) {
+            // Intentionally suppressing error during emergency cleanup
+            // Container may already be destroyed
+            debugWarn('Non-critical error during emergency cleanup - container (continuing)', e);
+        }
         
         // Clear all references
         this.container = null;

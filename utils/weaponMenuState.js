@@ -66,6 +66,44 @@ export class WeaponMenuStateMachine {
         const fromState = this.state;
         this.state = toState;
         
+        // Set up timeout recovery for transition states
+        if ((toState === 'OPENING' || toState === 'CLOSING') && canvas?.app?.ticker) {
+            // Clear any existing timeout ticker
+            if (this._timeoutTicker) {
+                canvas.app.ticker.remove(this._timeoutTicker);
+                this._timeoutTicker = null;
+            }
+            
+            // Start new timeout ticker
+            const startTime = Date.now();
+            const timeoutMs = 2000; // 2 seconds timeout
+            
+            this._timeoutTicker = () => {
+                if (Date.now() - startTime > timeoutMs) {
+                    // Remove this ticker
+                    canvas.app.ticker.remove(this._timeoutTicker);
+                    this._timeoutTicker = null;
+                    
+                    // Check if still stuck in transition state
+                    if (this.state === toState) {
+                        debugWarn(`State machine stuck in ${toState} for ${timeoutMs}ms, forcing ERROR state`);
+                        this.state = 'ERROR';
+                        
+                        // Notify listeners about the error transition
+                        this.stateChangeCallbacks.forEach(callback => {
+                            callback(toState, 'ERROR');
+                        });
+                    }
+                }
+            };
+            
+            canvas.app.ticker.add(this._timeoutTicker);
+        } else if (this._timeoutTicker && canvas?.app?.ticker) {
+            // Clear timeout ticker when transitioning to stable states
+            canvas.app.ticker.remove(this._timeoutTicker);
+            this._timeoutTicker = null;
+        }
+        
         // Notify listeners
         this.stateChangeCallbacks.forEach(callback => {
             callback(fromState, toState);
@@ -117,6 +155,13 @@ export class WeaponMenuStateMachine {
      */
     reset() {
         debugWarn('Weapon menu state machine reset');
+        
+        // Clear any timeout ticker if it exists
+        if (this._timeoutTicker && canvas?.app?.ticker) {
+            canvas.app.ticker.remove(this._timeoutTicker);
+            this._timeoutTicker = null;
+        }
+        
         this.state = 'CLOSED';
     }
 }

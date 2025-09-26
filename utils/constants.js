@@ -385,6 +385,7 @@ export const MATH = {
     CENTER_DIVISOR: 2,            // Divisor for centering calculations
     DIMENSION_MULTIPLIER: 2,      // Multiplier for converting radius to diameter
     HEX_PARSE_BASE: 16,           // Base for parsing hexadecimal colors
+    DEG_TO_RAD: Math.PI / 180,    // Conversion factor from degrees to radians
 };
 
 /**
@@ -464,7 +465,7 @@ export const ECT_BLUR = {
     FILTER_NAME: 'tcm-ect-blur',        // Unique name for ECT blur filters
     BLUR_STRENGTH: 2,                   // Blur strength (lighter than equipment mode)
     BLUR_QUALITY: 4,                    // Blur quality for performance
-    INACTIVE_ALPHA: .35,                  // Alpha for blurred/inactive weapon icons
+    INACTIVE_ALPHA: .80,                  // Alpha for blurred/inactive weapon icons
     ACTIVE_ALPHA: 1,                  // Alpha for active weapon icon
     DESATURATION_AMOUNT: 0.65            // Desaturation amount (0 = full color, 1 = grayscale)
 };
