@@ -5,16 +5,13 @@ import { debug, debugWarn } from "../utils/debug.js";
 import { CleanupManager } from "./CleanupManager.js";
 
 /**
- * Centralized handler for all token interactions (Phase 1 refactoring)
+ * Centralized handler for all token interactions
  *
- * This class implements the new event handling architecture as specified in
- * docs/REFACTORING_PLAN.md Phase 1. It provides:
+ * This class provides the primary event handling for the weapon menu system:
  * - Selection-epoch guard (prevents first pointerup after selection from opening menu)
  * - Drag detection using distance-only threshold (5px)
  * - Unified event handling via libWrapper (left-clicks) and PIXI (right-clicks)
- *
- * When enabled via feature flag, this replaces the event handling logic
- * in WeaponMenuTokenClickManager while keeping all visual behavior identical.
+ * - Multi-token selection management (closes menu when 0 or >1 tokens selected)
  *
  * @extends CleanupManager
  */
@@ -164,10 +161,11 @@ export class TokenInteractionHandler extends CleanupManager {
 
     /**
      * Handle token control changes for selection epoch tracking
+     * Also manages menu closing when zero or multiple tokens are selected
      * @param {Token} token - The token being controlled/released
      * @param {boolean} controlled - Whether the token is now controlled
      */
-    handleControlToken(token, controlled) {
+    async handleControlToken(token, controlled) {
         if (!token.isOwner) return;
 
         debug('TokenInteractionHandler: Control token event', {
@@ -188,6 +186,20 @@ export class TokenInteractionHandler extends CleanupManager {
             // Token deselected - clean up
             this.selectionEpochs.delete(token);
             this.dragTracking.delete(token);
+        }
+
+        // Get current controlled tokens count
+        const controlledCount = canvas.tokens.controlled.length;
+
+        // Close menu if no tokens are selected or multiple tokens are selected
+        if (weaponSystemCoordinator.isMenuOpen()) {
+            if (controlledCount === 0) {
+                debug('TokenInteractionHandler: Closing menu - no tokens selected');
+                await this.closeWeaponMenu();
+            } else if (controlledCount > 1) {
+                debug('TokenInteractionHandler: Closing menu - multiple tokens selected');
+                await this.closeWeaponMenu();
+            }
         }
     }
 
@@ -376,6 +388,11 @@ export class TokenInteractionHandler extends CleanupManager {
             libWrapper.unregister('tokencontextmenu', 'Token.prototype._onClickLeft');
         }
 
+        // Clear tracking maps - WeakMaps don't have clear(), recreate them
+        this.selectionEpochs = new WeakMap();
+        this.dragTracking = new WeakMap();
+        this._currentSceneId = null;
+
         // Call parent cleanup for hooks
         super.cleanup();
 
@@ -383,7 +400,41 @@ export class TokenInteractionHandler extends CleanupManager {
 
         debug('TokenInteractionHandler: Cleanup complete');
     }
+
+    /**
+     * Get debug information about current state
+     * @returns {Object} Debug information about the handler's state
+     */
+    getDebugInfo() {
+        const controlledTokens = canvas.tokens?.controlled || [];
+
+        return {
+            instanceId: this.instanceId,
+            isSetup: this.isSetup,
+            currentSceneId: this._currentSceneId,
+            controlledTokens: controlledTokens.map(t => ({
+                name: t.name,
+                id: t.id
+            })),
+            selectionEpochs: Array.from(this.selectionEpochs.entries()).map(([token, epoch]) => ({
+                token: token.name,
+                consumed: epoch.consumed,
+                timestamp: epoch.timestamp
+            })),
+            dragTracking: Array.from(this.dragTracking.entries()).map(([token, info]) => ({
+                token: token.name,
+                isDragging: info.isDragging,
+                startX: info.startX,
+                startY: info.startY,
+                pointerDownTime: info.pointerDownTime
+            }))
+        };
+    }
 }
 
 // Export singleton instance
 export const tokenInteractionHandler = new TokenInteractionHandler();
+
+// Export for debugging
+window.tokenInteractionHandler = tokenInteractionHandler;
+window.tokenInteractionDebug = () => tokenInteractionHandler.getDebugInfo();

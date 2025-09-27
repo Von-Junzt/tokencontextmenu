@@ -8,7 +8,7 @@ import {showWeaponMenuUnderToken} from "../utils/weaponMenuDisplay.js";
 import {shouldReopenMenuAfterDrag, shouldShowWeaponMenuOnSelection} from "../settings/settings.js";
 import {WeaponMenuApplication} from "../applications/weaponMenuApplication.js";
 import {weaponSystemCoordinator} from "../managers/WeaponSystemCoordinator.js";
-import {weaponMenuTokenClickManager} from "../managers/WeaponMenuTokenClickManager.js";
+import {tokenInteractionHandler} from "../managers/TokenInteractionHandler.js";
 import {debug, debugWarn} from "../utils/debug.js";
 import {TIMING} from "../utils/constants.js";
 
@@ -79,7 +79,7 @@ function stopTokenMovementTracker(token) {
  * Delegates to WeaponMenuTokenClickManager for all click/selection handling
  */
 export function registerTokenHudSelectionHandler() {
-    weaponMenuTokenClickManager.setupEventHandlers();
+    tokenInteractionHandler.setupEventHandlers();
 }
 
 /**
@@ -152,7 +152,7 @@ export function debugAssertState() {
         weaponSystemCoordinator.updateMenuState({ weaponMenuOpen: actualMenuOpen });
     }
 
-    const clickManagerInfo = weaponMenuTokenClickManager.getDebugInfo();
+    const clickManagerInfo = tokenInteractionHandler.getDebugInfo();
     debug('Click Manager State:', clickManagerInfo);
 }
 
@@ -165,7 +165,7 @@ export async function cleanupTokenHandlers() {
     const { targetingSessionManager } = await import("../managers/TargetingSessionManager.js");
     
     // Clean up all managers
-    weaponMenuTokenClickManager.cleanup();
+    tokenInteractionHandler.cleanup();
     weaponSystemCoordinator.cleanup();
     targetingSessionManager.cleanup();
     

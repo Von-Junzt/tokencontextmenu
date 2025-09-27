@@ -20,8 +20,7 @@ export const TIMING = {
     MOVEMENT_THRESHOLD: 0.5,                 // Pixel threshold for movement detection
     
     // Drag detection
-    DRAG_THRESHOLD_PIXELS: 5,                // Pixels to move before considering it a drag
-    DRAG_DETECTION_DELAY: 150,               // Delay before opening menu to check for drag
+    DRAG_THRESHOLD_PIXELS: 5                 // Pixels to move before considering it a drag
 };
 
 /**
@@ -483,22 +482,3 @@ export const ECT_BLUR = {
     DESATURATION_AMOUNT: 0.65            // Desaturation amount (0 = full color, 1 = grayscale)
 };
 
-/**
- * Feature flag constants for phased refactoring
- * @description Controls experimental features during migration phases
- */
-export const FEATURE_FLAGS = {
-    // Phase 1: Centralized event handling (TokenInteractionHandler)
-    CENTRALIZED_HANDLER: {
-        SETTING_KEY: 'enableCentralizedHandler',
-        DEFAULT: false,  // Disabled by default for safety
-        DESCRIPTION: 'Enable experimental centralized event handler (Phase 1 refactoring)'
-    },
-    // Phase 2: Extract feature logic to existing managers
-    EXTRACTED_FEATURE_LOGIC: {
-        SETTING_KEY: 'enableExtractedFeatureLogic',
-        DEFAULT: false,  // Disabled by default for safety
-        DESCRIPTION: 'Enable experimental feature logic extraction (Phase 2 refactoring)'
-    }
-    // Future flags will be added here for subsequent phases
-};

@@ -4,7 +4,7 @@
  * Settings are client-scoped (per-user) to allow individual preferences.
  */
 import { debug } from "../utils/debug.js";
-import { EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM, EQUIPMENT_BLUR, COLORS, FEATURE_FLAGS } from "../utils/constants.js";
+import { EQUIPMENT_STATE_COLORS, EQUIPMENT_ZOOM, EQUIPMENT_BLUR, COLORS } from "../utils/constants.js";
 
 export function registerSettings() {
     // Debug setting - this should show up as last entry in the settings window
@@ -18,29 +18,7 @@ export function registerSettings() {
         requiresReload: false
     });
 
-    // Feature flag for Phase 1 refactoring - centralized event handler
-    game.settings.register("tokencontextmenu", FEATURE_FLAGS.CENTRALIZED_HANDLER.SETTING_KEY, {
-        name: game.i18n.localize("tokencontextmenu.Settings.EnableCentralizedHandler"),
-        hint: game.i18n.localize("tokencontextmenu.Settings.EnableCentralizedHandlerHint"),
-        scope: "client",
-        config: true,
-        type: Boolean,
-        default: FEATURE_FLAGS.CENTRALIZED_HANDLER.DEFAULT,
-        requiresReload: false
-    });
-
-    // Feature flag for Phase 2 refactoring - extracted feature logic
-    game.settings.register("tokencontextmenu", FEATURE_FLAGS.EXTRACTED_FEATURE_LOGIC.SETTING_KEY, {
-        name: game.i18n.localize("tokencontextmenu.Settings.EnableExtractedFeatureLogic"),
-        hint: game.i18n.localize("tokencontextmenu.Settings.EnableExtractedFeatureLogicHint"),
-        scope: "client",
-        config: true,
-        type: Boolean,
-        default: FEATURE_FLAGS.EXTRACTED_FEATURE_LOGIC.DEFAULT,
-        requiresReload: false
-    });
-
-    game.settings.register("tokencontextmenu", "autoRemoveTargets", {
+game.settings.register("tokencontextmenu", "autoRemoveTargets", {
         name: game.i18n.localize("tokencontextmenu.Settings.AutoRemoveTargets"),
         hint: game.i18n.localize("tokencontextmenu.Settings.AutoRemoveTargetsHint"),
         scope: "client",     // This makes it a per-client setting
@@ -561,32 +539,3 @@ export function getECTMenuIconScale() {
     return game.settings.get("tokencontextmenu", "ectMenuIconScale");
 }
 
-/**
- * Check if the centralized event handler is enabled
- * @returns {boolean} True if the experimental centralized handler is enabled
- * @description Feature flag for Phase 1 refactoring. When enabled, uses the new
- * TokenInteractionHandler for event management. Defaults to false for safety.
- */
-export function isCentralizedHandlerEnabled() {
-    // Safety check for early module initialization
-    if (typeof game === 'undefined' || !game.ready) {
-        return FEATURE_FLAGS.CENTRALIZED_HANDLER.DEFAULT;
-    }
-
-    return game.settings.get("tokencontextmenu", FEATURE_FLAGS.CENTRALIZED_HANDLER.SETTING_KEY);
-}
-
-/**
- * Check if the extracted feature logic is enabled
- * @returns {boolean} True if the experimental feature extraction is enabled
- * @description Feature flag for Phase 2 refactoring. When enabled, uses enhanced
- * EquipmentModeHandler and TargetingSessionManager for feature logic. Defaults to false for safety.
- */
-export function isExtractedFeatureLogicEnabled() {
-    // Safety check for early module initialization
-    if (typeof game === 'undefined' || !game.ready) {
-        return FEATURE_FLAGS.EXTRACTED_FEATURE_LOGIC.DEFAULT;
-    }
-
-    return game.settings.get("tokencontextmenu", FEATURE_FLAGS.EXTRACTED_FEATURE_LOGIC.SETTING_KEY);
-}
