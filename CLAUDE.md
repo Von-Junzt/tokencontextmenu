@@ -31,10 +31,12 @@ To develop:
      - Coordinates between all subsystems
      - Implements controlled token caching for performance
      - Provides singleton access via lowercase export
-   - `WeaponMenuTokenClickManager` - Handles token interactions
+   - `TokenInteractionHandler` - Central event handling (replaced WeaponMenuTokenClickManager)
      - Hybrid event handling (libWrapper + PIXI)
-     - Drag detection with 5-pixel threshold
+     - Selection-epoch guard prevents race conditions
+     - Drag detection with 5-pixel threshold (distance only)
      - Menu toggle behavior for selected tokens
+     - Multi-token selection management
    - `TargetingSessionManager` - Manages weapon targeting workflows
      - Single active session enforcement
      - Automatic cleanup on completion
@@ -44,12 +46,13 @@ To develop:
    - `EquipmentModeHandler` - Equipment mode business logic
      - Determines weapon update operations
      - Handles special weapon rules (unarmed, claws)
-     - Manages template weapon restrictions  
+     - Manages template weapon restrictions
      - Tracks equipment mode state per actor
    - `WeaponMenuTooltipManager` - HTML tooltip management
      - Extends CleanupManager for automatic cleanup
      - Handles tooltip positioning and lifecycle
      - Builds formatted tooltip content
+     - All positioning constants centralized
    - `CleanupManager` - Base class for resource management
      - Automatic hook and listener tracking
      - Consistent cleanup pattern
@@ -119,32 +122,35 @@ To develop:
 
 ### Important Patterns
 
-- **Singleton Pattern**: Managers exported as lowercase instances (e.g., `weaponSystemCoordinator`)
+- **Singleton Pattern**: Managers exported as lowercase instances (e.g., `tokenInteractionHandler`)
 - **Facade Pattern**: WeaponSystemCoordinator provides unified interface to subsystems
-- **State Machine Pattern**: Explicit state transitions with validation
+- **State Machine Pattern**: Explicit state transitions with validation in WeaponMenuApplication
 - **Mixin Pattern**: StateManager provides reusable functionality
 - **Observer Pattern**: Heavy use of Foundry hooks for event handling
 - **Resource Management**: CleanupManager base class ensures proper cleanup
 - **Dynamic Imports**: Avoids circular dependencies between modules
+- **Selection-Epoch Guard**: Prevents first pointerup after selection from opening menu
+- **WeakMap Token Tracking**: Memory-efficient tracking that auto-cleans on GC
 
-### Performance-Focused Architecture (IMPORTANT)
+### Performance-Focused Architecture
 
-The module uses an **optimized hybrid approach** based on what works best:
+The module uses an **event-driven approach** with deterministic behavior:
 
-1. **PIXI for Right-Clicks** - Works reliably
-   - Attaches to tokens layer
-   - `rightdown` event - Immediately closes menu on right-click
-   - No libWrapper overhead for right-clicks
+1. **TokenInteractionHandler** - Central event management
+   - libWrapper for `Token._onClickLeft` (primary click detection)
+   - PIXI `rightdown` event for immediate menu closing
+   - Selection-epoch guard prevents race conditions
+   - WeakMap tracking for memory efficiency
 
-2. **libWrapper for Left-Clicks** - Required due to PIXI limitations
-   - `Token._onClickLeft` - Intercepts left-clicks (PIXI doesn't catch these reliably)
-   - Lightweight wrapper that only sets up interaction handling
-   - This is the primary click detection method
+2. **Deterministic Behavior** - No timing dependencies
+   - 5px drag threshold (distance only, no delays)
+   - Immediate state transitions
+   - No temporal coupling between events
 
-3. **Direct Event Flow** - No temporal coupling
-   - Click detection → immediate action execution
-   - No `lastMouseButton` state tracking between events
-   - Each handler uses the best tool for its purpose
+3. **Clean Delegation** - Each manager has clear responsibility
+   - Event handling → TokenInteractionHandler
+   - Business logic → Specialized managers
+   - State coordination → WeaponSystemCoordinator
 
 ### Menu Behavior Specification
 
@@ -166,36 +172,34 @@ The module uses an **optimized hybrid approach** based on what works best:
    - Menu closes immediately when token starts moving
    - Menu reopens when movement stops (if setting enabled)
 
-### Recent Architecture Updates
+### Recent Architecture Updates (Refactoring Complete)
 
-- **Performance Optimization**: Added controlled token caching to reduce DOM queries
-- **Click Detection**: Replaced timing-based detection with deterministic event handling
-- **Memory Management**: Fixed PIXI event listener cleanup issues
-- **Module ID Migration**: Changed from "vjpmacros" to "tokencontextmenu"
-- **Drag Detection**: Enhanced to prevent menu during token drags
-- **Equipment Mode**: Added expand/collapse functionality with inventory management
+- **Event-Driven Architecture**: Completed Phase 0-3 refactoring to remove timing dependencies
+  - TokenInteractionHandler provides centralized event handling
+  - Selection-epoch guard prevents race conditions
+  - Deterministic drag detection (5px threshold only)
+  - Removed all feature flags - new architecture is default
+- **Memory Management**: WeakMap-based token tracking prevents leaks
+- **Clean Separation of Concerns**:
+  - TokenInteractionHandler: All pointer/click events
+  - EquipmentModeHandler: Equipment and reload business logic
+  - TargetingSessionManager: Weapon targeting workflows
+  - WeaponMenuTooltipManager: Tooltip creation and positioning
+  - WeaponSystemCoordinator: Central state coordination
+- **Constants Consolidation**: All magic numbers extracted to constants.js
+- **Equipment Mode**: Expand/collapse with inventory management
   - Single button controls both weapons and powers sections
   - Visual indicators for carried/unfavorited items
-  - Complex state management for different weapon types
-- **Single Responsibility Refactoring**: Extracted specialized components
-  - EquipmentModeHandler for equipment business logic
-  - WeaponMenuTooltipManager for tooltip management
-  - WeaponMenuBuilder for menu construction
-- **Permission Checks**: Added actor ownership validation to all update operations
-- **Special Weapon Handling**: Simplified to use array-based checks
-  - Special weapons (unarmed, claws, knife) now behave like regular weapons
-  - Must be equipped to appear in menu (no longer always shown)
-  - Sort to end of list for better organization
-  - Configurable via `WEAPON_PRIORITY.SPECIAL_WEAPONS` array
+- **Special Weapon Handling**: Array-based configuration
+  - Must be equipped to appear in menu
+  - Configurable via `WEAPON_PRIORITY.SPECIAL_WEAPONS`
 
 ### Known Issues & Technical Debt
 
-1. **Syntax Error**: Double semicolon in `constants.js` COLORS export (line 79) - ✓ Fixed externally
-2. **Missing Error Handling**: Weapon update operations lack validation and permission checks - ✓ Fixed
-3. **Performance**: Full menu rebuild on expand/collapse instead of incremental updates
-4. **Code Duplication**: Significant duplication between `_createPIXIContainer()` and `_rebuildMenuContent()` - ✓ Fixed
-5. **Architecture**: `WeaponMenuApplication` violates single responsibility principle - ✓ Fixed
-6. **UX Confusion**: Single expand button controls both weapons and powers sections
+1. **Performance**: Full menu rebuild on expand/collapse instead of incremental updates
+2. **UX Confusion**: Single expand button controls both weapons and powers sections
+3. **Error Handling**: Limited error recovery in dynamic imports and cleanup paths
+4. **Testing**: No automated tests - relies on manual testing checklist
 
 ### Debugging
 
