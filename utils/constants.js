@@ -469,3 +469,17 @@ export const ECT_BLUR = {
     ACTIVE_ALPHA: 1,                  // Alpha for active weapon icon
     DESATURATION_AMOUNT: 0.65            // Desaturation amount (0 = full color, 1 = grayscale)
 };
+
+/**
+ * Feature flag constants for phased refactoring
+ * @description Controls experimental features during migration phases
+ */
+export const FEATURE_FLAGS = {
+    // Phase 1: Centralized event handling (TokenInteractionHandler)
+    CENTRALIZED_HANDLER: {
+        SETTING_KEY: 'enableCentralizedHandler',
+        DEFAULT: false,  // Disabled by default for safety
+        DESCRIPTION: 'Enable experimental centralized event handler (Phase 1 refactoring)'
+    }
+    // Future flags will be added here for subsequent phases
+};

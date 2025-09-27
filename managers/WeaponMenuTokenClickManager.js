@@ -1,12 +1,13 @@
 import { weaponSystemCoordinator } from "./WeaponSystemCoordinator.js";
 import { tokenDragManager } from "./TokenDragManager.js";
 import { ectMenuManager } from "./ECTMenuManager.js";
-import { shouldShowWeaponMenuOnSelection } from "../settings/settings.js";
+import { shouldShowWeaponMenuOnSelection, isCentralizedHandlerEnabled } from "../settings/settings.js";
 import { TIMING } from "../utils/constants.js";
 import { debug, debugWarn } from "../utils/debug.js";
 import { tickerDelay } from "../utils/timingUtils.js";
 import { CleanupManager } from "./CleanupManager.js";
 import { StateManager } from "./StateManager.js";
+import { tokenInteractionHandler } from "./TokenInteractionHandler.js";
 
 /**
  * Centralized manager for all token click interactions related to weapon menus
@@ -61,19 +62,37 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
 
     /**
      * Initialize all event handlers - call this from the main init
-     * 
+     *
      * ARCHITECTURE NOTE: This module uses a hybrid event handling approach:
      * - libWrapper for left-clicks (required - Foundry consumes these events)
      * - PIXI for right-clicks (optimal - these propagate normally)
-     * 
+     *
      * This is NOT a workaround but the optimal solution for Foundry VTT.
      * See docs/EVENT_HANDLING.md for detailed explanation.
-     * 
+     *
+     * Phase 1 Refactoring: When the centralized handler is enabled via feature flag,
+     * delegates all event handling to TokenInteractionHandler for testing.
+     *
      * @public
      */
     setupEventHandlers() {
-        debug('Setting up all event handlers', { instanceId: this.instanceId });
-        
+        debug('Setting up all event handlers', {
+            instanceId: this.instanceId,
+            useCentralizedHandler: isCentralizedHandlerEnabled()
+        });
+
+        // Phase 1: Check if we should use the new centralized handler
+        if (isCentralizedHandlerEnabled()) {
+            debug('PHASE 1: Using new TokenInteractionHandler (feature flag enabled)');
+            tokenInteractionHandler.setupEventHandlers();
+            // Still setup controlToken for cleanup tracking
+            if (this.boundHandlers.handleTokenSelection) {
+                Hooks.on("controlToken", this.boundHandlers.handleTokenSelection);
+            }
+            return; // Exit early - let the new handler manage events
+        }
+
+        // Original implementation (when feature flag is disabled)
         // Use controlToken hook only for cleanup tracking
         if (this.boundHandlers.handleTokenSelection) {
             Hooks.on("controlToken", this.boundHandlers.handleTokenSelection);
@@ -81,11 +100,11 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
         }
 
         // Setup optimized click detection:
-        // - PIXI for right-clicks (works reliably)  
+        // - PIXI for right-clicks (works reliably)
         // - libWrapper for left-clicks (PIXI doesn't catch these)
         this.setupPixiClickHandlers();
         this.setupTokenInterceptors();
-        
+
         debug('Event handlers setup complete');
         
         // Store the current scene ID on the instance to persist between handler calls
@@ -478,6 +497,32 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
      * Call this when the module is disabled or during scene teardown
      */
     cleanup() {
+        debug('Cleaning up all event handlers', {
+            instanceId: this.instanceId,
+            usedCentralizedHandler: isCentralizedHandlerEnabled()
+        });
+
+        // Phase 1: Clean up the centralized handler if it was used
+        if (isCentralizedHandlerEnabled()) {
+            debug('PHASE 1: Cleaning up TokenInteractionHandler');
+            tokenInteractionHandler.cleanup();
+        } else {
+            // Original cleanup for legacy implementation
+            // Clean up all token listeners
+            if (canvas?.tokens?.placeables) {
+                canvas.tokens.placeables.forEach(token => {
+                    this.cleanupTokenListeners(token);
+                });
+            }
+
+            // Remove PIXI event listeners
+            if (canvas?.tokens && this._handleRightDown) {
+                canvas.tokens.off('rightdown', this._handleRightDown);
+                this._handleRightDown = null;
+            }
+        }
+
+        // Common cleanup for both implementations
         // Remove hook handlers for controlToken if registered separately
         if (this.boundHandlers.handleTokenSelection) {
             Hooks.off("controlToken", this.boundHandlers.handleTokenSelection);
@@ -487,19 +532,6 @@ export class WeaponMenuTokenClickManager extends CleanupManager {
         if (this.state.menuDelayId) {
             tickerDelay.cancel(this.state.menuDelayId);
             this.state.menuDelayId = null;
-        }
-
-        // Clean up all token listeners
-        if (canvas?.tokens?.placeables) {
-            canvas.tokens.placeables.forEach(token => {
-                this.cleanupTokenListeners(token);
-            });
-        }
-
-        // Remove PIXI event listeners
-        if (canvas?.tokens && this._handleRightDown) {
-            canvas.tokens.off('rightdown', this._handleRightDown);
-            this._handleRightDown = null;
         }
         
         // Remove canvas ready handler for PIXI re-setup if it exists
