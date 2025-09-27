@@ -6,7 +6,7 @@
 import { weaponSystemCoordinator } from "../managers/WeaponSystemCoordinator.js";
 import { targetingSessionManager } from "../managers/TargetingSessionManager.js";
 import { debugWarn } from "./debug.js";
-import { WEAPON_PRIORITY } from "./constants.js";
+import { WEAPON_PRIORITY, TOOLTIP } from "./constants.js";
 
 // Global interaction layer management
 let globalInteractionLayer = null;
@@ -29,8 +29,8 @@ export function showTargetTooltip(show = true) {
             _tooltipMouseHandler = (e) => {
                 const tooltip = document.getElementById('cursor-tooltip');
                 if (tooltip) {
-                    tooltip.style.left = (e.clientX + 15) + 'px';
-                    tooltip.style.top = (e.clientY + 10) + 'px';
+                    tooltip.style.left = (e.clientX + TOOLTIP.CURSOR_OFFSET_X_TARGET) + 'px';
+                    tooltip.style.top = (e.clientY + TOOLTIP.CURSOR_OFFSET_Y_TARGET) + 'px';
                 }
             };
 

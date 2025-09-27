@@ -5,7 +5,7 @@
 
 import { CleanupManager } from "./CleanupManager.js";
 import { debug, debugWarn } from "../utils/debug.js";
-import { Z_INDEX, EQUIP_STATUS } from "../utils/constants.js";
+import { Z_INDEX, EQUIP_STATUS, TOOLTIP } from "../utils/constants.js";
 
 /**
  * Manages tooltips for the weapon menu
@@ -56,22 +56,22 @@ class WeaponMenuTooltipManager extends CleanupManager {
 
             // Center horizontally, position below cursor
             tooltip.style.left = (x - tooltip.offsetWidth / 2) + 'px';
-            tooltip.style.top = (y + 25) + 'px';
+            tooltip.style.top = (y + TOOLTIP.CURSOR_OFFSET_Y) + 'px';
 
             // Keep tooltip on screen
             const tooltipRect = tooltip.getBoundingClientRect();
-            
+
             // Adjust horizontal position if needed
             if (tooltipRect.right > window.innerWidth) {
-                tooltip.style.left = (window.innerWidth - tooltipRect.width - 10) + 'px';
+                tooltip.style.left = (window.innerWidth - tooltipRect.width - TOOLTIP.EDGE_PADDING) + 'px';
             } else if (tooltipRect.left < 0) {
-                tooltip.style.left = '10px';
+                tooltip.style.left = TOOLTIP.EDGE_PADDING + 'px';
             }
 
             // Adjust vertical position if needed
             if (tooltipRect.bottom > window.innerHeight) {
                 // Show above cursor instead
-                tooltip.style.top = (y - tooltipRect.height - 10) + 'px';
+                tooltip.style.top = (y - tooltipRect.height - TOOLTIP.EDGE_PADDING) + 'px';
             }
         };
 

@@ -156,12 +156,174 @@ class TargetingSessionManager extends CleanupManager {
     cleanup() {
         // End any active session
         this.endSession();
-        
+
         // Reset state
         this.resetState();
-        
+
         // Call parent cleanup to remove hooks
         super.cleanup();
+    }
+
+    // ============= Phase 2 Refactoring: Weapon Targeting Logic =============
+
+    /**
+     * Begin a weapon roll targeting session (Phase 2 feature extraction)
+     * @param {Token} token - The token making the attack
+     * @param {string} weaponId - The ID of the weapon being used
+     * @param {Function} hideMenuCallback - Callback to hide the menu
+     * @returns {Promise<void>}
+     */
+    async beginWeaponRoll(token, weaponId, hideMenuCallback) {
+        // Import dependencies to avoid circular references
+        const { betterRollsAdapter } = await import("../integrations/BetterRollsAdapter.js");
+        const { shouldAutoRemoveTargets } = await import("../settings/settings.js");
+        const { showTargetTooltip, setupTargetClickHandlers, emergencyCleanupTargeting } = await import("../utils/interactionLayerUtils.js");
+
+        // Hide menu first to prevent interference
+        if (hideMenuCallback) hideMenuCallback();
+
+        // Get weapon
+        const weapon = token.actor.items.find(i => i.id === weaponId);
+        if (!weapon) {
+            ui.notifications.error("Weapon not found.");
+            return;
+        }
+
+        // Ensure weapon data is up to date
+        await weapon.prepareDerivedData?.();
+
+        debug(`Beginning weapon roll for "${weapon.name}"`, {
+            weaponId: weapon.id,
+            requiresTarget: betterRollsAdapter.requiresTarget(weapon)
+        });
+
+        // Check if weapon requires a target
+        if (!betterRollsAdapter.requiresTarget(weapon)) {
+            // Template/AOE weapons - create roll immediately
+            if (game.user.targets.size > 0) {
+                debug(`Clearing ${game.user.targets.size} lingering targets for template weapon`);
+                game.user.targets.forEach(t => t.setTarget(false, {user: game.user}));
+                game.user.targets.clear();
+            }
+            await betterRollsAdapter.createWeaponCard(token.actor, weaponId, { tokenId: token.id });
+            return;
+        }
+
+        // Clear existing targets if the setting is enabled
+        if (shouldAutoRemoveTargets()) {
+            game.user.targets.forEach(t => t.setTarget(false, {user: game.user}));
+            game.user.targets.clear();
+        }
+
+        // Check for existing target
+        if (game.user.targets.size > 0) {
+            // We have a target, create the card directly
+            await betterRollsAdapter.createWeaponCard(token.actor, weaponId, { tokenId: token.id });
+            return;
+        }
+
+        // No target - need to start targeting session
+        await this.startWeaponTargeting(token, weaponId);
+    }
+
+    /**
+     * Start a weapon targeting session (Phase 2 feature extraction)
+     * @param {Token} token - The token making the attack
+     * @param {string} weaponId - The ID of the weapon
+     * @returns {Promise<void>}
+     */
+    async startWeaponTargeting(token, weaponId) {
+        // Import dependencies
+        const { showTargetTooltip, setupTargetClickHandlers, emergencyCleanupTargeting } = await import("../utils/interactionLayerUtils.js");
+
+        // End any existing targeting session
+        if (this.isActive()) {
+            this.endSession();
+        }
+
+        // Clean up any existing targeting first
+        emergencyCleanupTargeting();
+
+        // Show the target tooltip IMMEDIATELY
+        showTargetTooltip(true);
+
+        // Store data for later
+        const pendingData = {
+            actorId: token.actor.id,
+            weaponId: weaponId,
+            tokenId: token.id,
+            timestamp: Date.now()
+        };
+
+        // Store the pending data
+        await game.user.setFlag('tokencontextmenu', 'pendingWeaponRoll', pendingData);
+
+        // Start the targeting session
+        const sessionId = `weapon-${weaponId}-${Date.now()}`;
+        this.startSession(sessionId, () => {
+            showTargetTooltip(false);
+        });
+
+        // Variable to track if we've already handled the targeting
+        let targetHandled = false;
+
+        // Set up click handlers for target selection
+        setupTargetClickHandlers(
+            pendingData,
+            // On target selected callback
+            async () => {
+                if (targetHandled) return;
+                targetHandled = true;
+
+                showTargetTooltip(false);
+                await this.completeWeaponTargeting(token, pendingData);
+            },
+            // On abort callback
+            async (reason) => {
+                if (targetHandled) return;
+                targetHandled = true;
+
+                showTargetTooltip(false);
+                await game.user.unsetFlag('tokencontextmenu', 'pendingWeaponRoll');
+                this.endSession();
+
+                if (reason && !reason.includes('manually aborted')) {
+                    ui.notifications.warn(reason);
+                }
+            }
+        );
+    }
+
+    /**
+     * Complete a weapon targeting session (Phase 2 feature extraction)
+     * @param {Token} token - The token making the attack
+     * @param {Object} pendingData - The pending weapon roll data
+     * @returns {Promise<void>}
+     */
+    async completeWeaponTargeting(token, pendingData) {
+        const { betterRollsAdapter } = await import("../integrations/BetterRollsAdapter.js");
+
+        const storedData = await game.user.getFlag('tokencontextmenu', 'pendingWeaponRoll');
+
+        // Verify it's the same pending action (using timestamp)
+        if (storedData && storedData.timestamp === pendingData.timestamp) {
+            await game.user.unsetFlag('tokencontextmenu', 'pendingWeaponRoll');
+
+            const actor = token.actor;
+            if (actor && game.user.targets.size > 0) {
+                await betterRollsAdapter.createWeaponCard(actor, storedData.weaponId, { tokenId: token.id });
+            } else if (!game.user.targets.size) {
+                ui.notifications.warn("Target was lost. Please try again.");
+            } else {
+                ui.notifications.error("Could not find the actor. Please try again.");
+            }
+        } else {
+            debug('Stored data mismatch or missing');
+            ui.notifications.warn("Action data mismatch. Please try again.");
+        }
+
+        // End the targeting session
+        this.endSession();
     }
 }
 

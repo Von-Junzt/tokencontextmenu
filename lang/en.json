@@ -17,6 +17,8 @@
             "DebugModeHint": "Enable debug logging for troubleshooting weapon menu issues",
             "EnableCentralizedHandler": "Enable Experimental Event Handler (Phase 1)",
             "EnableCentralizedHandlerHint": "WARNING: Experimental feature for testing the centralized event handler refactoring. Keep disabled unless you're actively testing the new implementation. This flag gates Phase 1 of the refactoring plan and allows safe parallel testing.",
+            "EnableExtractedFeatureLogic": "Enable Extracted Feature Logic (Phase 2)",
+            "EnableExtractedFeatureLogicHint": "WARNING: Experimental feature for testing the extracted feature logic refactoring. Keep disabled unless you're actively testing Phase 2. This moves weapon/equipment/reload logic into specialized managers. Requires Phase 1 to be enabled.",
             "ShowEquipmentBadges": "Show Equipment Badges",
             "ShowEquipmentBadgesHint": "Display status badges on items in equipment mode (equipment status for weapons, favorite status for powers).",
             "EquipmentBadgeColor": "Equipment Badge Color",

@@ -32,6 +32,19 @@ export const Z_INDEX = {
 };
 
 /**
+ * Tooltip positioning constants
+ */
+export const TOOLTIP = {
+    // Offsets from cursor position
+    CURSOR_OFFSET_Y: 25,                     // Pixels below cursor for weapon tooltips
+    CURSOR_OFFSET_X_TARGET: 15,              // Pixels right of cursor for target tooltip
+    CURSOR_OFFSET_Y_TARGET: 10,              // Pixels below cursor for target tooltip
+
+    // Edge padding
+    EDGE_PADDING: 10,                        // Minimum distance from viewport edges
+};
+
+/**
  * Size constants relative to grid size
  */
 export const SIZES = {
@@ -480,6 +493,12 @@ export const FEATURE_FLAGS = {
         SETTING_KEY: 'enableCentralizedHandler',
         DEFAULT: false,  // Disabled by default for safety
         DESCRIPTION: 'Enable experimental centralized event handler (Phase 1 refactoring)'
+    },
+    // Phase 2: Extract feature logic to existing managers
+    EXTRACTED_FEATURE_LOGIC: {
+        SETTING_KEY: 'enableExtractedFeatureLogic',
+        DEFAULT: false,  // Disabled by default for safety
+        DESCRIPTION: 'Enable experimental feature logic extraction (Phase 2 refactoring)'
     }
     // Future flags will be added here for subsequent phases
 };

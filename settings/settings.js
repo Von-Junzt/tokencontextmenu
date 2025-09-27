@@ -29,6 +29,17 @@ export function registerSettings() {
         requiresReload: false
     });
 
+    // Feature flag for Phase 2 refactoring - extracted feature logic
+    game.settings.register("tokencontextmenu", FEATURE_FLAGS.EXTRACTED_FEATURE_LOGIC.SETTING_KEY, {
+        name: game.i18n.localize("tokencontextmenu.Settings.EnableExtractedFeatureLogic"),
+        hint: game.i18n.localize("tokencontextmenu.Settings.EnableExtractedFeatureLogicHint"),
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: FEATURE_FLAGS.EXTRACTED_FEATURE_LOGIC.DEFAULT,
+        requiresReload: false
+    });
+
     game.settings.register("tokencontextmenu", "autoRemoveTargets", {
         name: game.i18n.localize("tokencontextmenu.Settings.AutoRemoveTargets"),
         hint: game.i18n.localize("tokencontextmenu.Settings.AutoRemoveTargetsHint"),
@@ -563,4 +574,19 @@ export function isCentralizedHandlerEnabled() {
     }
 
     return game.settings.get("tokencontextmenu", FEATURE_FLAGS.CENTRALIZED_HANDLER.SETTING_KEY);
+}
+
+/**
+ * Check if the extracted feature logic is enabled
+ * @returns {boolean} True if the experimental feature extraction is enabled
+ * @description Feature flag for Phase 2 refactoring. When enabled, uses enhanced
+ * EquipmentModeHandler and TargetingSessionManager for feature logic. Defaults to false for safety.
+ */
+export function isExtractedFeatureLogicEnabled() {
+    // Safety check for early module initialization
+    if (typeof game === 'undefined' || !game.ready) {
+        return FEATURE_FLAGS.EXTRACTED_FEATURE_LOGIC.DEFAULT;
+    }
+
+    return game.settings.get("tokencontextmenu", FEATURE_FLAGS.EXTRACTED_FEATURE_LOGIC.SETTING_KEY);
 }
