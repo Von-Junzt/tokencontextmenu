@@ -190,7 +190,7 @@ export class WeaponMenuApplication {
     }
 
     /**
-     * Animates the menu sliding up and fading in
+     * Animates the menu sliding up and fading in using Foundry's CanvasAnimation API
      * @param {number} targetY - The final Y position
      * @private
      */
@@ -200,46 +200,52 @@ export class WeaponMenuApplication {
             debugWarn('Cannot animate menu - container is invalid');
             return;
         }
-        
-        const startTime = Date.now();
-        const duration = WEAPON_MENU_ANIMATION.DURATION;
+
         const startY = this.container.y;
         const startAlpha = this.container.alpha;
 
-        const animate = () => {
-            // Check if container still exists and is valid
-            if (!this.container || this.container.destroyed) {
-                return; // Stop animation if container is gone
+        // Generate unique animation name for this menu instance
+        const animationName = `weapon-menu-open-${this.token.id}-${Date.now()}`;
+
+        // Store animation promise and name for potential cancellation
+        this._openAnimationName = animationName;
+        this._openAnimationPromise = CanvasAnimation.animate(
+            [
+                {
+                    parent: this.container,
+                    attribute: 'y',
+                    from: startY,
+                    to: targetY
+                },
+                {
+                    parent: this.container,
+                    attribute: 'alpha',
+                    from: startAlpha,
+                    to: WEAPON_MENU_ANIMATION.FINAL_ALPHA
+                }
+            ],
+            {
+                name: animationName,
+                duration: WEAPON_MENU_ANIMATION.DURATION,
+                easing: this._easeOutQuad.bind(this),
+                ontick: (dt, animation) => {
+                    // Validate container still exists during animation
+                    if (!this.container || this.container.destroyed) {
+                        CanvasAnimation.terminateAnimation(animationName);
+                    }
+                }
             }
-            
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-
-            // Apply easeOutQuad easing
-            const eased = this._easeOutQuad(progress);
-
-            // Update position and alpha
-            this.container.y = startY + (targetY - startY) * eased;
-            this.container.alpha = startAlpha + (WEAPON_MENU_ANIMATION.FINAL_ALPHA - startAlpha) * eased;
-
-            // Continue animation or cleanup
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        };
-
-        // Start animation
-        animate();
+        );
     }
 
     /**
-     * EaseOutQuad easing function - decelerating
-     * @param {number} t - Progress (0-1)
-     * @returns {number} Eased value
+     * EaseOutQuad easing function for Foundry's CanvasAnimation
+     * @param {number} pt - Progress time (0-1)
+     * @returns {number} Eased progress value
      * @private
      */
-    _easeOutQuad(t) {
-        return t * (2 - t);
+    _easeOutQuad(pt) {
+        return pt * (2 - pt);
     }
 
     /**
@@ -699,6 +705,13 @@ export class WeaponMenuApplication {
             this.stateMachine.transition('CLOSING');
             
             try {
+                // Terminate any running animations
+                if (this._openAnimationName) {
+                    CanvasAnimation.terminateAnimation(this._openAnimationName);
+                    this._openAnimationName = null;
+                    this._openAnimationPromise = null;
+                }
+
                 // Hide tooltip
                 this._hideTooltip();
 
@@ -769,7 +782,19 @@ export class WeaponMenuApplication {
      */
     _emergencyCleanup() {
         debugWarn('Performing emergency weapon menu cleanup');
-        
+
+        // Terminate any running animations
+        try {
+            if (this._openAnimationName) {
+                CanvasAnimation.terminateAnimation(this._openAnimationName);
+                this._openAnimationName = null;
+                this._openAnimationPromise = null;
+            }
+        } catch (e) {
+            // Intentionally suppressing error during emergency cleanup
+            debugWarn('Non-critical error during emergency cleanup - animation (continuing)', e);
+        }
+
         // Force remove all event listeners
         try {
             if (this.clickOutsideHandler && canvas.stage) {
@@ -789,7 +814,7 @@ export class WeaponMenuApplication {
             // This prevents cleanup from failing partway through
             debugWarn('Non-critical error during emergency cleanup - event listeners (continuing)', e);
         }
-        
+
         // Force hide tooltip
         try {
             this._hideTooltip();
